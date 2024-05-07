@@ -63,6 +63,7 @@ def main(
     log_dir: str,
     testbed: str,
     conda_link: str,
+    path_conda: str,
     log_suffix: str,
     skip_existing: bool,
     timeout: int,
@@ -89,7 +90,7 @@ def main(
         raise ValueError("--log_dir must exist and point at a directory")
     if not os.path.exists(testbed) or not os.path.isdir(testbed):
         raise ValueError("--testbed must exist and point at a directory")
-    
+
     tasks = list(get_eval_refs(swe_bench_tasks).values())
 
     # Verify arguments are formatted correctly
@@ -156,6 +157,7 @@ def main(
                 args.timeout = timeout
                 args.verbose = verbose
                 args.conda_link = conda_link
+                args.path_conda = path_conda
 
                 # Remove predictions that have already been evaluated
                 repo_version_predictions = map_repo_version_to_predictions[repo][version]
@@ -180,7 +182,7 @@ def main(
                         repo_version_predictions = predictions_filtered
                 else:
                     logger.info(f"[{model}/{repo}/{version}] # of predictions to evaluate: {len(repo_version_predictions)}")
-                
+
                 # Save predictions to file
                 with open(file_path, "w") as f:
                     json.dump(repo_version_predictions, f, indent=4)
@@ -219,6 +221,11 @@ if __name__ == "__main__":
     parser.add_argument("--swe_bench_tasks", type=str, help="Path to dataset file or HF datasets name", required=True)
     parser.add_argument("--testbed", type=str, help="Path to testbed directory", required=True)
     parser.add_argument("--conda_link", type=str, default=None, help="(Optional) URL to conda installation to use")
+    parser.add_argument(
+        "--path_conda",
+        type=str,
+        help="(Optional) Path to miniconda3 or anaconda installation",
+    )
     parser.add_argument("--log_suffix", type=str, help="(Optional) Suffix to append to log file names", default=None)
     parser.add_argument("--skip_existing", action="store_true", help="(Optional) Skip existing logs")
     parser.add_argument("--timeout", type=int, help="(Optional) Timeout in seconds (default: 900)", default=900)
