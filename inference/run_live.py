@@ -212,7 +212,6 @@ def main(
         start = time.time()
         if model_name.startswith("gpt"):
             import openai
-            openai.api_key = os.environ.get("OPENAI_API_KEY", None)
             inputs = instance["text_inputs"]
             response, _ = call_chat(
                 model_name, inputs, use_azure=False, temperature=0, top_p=1
