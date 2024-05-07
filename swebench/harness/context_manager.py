@@ -1,5 +1,7 @@
 import logging, os, platform, subprocess, json
 
+from filelock import FileLock
+from git import Repo
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from swebench.harness.constants import (
     APPLY_PATCH_FAIL,
@@ -146,7 +148,7 @@ class TestbedContextManager:
         if temp_dir is not None and not os.path.exists(temp_dir):
             logger_testbed.info(f"[Testbed] Creating temp directory {temp_dir}")
             os.makedirs(temp_dir, exist_ok=True)
-        temp_dir = os.path.abspath(temp_dir) if temp_dir is not None else None
+        self.temp_dir = os.path.abspath(temp_dir) if temp_dir is not None else None
 
         # Sort task instances by created_at
         self.task_instances = sorted(
@@ -169,12 +171,12 @@ class TestbedContextManager:
             if version not in self.task_instances_grouped[repo]:
                 self.task_instances_grouped[repo][version] = []
             self.task_instances_grouped[repo][version].append(instance)
-        
+
         # Check if instances are from single repo/version
         self.is_single_repo_version = len(self.task_instances_grouped) == 1 and \
             len(self.task_instances_grouped) == 1 and \
             len(list(self.task_instances_grouped.values())[0]) == 1
-        
+
         # Create log file for testbed
         log_file_name = "testbed"
         if self.is_single_repo_version:
@@ -321,7 +323,7 @@ class TestbedContextManager:
                 # Clone github per repo/version
                 repo_path = os.path.join(self.testbed, env_name)
                 if not os.path.exists(repo_path):
-                    clone_repo(repo, repo_path)
+                    self._clone_repo(repo, repo_path)
                     self.log.write(f"Cloned {repo} to {repo_path}")
                 else:
                     self.log.write(f"Repo for {repo_prefix} version {version} exists: {repo_path}; skipping")
@@ -387,7 +389,7 @@ class TestbedContextManager:
                     cmd = f"{exec_cmd} create -n {env_name} python={install['python']} {pkgs} -y"
                     self.log.write(f"Creating environment {env_name}")
                     self.exec(cmd.split(" "))
-                
+
                 arch = platform.machine()
                 arch_specific_packages = install.get("arch_specific_packages", {}).get(arch, "")
                 if arch_specific_packages:
@@ -446,6 +448,18 @@ class TestbedContextManager:
                         f"{repo} (Install instructions not given)"
                     ))
                     del group[version]
+
+    def _clone_repo(self, repo, repo_path):
+        """
+        Clone repository from a base clone to repo_path
+        """
+        base_path = os.path.join(self.temp_dir, "..", "git")
+        # clone repo to basepath if not exists, under a file lock
+        with FileLock(base_path + ".lock"):
+            if not os.path.exists(base_path):
+                self.log.write(f"Cloning base {repo} to {base_path}")
+                clone_repo(repo, base_path)
+        Repo.clone_from(base_path, repo_path)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         if self.temp_dir_work is not None:
