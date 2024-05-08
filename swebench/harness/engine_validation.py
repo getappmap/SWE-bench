@@ -4,6 +4,7 @@ from multiprocessing import Pool, cpu_count
 from swebench.harness.constants import PatchType
 from swebench.harness.context_manager import TaskEnvContextManager, TestbedContextManager
 from swebench.harness.utils import get_instances, split_instances, DotDict
+from swebench.metrics.getters import get_eval_refs
 
 
 SKIP_INSTANCES = {"pytest-dev/pytest": ["6387", "7956", "3805"]}
@@ -13,8 +14,6 @@ def validate_args(args):
     """
     Validation for command line arguments
     """
-    if not os.path.exists(args.instances_path):
-        raise ValueError(f"Could not find instances file at {args.instances_path}")
     if not os.path.exists(args.log_dir):
         raise ValueError(f"Could not find log directory at {args.log_dir}")
 
@@ -121,7 +120,7 @@ def main(args):
     if args.num_workers is None:
         args.num_workers = cpu_count()
 
-    task_instances = get_instances(args.instances_path)
+    task_instances = list(get_eval_refs(args.instances_path).values())
     task_instances_groups = split_instances(task_instances, args.num_workers)
 
     data_groups = [
