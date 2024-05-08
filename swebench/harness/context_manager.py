@@ -30,7 +30,7 @@ from swebench.harness.utils import (
     get_requirements,
     get_test_directives,
 )
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, gettempdir
 from traceback import format_exc
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
@@ -453,7 +453,7 @@ class TestbedContextManager:
         """
         Clone repository from a base clone to repo_path
         """
-        base_path = os.path.join(self.temp_dir, "..", "git")
+        base_path = os.path.join(gettempdir(), "git-repos", repo)
         # clone repo to basepath if not exists, under a file lock
         with FileLock(base_path + ".lock"):
             if not os.path.exists(base_path):
