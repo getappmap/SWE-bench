@@ -1,6 +1,8 @@
 import json
 import os
 import re
+from tempfile import gettempdir
+from filelock import FileLock
 import requests
 import subprocess
 
@@ -263,6 +265,18 @@ def clone_repo(repo_name: str, path: str, token: str = None) -> bool:
     except Exception as e:
         print(e)
         return False
+
+
+def clone_to(repo, repo_path):
+    """
+    Clone repository through a base clone to repo_path
+    """
+    base_path = os.path.join(gettempdir(), "git-repos", repo)
+    # clone repo to basepath if not exists, under a file lock
+    with FileLock(base_path + ".lock"):
+        if not os.path.exists(base_path):
+            clone_repo(repo, base_path)
+    Repo.clone_from(base_path, repo_path)
 
 
 def split_instances(input_list: list, n: int) -> list:

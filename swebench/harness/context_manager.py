@@ -25,6 +25,7 @@ from swebench.harness.constants import (
 )
 from swebench.harness.utils import (
     clone_repo,
+    clone_to,
     get_conda_env_names,
     get_environment_yml,
     get_requirements,
@@ -323,7 +324,7 @@ class TestbedContextManager:
                 # Clone github per repo/version
                 repo_path = os.path.join(self.testbed, env_name)
                 if not os.path.exists(repo_path):
-                    self._clone_repo(repo, repo_path)
+                    clone_to(repo, repo_path)
                     self.log.write(f"Cloned {repo} to {repo_path}")
                 else:
                     self.log.write(f"Repo for {repo_prefix} version {version} exists: {repo_path}; skipping")
@@ -448,18 +449,6 @@ class TestbedContextManager:
                         f"{repo} (Install instructions not given)"
                     ))
                     del group[version]
-
-    def _clone_repo(self, repo, repo_path):
-        """
-        Clone repository from a base clone to repo_path
-        """
-        base_path = os.path.join(gettempdir(), "git-repos", repo)
-        # clone repo to basepath if not exists, under a file lock
-        with FileLock(base_path + ".lock"):
-            if not os.path.exists(base_path):
-                self.log.write(f"Cloning base {repo} to {base_path}")
-                clone_repo(repo, base_path)
-        Repo.clone_from(base_path, repo_path)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         if self.temp_dir_work is not None:
