@@ -614,7 +614,7 @@ class TaskEnvContextManager:
                 cmd_pre_install = f"{self.cmd_activate} && {pre_install}"
                 self.log.write(f"Running pre-install setup command: {cmd_pre_install}")
                 out_pre_install = self.exec(
-                    cmd_pre_install, timeout=self.timeout, shell=True
+                    ["bash", "-c", cmd_pre_install], timeout=self.timeout
                 )
                 with open(self.log_file, "a") as f:
                     f.write(f"Pre-installation Command: {cmd_pre_install}\n")
@@ -635,7 +635,7 @@ class TaskEnvContextManager:
         self.log.write(f"Running installation command: {cmd_install}")
         try:
             # Run installation command
-            out_install = self.exec(cmd_install, timeout=self.timeout, shell=True)
+            out_install = self.exec(["bash", "-c", cmd_install], timeout=self.timeout)
 
             if out_install.returncode != 0:
                 # Installation failed
@@ -740,7 +740,7 @@ class TaskEnvContextManager:
                 self.exec.subprocess_args["env"].update(specifications["env_vars_test"])
 
             out_test = self.exec(
-                test_cmd, shell=True, timeout=self.timeout, check=False
+                ["bash", "-c", test_cmd], timeout=self.timeout, check=False
             )
 
             # Unset environment variables if provided
