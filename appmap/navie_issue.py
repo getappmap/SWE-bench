@@ -49,20 +49,21 @@ def rewrite_issues(tasks, archive):
         # checkout base commit
         print(f"Checking out {task['base_commit']}")
         os.system(f"git checkout --quiet {task['base_commit']}")
-        print(f"Running appmap on {task['instance_id']}")
         navie_context = os.path.join(work, "navie-context.json")
+        cmdline = [
+            os.path.expanduser(appmap_bin),
+            "navie",
+            "--agent-mode",
+            "issue",
+            "-d",
+            work,
+            "--context-output",
+            navie_context,
+            "-",
+        ]
+        print(f"Running {' '.join(cmdline)} on {task['instance_id']}")
         process = Popen(
-            [
-                os.path.expanduser(appmap_bin),
-                "navie",
-                "--agent-mode",
-                "issue",
-                "-d",
-                work,
-                "--context-output",
-                navie_context,
-                "-",
-            ],
+            cmdline,
             stdin=PIPE,
             stdout=PIPE,
             stderr=PIPE,
