@@ -5,7 +5,10 @@ import traceback
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unidiff
+try:
+    import unidiff
+except:
+    ...
 from tqdm.auto import tqdm
 
 try:
@@ -391,7 +394,7 @@ def add_text_inputs(
                         instance["file_contents"] = ingest_files(
                             get_oracle_filenames(instance)
                         )
-                    elif file_source in {"bm25"}:
+                    elif file_source in {"bm25", "navie"}:
                         instance["file_contents"] = ingest_files(
                             [x["docid"] for x in instance["hits"]]
                         )

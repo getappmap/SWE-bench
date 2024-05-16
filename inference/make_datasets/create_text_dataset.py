@@ -174,7 +174,7 @@ def main(
     if push_to_hub_user is not None:
         dataset.push_to_hub(f'{push_to_hub_user}/{output_file}', use_auth_token=hub_token)
     else:
-        dataset.save_to_disk(output_file)
+        dataset.save_to_disk(output_file.as_posix())
     logger.info(f"Finsihed saving to {output_file}")
 
 
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         "--file_source",
         type=str,
         default="oracle",
-        choices=["oracle", "bm25", "all"],
+        choices=["oracle", "bm25", "navie", "all"],
         help="How to select the files to use in context.",
     )
     parser.add_argument(
