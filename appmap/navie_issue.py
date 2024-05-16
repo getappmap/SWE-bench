@@ -3,6 +3,7 @@ import argparse
 import os
 from pathlib import Path
 from tempfile import gettempdir, mkdtemp
+from typing import Union
 
 from datasets import DatasetDict, load_dataset, load_from_disk
 
@@ -43,7 +44,7 @@ def rewrite_issues(tasks, archive):
         print(f"Checking out {task['base_commit']}")
         os.system(f"git checkout --quiet {task['base_commit']}")
         print(f"Running appmap on {task['instance_id']}")
-        source_list_file = os.path.join(work, "navie-files.list")
+        navie_context = os.path.join(work, "navie-context.json")
         process = Popen(
             [
                 os.path.expanduser(appmap_bin),
@@ -52,8 +53,8 @@ def rewrite_issues(tasks, archive):
                 "issue",
                 "-d",
                 work,
-                "--sources-output",
-                source_list_file,
+                "--context-output",
+                navie_context,
                 "-",
             ],
             stdin=PIPE,
@@ -65,7 +66,10 @@ def rewrite_issues(tasks, archive):
         task["problem_statement"], stderr = process.communicate(
             input=task["problem_statement"]
         )
-        task["hits"] = [{"docid": name} for name in read_file_list(source_list_file)]
+        with open(navie_context) as f:
+            context = json.load(f)
+            task["navie_context"] = context
+            task["hits"] = context_to_hits(context)
         yield task
 
     # cleanup work directory
@@ -73,9 +77,17 @@ def rewrite_issues(tasks, archive):
         os.system(f"rm -rf {work}")
 
 
-def read_file_list(path: str) -> list[str]:
-    with open(path, "r") as f:
-        return f.read().splitlines()
+def context_to_hits(context: list[dict[str, Union[str, float]]]):
+    scores = {}
+    for i, item in enumerate(context):
+        if item["type"] == "code-snippet":
+            path, lineno = item["location"].split(":")
+            # use rank as the default score
+            score = item.get("score", (len(context) - i) / len(context))
+            scores[path] = scores.get(path, 0) + score
+
+    paths = sorted(scores, key=lambda p: scores[p], reverse=True)
+    return [{"docid": path} for path in paths]
 
 
 def load_existing(output_path):
