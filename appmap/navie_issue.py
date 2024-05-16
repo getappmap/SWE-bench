@@ -21,8 +21,8 @@ keep = False
 appmap_bin = None
 
 
-def archive_name(task):
-    return f"{task['repo'].split('/')[-1]}-{task['version']}.tar.xz"
+def repo_version(task):
+    return f"{task['repo'].split('/')[-1]}-{task['version']}"
 
 
 def rewrite_issues(tasks, archive):
@@ -34,13 +34,19 @@ def rewrite_issues(tasks, archive):
     print(f"Working in {work}")
 
     # clone base repository
+    print("Cloning repository")
     clone_to(tasks[0]["repo"], work)
     # extract archive
-    os.system(f"tar -xf {archive} -C {work}")
+    if os.path.exists(archive):
+        print(f"Extracting {archive}")
+        os.system(f"tar -xf {archive} -C {work}")
+    else:
+        archive = None
+        print("Working without appmaps")
 
+    os.chdir(work)
     for task in tasks:
         # checkout base commit
-        os.chdir(work)
         print(f"Checking out {task['base_commit']}")
         os.system(f"git checkout --quiet {task['base_commit']}")
         print(f"Running appmap on {task['instance_id']}")
@@ -66,6 +72,7 @@ def rewrite_issues(tasks, archive):
         task["problem_statement"], stderr = process.communicate(
             input=task["problem_statement"]
         )
+        task["has_appmaps"] = archive is not None
         with open(navie_context) as f:
             context = json.load(f)
             task["navie_context"] = context
@@ -73,6 +80,7 @@ def rewrite_issues(tasks, archive):
         yield task
 
     # cleanup work directory
+    os.chdir(workdir)
     if not keep:
         os.system(f"rm -rf {work}")
 
@@ -128,37 +136,32 @@ def main(*, instances: str, appmaps: str, output: str):
 
         print(f"Output: {output_path}, #processed: {len(processed)}")
 
-        # enumerate available appmap archives
-        archives = [f for f in os.listdir(appmaps) if f.endswith(".tar.xz")]
-
-        # group tasks per archive name
+        # group tasks per repo and version
         task_groups = {}
         for task in flatten_dataset(dataset):
             if task["instance_id"] in existing_ids:
                 continue
-            archive = archive_name(task)
-            if archive not in task_groups:
-                task_groups[archive] = []
-            task_groups[archive].append(task)
-
-        # filter task groups by available archives
-        task_groups = {k: v for k, v in task_groups.items() if k in archives}
+            rv = repo_version(task)
+            if rv not in task_groups:
+                task_groups[rv] = []
+            task_groups[rv].append(task)
 
         # print statistics
-        print(
-            f"Found {len(task_groups)} task groups for {len(archives)} available archives"
-        )
+        print(f"Found {len(task_groups)} task groups")
         for k, v in task_groups.items():
             print(f"{k}: {len(v)} instances")
 
-        with open(output_path, "a") as f:
-            for archive, tasks in task_groups.items():
-                for instance in rewrite_issues(
-                    tasks, os.path.abspath(os.path.join(appmaps, archive))
-                ):
-                    processed.append(instance)
-                    print(json.dumps(instance), file=f, flush=True)
-                    print(f"Wrote {instance['instance_id']} to {output_path}")
+        try:
+            with open(output_path, "a") as f:
+                for rv, tasks in task_groups.items():
+                    for instance in rewrite_issues(
+                        tasks, os.path.abspath(os.path.join(appmaps, rv + ".tar.xz"))
+                    ):
+                        processed.append(instance)
+                        print(json.dumps(instance), file=f, flush=True)
+                        print(f"Wrote {instance['instance_id']} to {output_path}")
+        except KeyboardInterrupt:
+            print("Interrupted, writing partial dataset")
 
         processed_by_id = {i["instance_id"]: i for i in processed}
 
