@@ -69,9 +69,12 @@ def rewrite_issues(tasks, archive):
             text=True,
         )
         task["original_issue"] = task["problem_statement"]
-        task["problem_statement"], stderr = process.communicate(
-            input=task["problem_statement"]
-        )
+        stdout, stderr = process.communicate(input=task["problem_statement"])
+        if process.returncode != 0:
+            print(stdout)
+            print(stderr)
+            continue
+        task["problem_statement"] = stdout
         task["has_appmaps"] = archive is not None
         with open(navie_context) as f:
             context = json.load(f)
