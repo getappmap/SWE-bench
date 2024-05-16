@@ -4,9 +4,10 @@ import ast
 import chardet
 import subprocess
 from argparse import ArgumentTypeError
+from filelock import FileLock
 from git import Repo
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, gettempdir
 
 
 DIFF_PATTERN = re.compile(r"^diff(?:.*)")
@@ -176,12 +177,48 @@ class ContextManager:
         os.chdir(self.old_dir)
 
 
+def clone_repo(repo_name: str, path: str, token: str = None) -> bool:
+    """
+    Wrapper for cloning repo from swe-bench organization
+
+    Args:
+        repo_name (str): Name of repo to clone
+        path (str): Path to clone repo to
+        token (str): GitHub token to use for cloning
+    Returns:
+        success (bool): True if repo cloned successfully, False otherwise
+    """
+    try:
+        if token is None:
+            token = os.environ.get("GITHUB_TOKEN", "git")
+        repo_url = (
+            f"https://{token}@github.com/swe-bench/"
+            + repo_name.replace("/", "__")
+            + ".git"
+        )
+        Repo.clone_from(repo_url, path, bare=True)
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+
+def clone_to(repo, repo_path):
+    """
+    Clone repository through a base clone to repo_path
+    """
+    base_path = os.path.join(gettempdir(), "git-repos", repo)
+    # clone repo to basepath if not exists, under a file lock
+    with FileLock(base_path + ".lock"):
+        if not os.path.exists(base_path):
+            clone_repo(repo, base_path)
+    Repo.clone_from(base_path, repo_path)
+
+
 class AutoContextManager(ContextManager):
     """Automatically clones the repo if it doesn't exist"""
 
     def __init__(self, instance, root_dir=None, verbose=False, token=None):
-        if token is None:
-            token = os.environ.get("GITHUB_TOKEN", "git")
         self.tempdir = None
         if root_dir is None:
             self.tempdir = TemporaryDirectory()
@@ -189,14 +226,9 @@ class AutoContextManager(ContextManager):
         self.root_dir = root_dir
         repo_dir = os.path.join(self.root_dir, instance["repo"].replace("/", "__"))
         if not os.path.exists(repo_dir):
-            repo_url = (
-                f"https://{token}@github.com/swe-bench/"
-                + instance["repo"].replace("/", "__")
-                + ".git"
-            )
             if verbose:
                 print(f"Cloning {instance['repo']} to {root_dir}")
-            Repo.clone_from(repo_url, repo_dir)
+            clone_to(instance["repo"], repo_dir)
         super().__init__(repo_dir, instance["base_commit"], verbose=verbose)
         self.instance = instance
 
