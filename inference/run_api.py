@@ -214,7 +214,7 @@ def openai_inference(
             instance_id = datum["instance_id"]
             if instance_id in existing_ids:
                 continue
-            output_dict = {"instance_id": instance_id}
+            output_dict = datum.copy()
             output_dict.update(basic_args)
             output_dict["text"] = f"{datum['text']}\n\n"
             response, cost = call_chat(
