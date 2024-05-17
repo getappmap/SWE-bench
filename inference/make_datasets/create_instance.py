@@ -260,6 +260,59 @@ def prompt_style_3(instance):
     return final_text
 
 
+def make_code_snippets(items: list[dict[str, str]]) -> str:
+    snippets = list()
+    for item in items:
+        if item["type"] != "code-snippet":
+            continue
+        content = item["content"]
+        path, lines = item["location"].split(":")
+        start_line = [int(x) for x in lines.split("-")][0]
+        snippet = ""
+        for ix, line in enumerate(content.split("\n"), start=start_line):
+            snippet += f"{ix} {line}\n"
+
+        snippets.append(f"[start of {path} snippet]\n{snippet}[end of {path} snippet]")
+
+    return "\n".join(snippets)
+
+
+def prompt_style_navie(instance):
+    premise = "You will be provided with a partial code base and an issue statement explaining a problem to resolve."
+    code_text = make_code_text(instance["file_contents"])
+    example_explanation = (
+        f"Here is an example of a patch file. It consists of changes to the code base. "
+        + f"It specifies the file names, the line numbers of each change, and the removed and added lines. "
+        + f"A single patch file can contain changes to multiple files."
+    )
+    final_instruction = (
+        f"I need you to solve the provided issue by generating a single patch file that I can apply "
+        + f"directly to this repository using git apply. Please respond with a single patch "
+        + f"file in the format shown above."
+    )
+    problem_statement = instance["problem_statement"]
+    final_text = [
+        premise,
+        "<issue>",
+        problem_statement,
+        "</issue>",
+        "",
+        "<code>",
+        code_text,
+        "</code>",
+        "",
+        example_explanation,
+        "<patch>",
+        PATCH_EXAMPLE,
+        "</patch>",
+        "",
+        final_instruction,
+        "Respond below:",
+    ]
+    final_text = "\n".join(final_text)
+    return final_text
+
+
 def full_file_gen(instance):
     premise = "You will be provided with a partial code base and an issue statement explaining a problem to resolve."
     readmes_text = make_code_text(instance["readmes"], add_line_numbers=False)
@@ -302,6 +355,7 @@ PROMPT_FUNCTIONS = {
     "style-3": prompt_style_3,
     "full_file_gen": full_file_gen,
     "style-2-edits-only": prompt_style_2_edits_only,
+    "navie": prompt_style_navie,
 }
 
 
