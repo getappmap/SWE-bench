@@ -133,21 +133,7 @@ def main(
             max_context_len=max_context_len,
             tokenizer_name=tokenizer_name,
         )
-    columns = [
-        "instance_id",
-        "text",
-        "repo",
-        "base_commit",
-        "problem_statement",
-        "hints_text",
-        "created_at",
-        "patch",
-        "test_patch",
-        "version",
-        "FAIL_TO_PASS",
-        "PASS_TO_PASS",
-        "environment_setup_commit",
-    ]
+    columns = dataset[splits[0]].column_names + ["text"]
     split_data = dict()
     for split in split_instances:
         split_data[split] = {key: list() for key in columns}
