@@ -1,33 +1,60 @@
+import markdownit from "https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/+esm";
+
 const dataContainer = document.getElementById("data-container");
-const issueDiv = document.getElementById("issue");
-const filesDiv = document.getElementById("files");
-const fullOutputDiv = document.getElementById("full_output");
 const select = document.getElementById("instance_id");
 const instances = {};
 
-function getIssue(text) {
-  // get part of text in <issue> tag
-  const issueRegex = /<issue>\s*(.*?)\s*<\/issue>/s;
-  const issueMatch = text.match(issueRegex);
-  return issueMatch ? issueMatch[1] : "";
-}
+const markdown = markdownit();
 
-function getFiles(text) {
-  // get all filenames from lines saying [start of <filename>]
-  const filenameRegex = /\[start of (.*?)\]/g;
-  return Array.from(text.matchAll(filenameRegex), (match) => match[1]);
-}
+const MD_FIELDS = ["original_issue", "problem_statement"];
+const FIRST_FIELDS = ["model_patch", "patch", "text"];
+const KNOWN_FIELDS = [...MD_FIELDS, ...FIRST_FIELDS];
 
 // Function to update displayed data
 function updateData(data) {
-  issueDiv.textContent = getIssue(data.text);
-  filesDiv.innerHTML =
-    "<ul>" +
-    getFiles(data.text)
-      .map((s) => `<li>${s}</li>`)
-      .join("") +
-    "</ul>";
-  fullOutputDiv.textContent = data.full_output;
+  dataContainer.innerHTML = "";
+  for (const k of MD_FIELDS) addMdField(k, data);
+  for (const k of FIRST_FIELDS) addPreField(k, data);
+  for (const k in data) {
+    if (!KNOWN_FIELDS.includes(k)) {
+      addPreField(k, data);
+    }
+  }
+}
+
+function addPreField(k, data) {
+  {
+    const div = document.createElement("div");
+    const h1 = document.createElement("h2");
+    h1.textContent = k;
+    div.appendChild(h1);
+    const p = document.createElement("pre");
+    p.textContent = stringify(data[k]);
+    div.appendChild(p);
+    dataContainer.appendChild(div);
+  }
+}
+
+function addMdField(k, data) {
+  {
+    const div = document.createElement("div");
+    const h1 = document.createElement("h2");
+    h1.textContent = k;
+    div.appendChild(h1);
+    const p = document.createElement("section");
+    p.innerHTML = markdown.render(data[k]);
+    div.appendChild(p);
+    dataContainer.appendChild(div);
+  }
+}
+
+function stringify(value) {
+  switch (typeof value) {
+    case "object":
+      return JSON.stringify(value, undefined, 2);
+    default:
+      return String(value);
+  }
 }
 
 select.addEventListener("change", (event) => {
