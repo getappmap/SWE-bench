@@ -351,7 +351,7 @@ class TestbedContextManager:
                     path_to_reqs = get_requirements(setup_ref_instance, self.testbed)
                     cmd = f". {path_activate} {env_name} && echo 'activate successful' && pip install -r {path_to_reqs}"
                     self.log.write(f"Installing dependencies for {env_name}; Command: {cmd}")
-                    self.exec(cmd, shell=True)
+                    self.exec(['bash', '-c', cmd])
                     os.remove(path_to_reqs)
                 elif pkgs == "environment.yml":
                     if "no_use_env" in install and install["no_use_env"]:
@@ -396,14 +396,14 @@ class TestbedContextManager:
                 if arch_specific_packages:
                     cmd = f". {path_activate} {env_name} && conda install {arch_specific_packages} -y"
                     self.log.write(f"Installing arch-specific packages for {env_name}; Command: {cmd}")
-                    self.exec(cmd, shell=True)
+                    self.exec(['bash', '-c', cmd])
 
                 # Install additional packages if specified
                 if "pip_packages" in install:
                     pip_packages = " ".join(install["pip_packages"])
                     cmd = f". {path_activate} {env_name} && pip install {pip_packages}"
                     self.log.write(f"Installing pip packages for {env_name}; Command: {cmd}")
-                    self.exec(cmd, shell=True)
+                    self.exec(['bash', '-c', cmd])
 
         return self
 
