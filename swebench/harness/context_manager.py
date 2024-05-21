@@ -31,7 +31,7 @@ from swebench.harness.utils import (
     get_requirements,
     get_test_directives,
 )
-from tempfile import TemporaryDirectory, gettempdir
+from tempfile import TemporaryDirectory, gettempdir, mkdtemp
 from traceback import format_exc
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
@@ -99,6 +99,7 @@ class ExecWrapper:
 
 
 class TestbedContextManager:
+
     def __init__(
         self,
         task_instances: list,
@@ -109,6 +110,7 @@ class TestbedContextManager:
         testbed: str = None,
         timeout: int = None,
         verbose: bool = False,
+        keep: bool = False,
     ):
         """
         Initialize testbed context. Creates temporary directories and groups task instances
@@ -220,9 +222,13 @@ class TestbedContextManager:
         if testbed is not None:
             self.temp_dir_work = None
             self.testbed = os.path.abspath(testbed)
-        else:
+        elif not keep:
             self.temp_dir_work = TemporaryDirectory(dir=temp_dir)
             self.testbed = self.temp_dir_work.name
+        else:
+            self.temp_dir_work = None
+            self.testbed = mkdtemp(dir=temp_dir)
+
         self.log.write(f"Using working directory {self.testbed} for testbed")
 
         # Remove None versions, versions not in MAP_VERSION_TO_INSTALL

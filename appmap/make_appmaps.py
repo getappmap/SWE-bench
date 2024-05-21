@@ -1,4 +1,4 @@
-import argparse, glob, os, tarfile
+import argparse, glob, itertools, os, tarfile
 
 from multiprocessing import Pool, cpu_count
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK, PatchType
@@ -130,6 +130,7 @@ def setup_testbed(data: dict):
         temp_dir=data_dict.temp_dir,
         timeout=data_dict.timeout,
         verbose=data_dict.verbose,
+        keep=data_dict.keep,
     ) as tcm:
         distributed_task_list = tcm.get_distributed_tasks()
         for task_list in distributed_task_list:
@@ -156,6 +157,21 @@ def main(args):
         args.num_workers = cpu_count()
 
     task_instances = list(get_eval_refs(args.instances_path).values())
+
+    # filter by optional filter
+    if args.filter is not None:
+        task_instances = [
+            task_instance
+            for task_instance in task_instances
+            if args.filter in task_instance["instance_id"]
+        ]
+
+    # group by repo-version
+    rv_groups = itertools.groupby(task_instances, lambda x: (x["repo"], x["version"]))
+
+    # pick first instance from each group
+    task_instances = [next(g) for _, g in rv_groups]
+
     task_instances_groups = split_instances(task_instances, args.num_workers)
 
     data_groups = [
@@ -239,6 +255,16 @@ if __name__ == "__main__":
         type=str,
         help="path to appmap binary",
         default="~/.appmap/bin/appmap",
+    )
+    parser.add_argument(
+        "--filter",
+        type=str,
+        help="(Optional) Filter to apply to task instances",
+    )
+    parser.add_argument(
+        "--keep",
+        action="store_true",
+        help="(Optional) Keep temporary directories after running",
     )
     args = parser.parse_args()
     appmap_bin = os.path.expanduser(args.appmap_bin)
