@@ -44,6 +44,7 @@ MODEL_LIMITS = {
     "gpt-4-0613": 8_192,
     "gpt-4-1106-preview": 128_000,
     "gpt-4-0125-preview": 128_000,
+    "gpt-4o-2024-05-13": 128_000,
 }
 
 # The cost per token for each model input.
@@ -63,6 +64,7 @@ MODEL_COST_PER_INPUT = {
     "gpt-4-32k": 0.00006,
     "gpt-4-1106-preview": 0.00001,
     "gpt-4-0125-preview": 0.00001,
+    "gpt-4o-2024-05-13": 0.000005,
 }
 
 # The cost per token for each model output.
@@ -82,6 +84,7 @@ MODEL_COST_PER_OUTPUT = {
     "gpt-4-32k": 0.00012,
     "gpt-4-1106-preview": 0.00003,
     "gpt-4-0125-preview": 0.00003,
+    "gpt-4o-2024-05-13": 0.000015,
 }
 
 # used for azure
