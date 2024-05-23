@@ -42,7 +42,8 @@ function addMdField(k, data) {
     h1.textContent = k;
     div.appendChild(h1);
     const p = document.createElement("section");
-    p.innerHTML = markdown.render(data[k]);
+    if (data[k] === undefined) p.innerHTML = "<em>Not available</em>";
+    else p.innerHTML = markdown.render(data[k]);
     div.appendChild(p);
     dataContainer.appendChild(div);
   }
