@@ -3,7 +3,7 @@ import argparse
 import os
 from pathlib import Path
 from tempfile import gettempdir, mkdtemp
-from typing import Union
+from typing import Optional, Union
 
 from datasets import DatasetDict, load_dataset, load_from_disk
 
@@ -128,7 +128,7 @@ def flatten_dataset(data: DatasetDict):
             yield example
 
 
-def main(*, instances: str, appmaps: str, output: str):
+def main(*, instances: str, appmaps: str, output: str, filter: Optional[str]):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     dataset, dataset_name = load_data(instances)
@@ -143,7 +143,10 @@ def main(*, instances: str, appmaps: str, output: str):
         # group tasks per repo and version
         task_groups = {}
         for task in flatten_dataset(dataset):
-            if task["instance_id"] in existing_ids:
+            instance_id = task["instance_id"]
+            if filter and filter not in instance_id:
+                continue
+            if instance_id in existing_ids:
                 continue
             rv = repo_version(task)
             if rv not in task_groups:
@@ -206,6 +209,9 @@ if __name__ == "__main__":
         help="path to appmap binary",
         default="~/.appmap/bin/appmap",
     )
+    parser.add_argument(
+        "--filter", type=str, help="filter to apply to the instance list"
+    )
     # parser.add_argument(
     #     "--overwrite", action="store_true", help="overwrite existing files"
     # )
@@ -222,4 +228,9 @@ if __name__ == "__main__":
     workdir = args.workdir
     keep = args.keep
     appmap_bin = args.appmap_bin
-    main(appmaps=args.appmaps, instances=args.instances, output=args.output)
+    main(
+        appmaps=args.appmaps,
+        instances=args.instances,
+        output=args.output,
+        filter=args.filter,
+    )

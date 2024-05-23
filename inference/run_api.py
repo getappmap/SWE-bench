@@ -444,6 +444,7 @@ def main(
     output_dir,
     model_args,
     max_cost,
+    filter,
 ):
     if shard_id is None and num_shards is not None:
         logger.warning(
@@ -483,6 +484,12 @@ def main(
         dataset = dataset.filter(
             lambda x: x["instance_id"] not in existing_ids,
             desc="Filtering out existing ids",
+            load_from_cache_file=False,
+        )
+    if filter:
+        dataset = dataset.filter(
+            lambda x: filter in x["instance_id"],
+            desc="Filtering by filter",
             load_from_cache_file=False,
         )
     if shard_id is not None and num_shards is not None:
@@ -554,6 +561,12 @@ if __name__ == "__main__":
         type=float,
         default=None,
         help="Maximum cost to spend on inference.",
+    )
+    parser.add_argument(
+        "--filter",
+        type=str,
+        default=None,
+        help="(Optional) Filter to apply to task instances",
     )
     args = parser.parse_args()
     main(**vars(args))
