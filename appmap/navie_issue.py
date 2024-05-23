@@ -128,11 +128,24 @@ def flatten_dataset(data: DatasetDict):
             yield example
 
 
-def main(*, instances: str, appmaps: str, output: str, filter: Optional[str]):
+def main(
+    *,
+    instances: str,
+    appmaps: str,
+    output: str,
+    filter: Optional[str],
+    all: Optional[bool],
+    overwrite: Optional[bool],
+):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     dataset, dataset_name = load_data(instances)
     output_path = output / (dataset_name + ".navie.jsonl")
+
+    if not all:
+        available_archives = []
+        for path in Path(appmaps).glob("*.tar.xz"):
+            available_archives.append(path.name[:-7])
 
     with FileLock(output_path.as_posix() + ".lock"):
         processed = load_existing(output_path)
@@ -146,9 +159,11 @@ def main(*, instances: str, appmaps: str, output: str, filter: Optional[str]):
             instance_id = task["instance_id"]
             if filter and filter not in instance_id:
                 continue
-            if instance_id in existing_ids:
+            if not overwrite and instance_id in existing_ids:
                 continue
             rv = repo_version(task)
+            if not all and rv not in available_archives:
+                continue
             if rv not in task_groups:
                 task_groups[rv] = []
             task_groups[rv].append(task)
@@ -212,9 +227,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--filter", type=str, help="filter to apply to the instance list"
     )
-    # parser.add_argument(
-    #     "--overwrite", action="store_true", help="overwrite existing files"
-    # )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="process all instances (not only those with appmaps)",
+    )
+    parser.add_argument(
+        "--overwrite", action="store_true", help="overwrite existing files"
+    )
     # parser.add_argument(
     #     "--verbose", action="store_true", help="(Optional) Verbose mode"
     # )
@@ -233,4 +253,6 @@ if __name__ == "__main__":
         instances=args.instances,
         output=args.output,
         filter=args.filter,
+        all=args.all,
+        overwrite=args.overwrite,
     )
