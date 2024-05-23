@@ -405,7 +405,8 @@ def extract_paths(text: str) -> list[str]:
     """
     paths = set()
     for match in re.finditer(r"[\w_]+/[\w/_]+[\w_]+\.[\w]+", text):
-        paths.add(match.group())
+        if os.path.exists(match.group()):
+            paths.add(match.group())
     return list(paths)
 
 
