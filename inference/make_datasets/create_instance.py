@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import traceback
 from copy import deepcopy
 from pathlib import Path
@@ -395,6 +396,19 @@ def get_oracle_filenames(instance):
     return gold_docs
 
 
+def extract_paths(text: str) -> list[str]:
+    """
+    Extracts the paths from the text.
+    Looks for strings in the text that/look/like.paths
+    ie. are strings of alphanumeric characters and/or underscores,
+    separated with slashes and ending with a dot and an extension.
+    """
+    paths = set()
+    for match in re.finditer(r"[\w_]+/[\w/_]+[\w_]+\.[\w]+", text):
+        paths.add(match.group())
+    return list(paths)
+
+
 def add_text_inputs(
     input_instances,
     retrieval_file,
@@ -448,7 +462,11 @@ def add_text_inputs(
                         instance["file_contents"] = ingest_files(
                             get_oracle_filenames(instance)
                         )
-                    elif file_source in {"bm25", "navie"}:
+                    elif file_source in {"navie"}:
+                        instance["file_contents"] = ingest_files(
+                            extract_paths(instance["problem_statement"])
+                        )
+                    elif file_source in {"bm25"}:
                         instance["file_contents"] = ingest_files(
                             [x["docid"] for x in instance["hits"]]
                         )
