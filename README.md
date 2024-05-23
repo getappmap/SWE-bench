@@ -1,3 +1,12 @@
+# Setup 
+
+```
+$ conda env create --name swe-bench --file environment.yml
+$ conda activate swe-bench
+$ mkdir appmaps appmap_logs /tmp/swe-appmaps
+$ ./appmap/make_appmaps.sh
+```
+
 <p align="center">
   <a href="https://github.com/princeton-nlp/Llamao">
     <img src="assets/swellama_banner.png" width="50%" alt="Kawi the SWE-Llama" />
