@@ -79,7 +79,7 @@ def make_appmaps(data: dict):
         tcm.reset_task_env(task_instance)
         tcm.run_install_task(task_instance)
         tcm.log.write("Installing appmap")
-        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap==1.21.0"])
+        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
         task_instance["test_cmd"] = MAP_REPO_TO_TEST_FRAMEWORK[
             task_instance["repo"]
         ]  # run all tests
