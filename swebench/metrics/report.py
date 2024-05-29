@@ -3,6 +3,7 @@ import glob, json, os
 from collections import Counter
 from swebench.harness.constants import (
     APPLY_PATCH_FAIL,
+    APPLY_PATCH_PASS,
     INSTALL_FAIL,
     KEY_INSTANCE_ID,
     RESET_FAILED,
@@ -313,6 +314,7 @@ def get_model_report(
         "reset_failed": [],
         "no_apply": [],
         "applied": [],
+        "applied_minimal": [],
         "test_errored": [],
         "test_timeout": [],
         "resolved": [],
@@ -332,18 +334,21 @@ def get_model_report(
         # Get log file
         log_path = os.path.join(log_dir, f"{p[KEY_INSTANCE_ID]}.{model}.eval.log")
         if not os.path.exists(log_path):
+            log_path = os.path.join(log_dir, f"{p[KEY_INSTANCE_ID]}.eval.log")
+        if not os.path.exists(log_path):
             continue
         report_map["with_logs"].append(p[KEY_INSTANCE_ID])
         log_content = open(log_path).read()
 
+        applied = f"{APPLY_PATCH_PASS} ({PatchType.PATCH_PRED_TRY.value})" in log_content
+        applied_minimal = f"{APPLY_PATCH_PASS} ({PatchType.PATCH_PRED_MINIMAL_TRY.value})" in log_content
+
         # Check if there is an apply patch failure
-        if all([
-            f"{APPLY_PATCH_FAIL}; ({patch_type})" in log_content
-            for patch_type in [
-                PatchType.PATCH_PRED_TRY.value,
-                PatchType.PATCH_PRED_MINIMAL_TRY.value
-            ]
-        ]):
+        if applied:
+            report_map["applied"].append(p[KEY_INSTANCE_ID])
+        elif applied_minimal:
+            report_map["applied_minimal"].append(p[KEY_INSTANCE_ID])
+        else:
             report_map["no_apply"].append(p[KEY_INSTANCE_ID])
             continue
 
@@ -372,7 +377,6 @@ def get_model_report(
         # Check if patch failed to apply
         if not found:
             continue
-        report_map["applied"].append(p[KEY_INSTANCE_ID])
 
         # Check if the patch was resolved
         report = get_eval_report(eval_sm, eval_refs[p[KEY_INSTANCE_ID]])
