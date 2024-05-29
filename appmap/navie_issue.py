@@ -107,11 +107,22 @@ def context_to_hits(context: list[dict[str, Union[str, float]]]):
 
 
 def load_existing(output_path):
+    """
+    Load existing data. Filter out navie_context and hits keys in every instance.
+    """
     existing = []
     if os.path.isfile(output_path):
         with open(output_path, "r") as f:
             for line in f:
-                existing.append(json.loads(line))
+                instance = json.loads(line)
+                for key in ["navie_context", "hits"]:
+                    if key in instance:
+                        del instance[key]
+                # synthesize appmap_archive as repo-version.tar.xz
+                if "appmap_archive" not in instance:
+                    rv = repo_version(instance)
+                    instance["appmap_archive"] = f"{rv}.tar.xz"
+                existing.append(instance)
     return existing
 
 
