@@ -77,6 +77,7 @@ def rewrite_issues(tasks, archive):
             continue
         task["problem_statement"] = stdout
         task["has_appmaps"] = archive is not None
+        task["appmap_archive"] = os.path.basename(archive)
         with open(navie_context) as f:
             context = json.load(f)
             task["navie_context"] = context
@@ -142,11 +143,6 @@ def main(
     dataset, dataset_name = load_data(instances)
     output_path = output / (dataset_name + ".navie.jsonl")
 
-    if not all:
-        available_archives = []
-        for path in Path(appmaps).glob("*.tar.xz"):
-            available_archives.append(path.name[:-7])
-
     with FileLock(output_path.as_posix() + ".lock"):
         processed = load_existing(output_path)
         existing_ids = [i["instance_id"] for i in processed]
@@ -162,11 +158,19 @@ def main(
             if not overwrite and instance_id in existing_ids:
                 continue
             rv = repo_version(task)
-            if not all and rv not in available_archives:
-                continue
             if rv not in task_groups:
                 task_groups[rv] = []
             task_groups[rv].append(task)
+
+        archives = {}
+        for rv in list(task_groups.keys()):
+            archive = next(Path(appmaps).glob(f"{rv}*.tar.xz"), None)
+            if archive is None:
+                if not all:
+                    del task_groups[rv]
+            else:
+                print(f"Found archive for {rv}: {archive}")
+                archives[rv] = archive.as_posix()
 
         # print statistics
         print(f"Found {len(task_groups)} task groups")
@@ -176,9 +180,7 @@ def main(
         try:
             with open(output_path, "a") as f:
                 for rv, tasks in task_groups.items():
-                    for instance in rewrite_issues(
-                        tasks, os.path.abspath(os.path.join(appmaps, rv + ".tar.xz"))
-                    ):
+                    for instance in rewrite_issues(tasks, archives.get(rv, None)):
                         processed.append(instance)
                         print(json.dumps(instance), file=f, flush=True)
                         print(f"Wrote {instance['instance_id']} to {output_path}")
