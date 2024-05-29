@@ -3,6 +3,7 @@ import argparse
 import os
 from pathlib import Path
 from tempfile import gettempdir, mkdtemp
+import time
 from typing import Optional, Union
 
 from datasets import DatasetDict, load_dataset, load_from_disk
@@ -58,6 +59,9 @@ def rewrite_issues(tasks, archive):
             work,
             "-",
         ]
+
+        start_time = time.time()
+
         print(f"Running {' '.join(cmdline)} on {task['instance_id']}")
         process = Popen(
             cmdline,
@@ -68,10 +72,16 @@ def rewrite_issues(tasks, archive):
         )
         task["original_issue"] = task["problem_statement"]
         stdout, stderr = process.communicate(input=task["problem_statement"])
+        end_time = time.time()
+
         if process.returncode != 0:
             print(stdout)
             print(stderr)
             continue
+
+        elapsed = end_time - start_time
+        print(f"Elapsed time for task {task['instance_id']}: {elapsed:.2f} seconds")
+
         task["problem_statement"] = stdout
         task["has_appmaps"] = archive is not None
         task["appmap_archive"] = os.path.basename(archive)
