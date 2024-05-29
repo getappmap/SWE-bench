@@ -33,6 +33,8 @@ from swebench.metrics.getters import (
     get_eval_refs,
 )
 
+from swebench.metrics.json_to_csv import (json_report_to_csv)
+
 from swebench.metrics.log_parsers import (
     MAP_REPO_TO_PARSER,
 )
