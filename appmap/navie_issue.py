@@ -50,6 +50,7 @@ def rewrite_issues(tasks, archive):
         # checkout base commit
         print(f"Checking out {task['base_commit']}")
         os.system(f"git checkout --quiet {task['base_commit']}")
+        navie_context = os.path.join(work, "navie-context.json")
         cmdline = [
             os.path.expanduser(appmap_bin),
             "navie",
@@ -57,6 +58,8 @@ def rewrite_issues(tasks, archive):
             "issue",
             "-d",
             work,
+            "--context-output",
+            navie_context,
             "-",
         ]
 
@@ -85,6 +88,10 @@ def rewrite_issues(tasks, archive):
         task["problem_statement"] = stdout
         task["has_appmaps"] = archive is not None
         task["appmap_archive"] = os.path.basename(archive)
+        with open(navie_context) as f:
+            context = json.load(f)
+            task["navie_context"] = context
+            task["hits"] = context_to_hits(context)
         yield task
 
     # cleanup work directory
