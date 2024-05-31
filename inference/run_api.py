@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 import numpy as np
 import openai
 from openai import AzureOpenAI
+import appmap.patch
 
 import tiktoken
 from anthropic import HUMAN_PROMPT, AI_PROMPT, Anthropic
@@ -179,6 +180,7 @@ def openai_inference(
     model_args,
     existing_ids,
     max_cost,
+    testbed,
 ):
     """
     Runs inference on a dataset using the openai API.
@@ -190,6 +192,7 @@ def openai_inference(
     model_args (dict): A dictionary of model arguments.
     existing_ids (set): A set of ids that have already been processed.
     max_cost (float): The maximum cost to spend on inference.
+    testbed (str): Path to testbed directory for patch validation
     """
     encoding = tiktoken.encoding_for_model(model_name_or_path)
     test_dataset = test_dataset.filter(
@@ -220,18 +223,19 @@ def openai_inference(
             output_dict = datum.copy()
             output_dict.update(basic_args)
             output_dict["text"] = f"{datum['text']}\n\n"
-            response, cost = call_chat(
-                output_dict["model_name_or_path"],
+            repo_dir = os.path.join(testbed, f"{datum['repo'].replace('/', '__')}__{datum['version']}")
+            patch, completion, cost = appmap.patch.gen_patch(
                 output_dict["text"],
-                use_azure,
-                temperature,
-                top_p,
+                repo_dir,
+                model_name=output_dict["model_name_or_path"],
+                temperature=temperature,
+                use_azure=use_azure,
+                top_p=top_p
             )
-            completion = response.choices[0].message.content
             total_cost += cost
             print(f"Total Cost: {total_cost:.2f}")
             output_dict["full_output"] = completion
-            output_dict["model_patch"] = extract_diff(completion)
+            output_dict["model_patch"] = patch
             print(json.dumps(output_dict), file=f, flush=True)
             if max_cost is not None and total_cost >= max_cost:
                 print(f"Reached max cost {max_cost}, exiting")
@@ -445,7 +449,10 @@ def main(
     model_args,
     max_cost,
     filter,
+    testbed,
 ):
+    if not os.path.exists(testbed) or not os.path.isdir(testbed):
+        raise ValueError("--testbed must exist and point at a directory")
     if shard_id is None and num_shards is not None:
         logger.warning(
             f"Received num_shards={num_shards} but shard_id is None, ignoring"
@@ -501,6 +508,7 @@ def main(
         "model_args": model_args,
         "existing_ids": existing_ids,
         "max_cost": max_cost,
+        "testbed": testbed,
     }
     if model_name_or_path.startswith("claude"):
         anthropic_inference(**inference_args)
@@ -567,6 +575,12 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="(Optional) Filter to apply to task instances",
+    )
+    parser.add_argument(
+        "--testbed",
+        type=str,
+        help="Path to testbed directory for patch validation",
+        required=True
     )
     args = parser.parse_args()
     main(**vars(args))
