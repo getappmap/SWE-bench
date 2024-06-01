@@ -28,9 +28,31 @@ function addPreField(k, data) {
     const h1 = document.createElement("h2");
     h1.textContent = k;
     div.appendChild(h1);
-    const p = document.createElement("pre");
-    p.textContent = stringify(data[k]);
-    div.appendChild(p);
+
+    if (k === "navie_context") {
+      data[k].forEach((item) => {
+        const d = document.createElement("div");
+        d.style.background = "#eee";
+        d.style.padding = "1rem";
+        const h4 = document.createElement("h4");
+        h4.style.marginBottom = "0";
+        h4.textContent = item.directory;
+        const subtitle = document.createElement("h5");
+        subtitle.style.marginBottom = "0";
+        subtitle.style.marginTop = "0";
+        subtitle.textContent = item.type;
+        const pre = document.createElement("pre");
+        pre.textContent = item.content.replaceAll("\\n", "\n");
+        d.appendChild(h4);
+        d.appendChild(subtitle);
+        d.appendChild(pre);
+        div.appendChild(d);
+      });
+    } else {
+      const p = document.createElement("pre");
+      p.textContent = stringify(data[k]);
+      div.appendChild(p);
+    }
     dataContainer.appendChild(div);
   }
 }
@@ -52,7 +74,11 @@ function addMdField(k, data) {
 function stringify(value) {
   switch (typeof value) {
     case "object":
-      return JSON.stringify(value, undefined, 2);
+      return JSON.stringify(value, undefined, 2).replaceAll(
+        "\\n",
+        `
+`
+      );
     default:
       return String(value);
   }
