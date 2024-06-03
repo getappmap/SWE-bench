@@ -4,7 +4,7 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      var1:
+      instancePath:
         description: 'Input variable 1'
         required: true
         default: 'default_value1'
@@ -36,7 +36,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: submodules/
-        key: submodule-cache-${{ env.submodule_commit }}
+        key: submodule-cache-${{ env.submodule-commit }}
 
     - name: Cache conda
       id: cache-conda
