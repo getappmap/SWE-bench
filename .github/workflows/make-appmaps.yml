@@ -17,21 +17,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-      with:
-        submodules: true
-
-    - name: Get submodule commit hash
-      id: get-submodule-hash
-      run: |
-        submodule_commit=$(git submodule status submodules/appmap-js | awk '{print $1}')
-        echo "submodule-commit=$submodule_commit" >> $GITHUB_ENV
-
-    - name: Cache submodule directory
-      id: submodule-cache
-      uses: actions/cache@v3
-      with:
-        path: submodules/
-        key: submodule-cache-${{ env.submodule-commit }}
 
     - name: Cache conda
       id: cache-conda
@@ -49,6 +34,7 @@ jobs:
       uses: getappmap/install-action@v1
       with:
         install-appmap-library: false
+        tools-url: https://github.com/getappmap/appmap-js/releases/download/%40appland%2Fappmap-v3.147.0/appmap-linux-x64
 
     - name: Setup upterm session
       uses: lhotari/action-upterm@v1
@@ -66,16 +52,6 @@ jobs:
         activate-environment: swe-bench
         python-version: 3.9
 
-    - name: Build submodules
-      if: steps.submodule-cache.outputs.cache-hit != 'true'
-      env:
-        PUPPETEER_SKIP_DOWNLOAD: true
-      run: |
-        cd submodules/appmap-js
-        git checkout -- .
-        yarn
-        yarn build
-    
     - name: Make dirs
       run: |
         mkdir appmaps appmap_logs /tmp/swe-appmaps 
