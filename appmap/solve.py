@@ -2,83 +2,60 @@ import argparse
 import json
 from pathlib import Path
 from multiprocessing import Pool, current_process, cpu_count
-from swebench.harness.context_manager import TestbedContextManager
-from swebench.harness.engine_validation import setup_testbed
-from datasets import DatasetDict, load_dataset, load_from_disk
+from swebench.harness.context_manager import TestbedContextManager, TaskEnvContextManager
 from swebench.harness.utils import split_instances, DotDict
 from subprocess import run
 from os.path import abspath
 from filelock import FileLock
-
-datasets_dir = Path(__file__).parent / "datasets"
-
-
-def load_data(dataset_name, split) -> tuple[DatasetDict, str]:
-    dataset_dir = datasets_dir / dataset_name.replace("/", "__")
-    dataset = None
-    if Path(dataset_dir).exists():
-        dataset = load_from_disk(str(dataset_dir))
-    else:
-        dataset = load_dataset(dataset_name)
-        Path.mkdir(dataset_dir, parents=True)
-        dataset.save_to_disk(str(dataset_dir))
-
-    return dataset[split]
+from appmap.data import load_data
 
 
-def solve_instance(data):
-    # Check that this is defined
-    output_file = data["output_file"]
+def output_results(instance, output_file, patch):
+    if patch is None:
+        return
+    instance["model_patch"] = patch
+    instance["model_name_or_path"] = "navie"
+    with FileLock(f"{output_file}.lock"):
+        with open(output_file, "a+") as f:
+            f.write(json.dumps(instance) + "\n")
 
-    for instance in data["task_instances"]:
-        # Create a temporary directory to store the problem statement and the working files
-        issue_dir = Path(data["testbed"]) / instance["instance_id"]
-        issue_dir.mkdir(parents=True, exist_ok=True)
-        issue_file = issue_dir / "issue.txt"
-        with open(issue_file, "w") as f:
-            f.write(instance["problem_statement"])
+def solve_instance(instance, log_dir, testbed, appmap_command, solver_path, lint_command):
+    issue_dir = Path(log_dir) / "solve" / instance["instance_id"]
+    issue_dir.mkdir(parents=True, exist_ok=True)
+    issue_file = issue_dir / "issue.txt"
+    with open(issue_file, "w") as f:
+        f.write(instance["problem_statement"])
+    run_args = [
+        "python",
+        solver_path,
+        testbed,
+        str(issue_file),
+        "--appmap-command",
+        appmap_command,
+    ]
+    if lint_command is not None:
+        run_args.extend(["--lint-command", lint_command])
+    try:
+        run(
+            run_args,
+            check=True,
+            cwd=testbed,
+        )
+        output = run(
+            ["git", "--no-pager", "diff"],
+            check=True,
+            cwd=testbed,
+            capture_output=True,
+            text=True,
+        )
+        return output.stdout
+    except Exception:
+        print(f"Error processing {instance['instance_id']}")
+        import traceback
+        traceback.print_exc()
 
-        try:
-            run(
-                ["git", "checkout", instance["base_commit"]],
-                cwd=data["testbed"],
-                check=True,
-            )
-            run(
-                [
-                    "python",
-                    abspath(data["solver_path"]),
-                    data["testbed"],
-                    str(issue_file),
-                    "--appmap-command",
-                    data["appmap_command"],
-                ],
-                check=True,
-                cwd=data["testbed"],
-            )
-            output = run(
-                ["git", "--no-pager", "diff"],
-                check=True,
-                cwd=data["testbed"],
-                capture_output=True,
-                text=True,
-            )
-            if output.stdout:
-                instance["model_patch"] = output.stdout
-                instance["model_name_or_path"] = "navie"
-                with FileLock(f"{output_file}.lock"):
-                    with open(output_file, "a+") as f:
-                        f.write(json.dumps(instance) + "\n")
-        except Exception:
-            import traceback
-            print(f"Error processing {instance['instance_id']}")
-            traceback.print_exc()
-
-
-def setup_testbed(data: dict):
+def worker_init(data: dict):
     """
-    Creates testbed context manager and runs verify_task_instances in parallel
-
     Args:
         data: Dict containing task instances and other data
         conda_link: URL to conda installation to use
@@ -94,6 +71,15 @@ def setup_testbed(data: dict):
         output_file: Path to output file
     """
     data_dict = DotDict(data)
+
+    assert data_dict.output is not None
+    assert data_dict.solver_path is not None
+    assert data_dict.appmap_command is not None
+    assert data_dict.path_conda is not None
+
+    solver_path = abspath(data_dict.solver_path)
+    output_file = abspath(data_dict.output)
+
     with TestbedContextManager(
         data_dict.task_instances,
         data_dict.log_dir,
@@ -103,29 +89,39 @@ def setup_testbed(data: dict):
         temp_dir=data_dict.temp_dir,
         timeout=data_dict.timeout,
         verbose=data_dict.verbose,
-        appmap_command=data_dict.appmap_command,
-        solver_path=data_dict.solver_path,
-        output_file=data_dict.output_file,
         keep=data_dict.keep,
     ) as tcm:
-        distributed_task_list = tcm.get_distributed_tasks()
-        for task_list in distributed_task_list:
-            print(
-                f"{task_list['testbed']}: {len(task_list['task_instances'])} instances"
-            )
-
-        if len(distributed_task_list) == 1:
-            data_dict.func(distributed_task_list[0])
-            return
-
-        pool = Pool(processes=len(distributed_task_list))
-        pool.map(data_dict.func, distributed_task_list)
-        pool.close()
-        pool.join()
-
-
-def init_solve_worker():
-    current_process().daemon = False
+        for instance in data_dict.task_instances:
+            repo_prefix = instance["repo"].replace("/", "__")
+            env_name = f"{repo_prefix}__{instance['version']}"
+            testbed = Path(tcm.testbed) / env_name
+            log_dir = abspath(data_dict.log_dir)
+            try:
+                with TaskEnvContextManager(
+                    instance,
+                    testbed.as_posix(),
+                    env_name,
+                    log_dir,
+                    data_dict.path_conda,
+                    timeout=data_dict.timeout,
+                    verbose=data_dict.verbose,
+                    log_suffix=data_dict.log_suffix,
+                ) as task_manager:
+                    if not task_manager.reset_task_env(instance):
+                        return
+                    patch = solve_instance(
+                        instance,
+                        log_dir,
+                        testbed,
+                        data_dict.appmap_command,
+                        solver_path,
+                        data_dict.lint_command,
+                    )
+                    output_results(instance, output_file, patch)
+            except Exception:
+                print(f"Error processing {instance['instance_id']}")
+                import traceback
+                traceback.print_exc()
 
 
 def solve_instances(instances, args):
@@ -139,18 +135,17 @@ def solve_instances(instances, args):
         {
             "task_instances": g,
             "func": solve_instance,
-            "output_file": args.output,
             **vars(args),
         }
         for g in instance_groups
     ]
 
     if args.num_workers == 1:
-        setup_testbed(data_groups[0])
+        worker_init(data_groups[0])
         return
 
-    pool = Pool(processes=args.num_workers, initializer=init_solve_worker)
-    pool.map(setup_testbed, data_groups)
+    pool = Pool(processes=args.num_workers)
+    pool.map(worker_init, data_groups)
     pool.close()
     pool.join()
 
@@ -226,6 +221,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--appmap_command", type=str, default="appmap", help="Path to appmap command"
+    )
+    parser.add_argument(
+        "--lint_command",
+        type=str,
+        help="Path to lint command. Example: flake8 --extend-ignore=BLK100,W293,E501,E302,D",
     )
     parser.add_argument(
         "--output",

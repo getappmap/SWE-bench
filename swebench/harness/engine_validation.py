@@ -85,9 +85,6 @@ def setup_testbed(data: dict):
         temp_dir: Path to temporary directory for storing virtual envs
         timeout: Timeout (seconds) for testing script execution
         verbose: Verbose mode
-        appmap_command: Path to appmap command
-        solver_path: Path to solver
-        output_file: Path to output file
     """
     data_dict = DotDict(data)
     with TestbedContextManager(
@@ -98,10 +95,7 @@ def setup_testbed(data: dict):
         testbed=data_dict.testbed,
         temp_dir=data_dict.temp_dir,
         timeout=data_dict.timeout,
-        verbose=data_dict.verbose,
-        appmap_command=data_dict.appmap_command,
-        solver_path=data_dict.solver_path,
-        output_file=data_dict.output_file,
+        verbose=data_dict.verbose
     ) as tcm:
         distributed_task_list = tcm.get_distributed_tasks()
         for task_list in distributed_task_list:
