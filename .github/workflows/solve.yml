@@ -47,7 +47,8 @@ jobs:
 
           python appmap/solve.py \
             --solver_path submodules/appmap-js/packages/cli/bin/solve.py \
-            --appmap_command $(pwd)/appmap.sh
+            --appmap_command $(pwd)/appmap.sh \
+            --temp_dir ${{ runner.temp }}
 
           mkdir -p logs
 
@@ -55,7 +56,7 @@ jobs:
             --predictions_path predictions.jsonl \
             --swe_bench_tasks princeton-nlp/SWE-bench_Lite \
             --log_dir logs \
-            --testbed /tmp \
+            --testbed ${{ runner.temp }} \
             --skip_existing \
             --timeout 900 \
             --verbose \
