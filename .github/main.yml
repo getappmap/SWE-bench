@@ -1,6 +1,7 @@
 name: Trigger Action Manually
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       var1:
@@ -14,17 +15,28 @@ on:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: swe-bench-ubuntu-latest
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
     steps:
-    - name: Install AppMap tools
-      uses: getappmap/install-action@v1
+    - name: Checkout
+      uses: actions/checkout@v3
       with:
-        install-appmap-library: false
-    
-    - name: Print input variables
+        submodules: true
+    - name: Set up Python
+      uses: actions/setup-python@v4
+    - name: Create conda env
       run: |
-        echo "Variable 1: ${{ github.event.inputs.var1 }}"
-        echo "Variable 2: ${{ github.event.inputs.var2 }}"
-
+        conda init bash
+        conda env create -f environment.yml
+    - name: Build submodules
+      env:
+        PUPPETEER_SKIP_DOWNLOAD: true
+      run: |
+        cd submodules/appmap-js
+        git checkout -- .
+        yarn
+        yarn build
     - name: Setup upterm session
       uses: lhotari/action-upterm@v1
