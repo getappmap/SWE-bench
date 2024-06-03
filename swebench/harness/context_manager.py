@@ -111,9 +111,6 @@ class TestbedContextManager:
         timeout: int = None,
         verbose: bool = False,
         keep: bool = False,
-        appmap_command: str = None,
-        solver_path: str = None,
-        output_file: str = None,
     ):
         """
         Initialize testbed context. Creates temporary directories and groups task instances
@@ -146,9 +143,6 @@ class TestbedContextManager:
                 "stderr": subprocess.STDOUT,
             },
         )
-        self.solver_path = solver_path
-        self.appmap_command = appmap_command
-        self.output_file = output_file
 
         # Create log, temp directories if they don't exist
         if not os.path.exists(self.log_dir):
@@ -440,10 +434,7 @@ class TestbedContextManager:
                     "timeout": self.timeout,
                     "venv": env_name,
                     "version": version,
-                    "verbose": self.verbose,
-                    "solver_path": self.solver_path,
-                    "appmap_command": self.appmap_command,
-                    "output_file": self.output_file,
+                    "verbose": self.verbose
                 }
                 distributed_tasks.append(task_set)
         return distributed_tasks
