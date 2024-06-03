@@ -1,5 +1,8 @@
 import argparse, glob, itertools, os, tarfile, subprocess
 
+import json
+import sys
+
 from multiprocessing import Pool, cpu_count
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK, PatchType
 from swebench.harness.context_manager import (
@@ -166,6 +169,14 @@ def main(args):
             for task_instance in task_instances
             if args.filter in task_instance["instance_id"]
         ]
+        if (args.show_instances):
+            def filter_keys(dicts):
+                keys_to_keep=["instance_id", "version", "environment_setup_commit"]
+                return [{k: v for k, v in d.items() if k in keys_to_keep} for d in dicts]
+
+            json.dump(filter_keys(task_instances), indent=2, fp=sys.stdout)
+            sys.exit(0)
+
 
     # group by repo-version
     rv_groups = itertools.groupby(task_instances, lambda x: (x["repo"], x["version"]))
@@ -267,6 +278,12 @@ if __name__ == "__main__":
         action="store_true",
         help="(Optional) Keep temporary directories after running",
     )
+    parser.add_argument(
+        "--show-instances",
+        action="store_true",
+        help="Only show instance info",
+    )
+
     args = parser.parse_args()
     appmap_bin = os.path.expanduser(args.appmap_bin)
     validate_args(args)
