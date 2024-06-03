@@ -57,7 +57,6 @@ jobs:
         environment-file: ./environment.yml
         activate-environment: swe-bench
         python-version: 3.9
-        use-only-tar-bz2: true
 
     - name: Build submodules
       if: steps.submodule-cache.outputs.cache-hit != 'true'
