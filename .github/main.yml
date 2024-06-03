@@ -1,4 +1,4 @@
-name: Trigger Action Manually
+name: Make AppMaps
 
 on:
   pull_request:
