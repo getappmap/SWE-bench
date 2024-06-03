@@ -37,11 +37,23 @@ jobs:
         path: submodules/
         key: submodule-cache-${{ env.submodule_commit }}
 
+    - name: Cache conda
+      id: cache-conda
+      uses: actions/cache@v3
+      env:
+          # Increase this value to reset cache if etc/example-environment.yml has not changed
+          CACHE_NUMBER: 0
+        with:
+          path: ~/conda_pkgs_dir
+          key:
+            ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
+            hashFiles('./environment.yml') }}
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9' 
-    
+  
     - name: Set up Conda
       uses: conda-incubator/setup-miniconda@v3
       with:
@@ -50,17 +62,6 @@ jobs:
         activate-environment: swe-bench
         python-version: 3.9
         use-only-tar-bz2: true
-
-    - name: Cache conda
-      uses: actions/cache@v3
-      env:
-        # Increase this value to reset cache if etc/example-environment.yml has not changed
-        CACHE_NUMBER: 0
-      with:
-        path: ~/conda_pkgs_dir
-        key:
-          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-          hashFiles('etc/example-environment.yml') }}
 
     - name: Build submodules
       if: steps.submodule-cache.outputs.cache-hit != 'true'
