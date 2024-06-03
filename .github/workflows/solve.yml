@@ -2,7 +2,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  benchmark:
+  solve:
     runs-on: ubuntu-latest
     defaults:
       run:
