@@ -78,4 +78,6 @@ jobs:
         ./appmap/make_appmaps-github-actions.sh --filter pytest-dev__pytest-11148
 
     - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
+      uses: owenthereal/action-upterm@v1
+      with:
+        wait-timeout-minutes: 5
