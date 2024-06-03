@@ -121,6 +121,15 @@ def main(args):
         args.num_workers = cpu_count()
 
     task_instances = list(get_eval_refs(args.instances_path).values())
+
+    # filter by optional filter
+    if args.filter is not None:
+        task_instances = [
+            task_instance
+            for task_instance in task_instances
+            if args.filter in task_instance["instance_id"]
+        ]
+
     task_instances_groups = split_instances(task_instances, args.num_workers)
 
     data_groups = [
@@ -148,6 +157,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--instances_path", type=str, help="Path to candidate task instances file", required=True)
+    parser.add_argument("--filter", type=str, help="(Optional) Filter for task instances")
     parser.add_argument("--log_dir", type=str, help="Path to log directory", required=True)
     parser.add_argument("--conda_link", type=str, default=None, help="(Optional) URL to conda installation to use")
     parser.add_argument("--log_suffix", type=str, default=None, help="(Optional) Suffix to append to log file names")
