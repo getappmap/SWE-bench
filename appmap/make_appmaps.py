@@ -80,9 +80,9 @@ def make_appmaps(data: dict):
         tcm.run_install_task(task_instance)
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
-        task_instance["test_cmd"] = MAP_REPO_TO_TEST_FRAMEWORK[
+        task_instance["test_cmd"] = f"""appmap-python {MAP_REPO_TO_TEST_FRAMEWORK[
             task_instance["repo"]
-        ]  # run all tests
+        ]}"""
         tcm.log.write("Running tests with appmap")
         tcm.run_tests_task(task_instance)
         tcm.log.write("Uninstalling appmap")

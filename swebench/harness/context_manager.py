@@ -164,7 +164,9 @@ class TestbedContextManager:
             # Create test command from framework + directives
             test_type = MAP_REPO_TO_TEST_FRAMEWORK[instance["repo"]]
             instance["test_directives"] = get_test_directives(instance)
-            instance["test_cmd"] = f"{test_type} {' '.join(instance['test_directives'])}"
+            # KEG: I'm not sure where this is used from, because it's not called by
+            # make_appmaps.py. But I'm including it for completeness.
+            instance["test_cmd"] = f"appmap-python {test_type} {' '.join(instance['test_directives'])}"
 
             # Group task instances by repo, version
             repo = instance["repo"]
