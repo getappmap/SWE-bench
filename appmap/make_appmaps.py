@@ -1,4 +1,4 @@
-import argparse, glob, itertools, os, tarfile
+import argparse, glob, itertools, os, tarfile, subprocess
 
 from multiprocessing import Pool, cpu_count
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK, PatchType
@@ -84,6 +84,7 @@ def make_appmaps(data: dict):
             task_instance["repo"]
         ]  # run all tests
         tcm.log.write("Running tests with appmap")
+        task_instance["test_cmd"] = f"appmap-python {task_instance['test_cmd']}"
         tcm.run_tests_task(task_instance)
         tcm.log.write("Uninstalling appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip uninstall -y appmap"])
@@ -97,7 +98,7 @@ def make_appmaps(data: dict):
             return
         # index appmaps
         tcm.log.write(f"Indexing {len(appmaps)} appmaps")
-        tcm.exec([appmap_bin, "index", "-d", data_dict.testbed])
+        subprocess.run([appmap_bin, "index", "-d", data_dict.testbed], check=True)
         # archive appmaps
         tcm.log.write(f"Archiving {len(appmaps)} appmaps to {archive_name}")
         with tarfile.open(archive_name, "w:xz") as tar:
