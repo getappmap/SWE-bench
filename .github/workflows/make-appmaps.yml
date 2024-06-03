@@ -70,6 +70,9 @@ jobs:
         yarn
         yarn build
     
+    - name: Make dirs
+      run: |
+        mkdir appmaps appmap_logs /tmp/swe-appmaps 
     - name: Make Appmaps
       run: |
-        ./appmap/make_appmaps-github-actions.sh --filter pytest-dev__pytest-7490
+        ./appmap/make_appmaps-github-actions.sh --filter ${{ github.event.inputs.projectFilter }}
