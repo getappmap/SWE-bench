@@ -24,12 +24,51 @@ jobs:
       uses: actions/checkout@v3
       with:
         submodules: true
+
+    - name: Get submodule commit hash
+      id: get-submodule-hash
+      run: |
+        submodule_commit=$(git submodule status submodules/appmap-js | awk '{print $1}')
+        echo "submodule-commit=$submodule_commit" >> $GITHUB_ENV
+
+    - name: Cache submodule directory
+      uses: actions/cache@v3
+      with:
+        path: submodules/
+        key: submodule-cache-${{ env.submodule_commit }}
+
     - name: Set up Python
       uses: actions/setup-python@v4
-    - name: Create conda env
+    
+    - name: Set up Conda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-activate-base: false
+        python-version: 3.8
+
+    - name: Cache Conda environment
+      uses: actions/cache@v3
+      id: conda-cache
+      with:
+        path: ~/.conda/envs
+        key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-conda-
+
+    - name: Create Conda environment
+      if: steps.conda-cache.outputs.cache-hit != 'true'
       run: |
-        conda init bash
         conda env create -f environment.yml
+
+    - name: Activate Conda environment
+      run: |
+        source ~/.bashrc
+        conda activate swe-bench
+
+    - name: Verify Conda environment
+      run: |
+        conda list
+    
     - name: Build submodules
       env:
         PUPPETEER_SKIP_DOWNLOAD: true
@@ -38,5 +77,6 @@ jobs:
         git checkout -- .
         yarn
         yarn build
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
+    
+    #- name: Setup upterm session
+    #  uses: lhotari/action-upterm@v1
