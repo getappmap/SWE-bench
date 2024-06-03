@@ -46,7 +46,7 @@ jobs:
         auto-activate-base: true
         environment-file: ./environment.yml
         activate-environment: swe-bench
-        python-version: 3.10
+        python-version: 3.9
         use-only-tar-bz2: true
 
     - name: Cache conda
