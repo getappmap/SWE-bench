@@ -36,9 +36,6 @@ jobs:
         install-appmap-library: false
         tools-url: https://github.com/getappmap/appmap-js/releases/download/%40appland%2Fappmap-v3.147.0/appmap-linux-x64
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
