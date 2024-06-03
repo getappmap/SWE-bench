@@ -32,6 +32,7 @@ jobs:
         echo "submodule-commit=$submodule_commit" >> $GITHUB_ENV
 
     - name: Cache submodule directory
+      id: submodule-cache
       uses: actions/cache@v3
       with:
         path: submodules/
