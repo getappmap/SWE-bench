@@ -1,0 +1,30 @@
+name: Trigger Action Manually
+
+on:
+  workflow_dispatch:
+    inputs:
+      var1:
+        description: 'Input variable 1'
+        required: true
+        default: 'default_value1'
+      var2:
+        description: 'Input variable 2'
+        required: true
+        default: 'default_value2'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install AppMap tools
+      uses: getappmap/install-action@v1
+      with:
+        install-appmap-library: false
+    
+    - name: Print input variables
+      run: |
+        echo "Variable 1: ${{ github.event.inputs.var1 }}"
+        echo "Variable 2: ${{ github.event.inputs.var2 }}"
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
