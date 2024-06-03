@@ -46,6 +46,7 @@ jobs:
           chmod +x appmap.sh
 
           python appmap/solve.py \
+            --filter requests \
             --solver_path submodules/appmap-js/packages/cli/bin/solve.py \
             --appmap_command $(pwd)/appmap.sh \
             --temp_dir ${{ runner.temp }}
