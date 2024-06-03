@@ -12,7 +12,6 @@ from os.path import abspath
 from filelock import FileLock
 
 datasets_dir = Path(__file__).parent / "datasets"
-output_file = None
 
 
 def load_data(dataset_name, split) -> tuple[DatasetDict, str]:
@@ -29,33 +28,41 @@ def load_data(dataset_name, split) -> tuple[DatasetDict, str]:
 
 
 def solve_instance(data):
-    for instance in data["task_instances"]:
-        try:
-            with NamedTemporaryFile(mode="w", dir=data["testbed"], prefix="issue_", suffix=".txt") as f:
-                f.write(instance["problem_statement"])
-                f.flush()
-                run(
-                    [
-                        "python",
-                        abspath(args.solver_path),
-                        data["testbed"],
-                        f.name,
-                        "--appmap-command",
-                        args.appmap_command,
-                    ],
-                    check=True,
-                    cwd=data["testbed"],
-                )
-                output = run(["git", "--no-pager", "diff"], check=True, cwd=data["testbed"], capture_output=True, text=True)
-                if output.stdout:
-                    instance["model_patch"] = output.stdout
-                    instance["model_name_or_path"] = "navie"
-                    with FileLock(f"{output_file}.lock"):
-                        with open(output_file, "a+") as f:
-                            f.write(json.dumps(instance) + "\n")
-        except Exception as e:
-            print(f"Error: {e}")
+    # Check that this is defined
+    output_file = data["output_file"]
 
+    for instance in data["task_instances"]:
+        # Create a temporary directory to store the problem statement and the working files
+        issue_dir = Path(data["testbed"]) / instance["instance_id"]
+        issue_dir.mkdir(parents=True, exist_ok=True)
+        issue_file = issue_dir / "issue.txt"
+        with open(issue_file, "w") as f:
+            f.write(instance["problem_statement"])
+
+        try:
+            run(
+                [
+                    "python",
+                    abspath(data["solver_path"]),
+                    data["testbed"],
+                    str(issue_file),
+                    "--appmap-command",
+                    data["appmap_command"]
+                ],
+                check=True,
+                cwd=data["testbed"],
+            )
+            output = run(["git", "--no-pager", "diff"], check=True, cwd=data["testbed"], capture_output=True, text=True)
+            if output.stdout:
+                instance["model_patch"] = output.stdout
+                instance["model_name_or_path"] = "navie"
+                with FileLock(f"{output_file}.lock"):
+                    with open(output_file, "a+") as f:
+                        f.write(json.dumps(instance) + "\n")
+        except Exception as e:
+            import traceback
+            print(f"Error processing {instance['instance_id']}")
+            traceback.print_exc()
 
 def solve_instances(instances, args):
     if args.filter is not None:
@@ -68,6 +75,7 @@ def solve_instances(instances, args):
         {
             "task_instances": g,
             "func": solve_instance,
+            "output_file": args.output,
             **vars(args),
         }
         for g in instance_groups
@@ -83,14 +91,13 @@ def solve_instances(instances, args):
     pool.join()
 
 def main(args):
-    dataset = load_data(args.instances, args.split)
-    global output_file
-    output_file = args.output
+    dataset = load_data(args.instances_path, args.split)
     solve_instances(dataset, args)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--instances_path",
         "--instances",
         type=str,
         help="path or huggingface name of task instances dataset",

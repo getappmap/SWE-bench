@@ -85,6 +85,9 @@ def setup_testbed(data: dict):
         temp_dir: Path to temporary directory for storing virtual envs
         timeout: Timeout (seconds) for testing script execution
         verbose: Verbose mode
+        appmap_command: Path to appmap command
+        solver_path: Path to solver
+        output_file: Path to output file
     """
     data_dict = DotDict(data)
     with TestbedContextManager(
@@ -96,6 +99,9 @@ def setup_testbed(data: dict):
         temp_dir=data_dict.temp_dir,
         timeout=data_dict.timeout,
         verbose=data_dict.verbose,
+        appmap_command=data_dict.appmap_command,
+        solver_path=data_dict.solver_path,
+        output_file=data_dict.output_file,
     ) as tcm:
         distributed_task_list = tcm.get_distributed_tasks()
         for task_list in distributed_task_list:
@@ -121,6 +127,15 @@ def main(args):
         args.num_workers = cpu_count()
 
     task_instances = list(get_eval_refs(args.instances_path).values())
+
+    # filter by optional filter
+    if args.filter is not None:
+        task_instances = [
+            task_instance
+            for task_instance in task_instances
+            if args.filter in task_instance["instance_id"]
+        ]
+
     task_instances_groups = split_instances(task_instances, args.num_workers)
 
     data_groups = [
@@ -148,6 +163,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--instances_path", type=str, help="Path to candidate task instances file", required=True)
+    parser.add_argument("--filter", type=str, help="(Optional) Filter for task instances")
     parser.add_argument("--log_dir", type=str, help="Path to log directory", required=True)
     parser.add_argument("--conda_link", type=str, default=None, help="(Optional) URL to conda installation to use")
     parser.add_argument("--log_suffix", type=str, default=None, help="(Optional) Suffix to append to log file names")
