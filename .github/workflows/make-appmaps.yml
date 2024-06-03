@@ -61,6 +61,7 @@ jobs:
           hashFiles('etc/example-environment.yml') }}
 
     - name: Build submodules
+      if: steps.submodule-cache.outputs.cache-hit != 'true'
       env:
         PUPPETEER_SKIP_DOWNLOAD: true
       run: |
