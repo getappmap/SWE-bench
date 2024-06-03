@@ -80,5 +80,5 @@ jobs:
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: project-filter-${{ github.event.inputs.projectFilter }}
+        name: project-filter-matplotlib__matplotlib-25433
         path: ./appmaps/
