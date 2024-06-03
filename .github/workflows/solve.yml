@@ -4,7 +4,7 @@ on:
 
 jobs:
   solve:
-    runs-on: ubuntu-latest
+    runs-on: swe-bench-ubuntu-latest
     defaults:
       run:
         shell: bash -leo pipefail {0}
