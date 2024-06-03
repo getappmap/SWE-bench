@@ -73,6 +73,10 @@ jobs:
     - name: Make dirs
       run: |
         mkdir appmaps appmap_logs /tmp/swe-appmaps 
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      
     - name: Make Appmaps
       run: |
-        ./appmap/make_appmaps-github-actions.sh --filter ${{ github.event.inputs.projectFilter }}
+        ./appmap/make_appmaps-github-actions.sh --filter pytest-dev__pytest-7490
