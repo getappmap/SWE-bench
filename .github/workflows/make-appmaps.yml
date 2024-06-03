@@ -54,7 +54,6 @@ jobs:
     - name: Set up Conda
       uses: conda-incubator/setup-miniconda@v3
       with:
-        auto-activate-base: true
         environment-file: ./environment.yml
         activate-environment: swe-bench
         python-version: 3.9
@@ -76,7 +75,7 @@ jobs:
 
     - name: Setup upterm session
       uses: lhotari/action-upterm@v1
-      
+
     - name: Make Appmaps
       run: |
         ./appmap/make_appmaps-github-actions.sh --filter pytest-dev__pytest-7490
