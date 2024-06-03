@@ -1,0 +1,72 @@
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  solve:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Set up Python
+        uses: actions/setup-python@v4
+      # TODO: Cache conda env
+      - name: Create conda env
+        run: |
+          conda init bash
+          conda env create -f environment.yml
+      - name: Build submodules
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
+        run: |
+          cd submodules/appmap-js
+          git checkout -- .
+          yarn
+          yarn build
+      - name: Run benchmark
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate swe-bench
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          conda info
+
+          cat > appmap.sh <<EOF
+            #!/bin/bash
+            set -e
+            node $(pwd)/submodules/appmap-js/packages/cli/built/cli.js "\$@"
+          EOF
+
+          chmod +x appmap.sh
+
+          python appmap/solve.py \
+            --solver_path submodules/appmap-js/packages/cli/bin/solve.py \
+            --appmap_command $(pwd)/appmap.sh \
+            --temp_dir ${{ runner.temp }}
+
+          mkdir -p logs
+
+          python swebench/harness/run_evaluation.py \
+            --predictions_path predictions.jsonl \
+            --swe_bench_tasks princeton-nlp/SWE-bench_Lite \
+            --log_dir logs \
+            --testbed ${{ runner.temp }} \
+            --skip_existing \
+            --timeout 900 \
+            --verbose \
+            --num_processes 8 \
+            --path_conda $(conda info --base)
+
+      - name: Archive predictions and logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: |
+            logs/
+            predictions.jsonl
