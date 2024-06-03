@@ -41,33 +41,25 @@ jobs:
       uses: actions/setup-python@v4
     
     - name: Set up Conda
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
-        auto-activate-base: false
-        python-version: 3.8
+        auto-activate-base: true
+        environment-file: ./environment.yml
+        activate-environment: swe-bench
+        python-version: 3.10
+        use-only-tar-bz2: true
 
-    - name: Cache Conda environment
+    - name: Cache conda
       uses: actions/cache@v3
-      id: conda-cache
+      env:
+        # Increase this value to reset cache if etc/example-environment.yml has not changed
+        CACHE_NUMBER: 0
       with:
-        path: ~/.conda/envs
-        key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
-        restore-keys: |
-          ${{ runner.os }}-conda-
+        path: ~/conda_pkgs_dir
+        key:
+          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
+          hashFiles('etc/example-environment.yml') }}
 
-    - name: Create Conda environment
-      if: steps.conda-cache.outputs.cache-hit != 'true'
-      run: |
-        conda env create -f environment.yml
-
-    - name: Activate Conda environment
-      run: |
-        conda activate swe-bench
-
-    - name: Verify Conda environment
-      run: |
-        conda list
-    
     - name: Build submodules
       env:
         PUPPETEER_SKIP_DOWNLOAD: true
