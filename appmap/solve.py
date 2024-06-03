@@ -1,12 +1,12 @@
 import argparse
 import json
 from pathlib import Path
-from multiprocessing import Pool, current_process, cpu_count, get_start_method
+from multiprocessing import Pool, current_process, cpu_count
+from swebench.harness.context_manager import TestbedContextManager
 from swebench.harness.engine_validation import setup_testbed
 from datasets import DatasetDict, load_dataset, load_from_disk
-from swebench.harness.utils import split_instances
+from swebench.harness.utils import split_instances, DotDict
 from subprocess import run
-from tempfile import NamedTemporaryFile
 from os.path import abspath
 from filelock import FileLock
 
@@ -40,31 +40,93 @@ def solve_instance(data):
 
         try:
             run(
+                ["git", "checkout", instance["base_commit"]],
+                cwd=data["testbed"],
+                check=True,
+            )
+            run(
                 [
                     "python",
                     abspath(data["solver_path"]),
                     data["testbed"],
                     str(issue_file),
                     "--appmap-command",
-                    data["appmap_command"]
+                    data["appmap_command"],
                 ],
                 check=True,
                 cwd=data["testbed"],
             )
-            output = run(["git", "--no-pager", "diff"], check=True, cwd=data["testbed"], capture_output=True, text=True)
+            output = run(
+                ["git", "--no-pager", "diff"],
+                check=True,
+                cwd=data["testbed"],
+                capture_output=True,
+                text=True,
+            )
             if output.stdout:
                 instance["model_patch"] = output.stdout
                 instance["model_name_or_path"] = "navie"
                 with FileLock(f"{output_file}.lock"):
                     with open(output_file, "a+") as f:
                         f.write(json.dumps(instance) + "\n")
-        except Exception as e:
+        except Exception:
             import traceback
             print(f"Error processing {instance['instance_id']}")
             traceback.print_exc()
 
+
+def setup_testbed(data: dict):
+    """
+    Creates testbed context manager and runs verify_task_instances in parallel
+
+    Args:
+        data: Dict containing task instances and other data
+        conda_link: URL to conda installation to use
+        task_instances: List of task instances
+        log_dir: Path to log directory
+        path_conda: Path to miniconda3 or anaconda installation
+        testbed: Path to testbed directory
+        temp_dir: Path to temporary directory for storing virtual envs
+        timeout: Timeout (seconds) for testing script execution
+        verbose: Verbose mode
+        appmap_command: Path to appmap command
+        solver_path: Path to solver
+        output_file: Path to output file
+    """
+    data_dict = DotDict(data)
+    with TestbedContextManager(
+        data_dict.task_instances,
+        data_dict.log_dir,
+        conda_link=data_dict.conda_link,
+        path_conda=data_dict.path_conda,
+        testbed=data_dict.testbed,
+        temp_dir=data_dict.temp_dir,
+        timeout=data_dict.timeout,
+        verbose=data_dict.verbose,
+        appmap_command=data_dict.appmap_command,
+        solver_path=data_dict.solver_path,
+        output_file=data_dict.output_file,
+        keep=data_dict.keep,
+    ) as tcm:
+        distributed_task_list = tcm.get_distributed_tasks()
+        for task_list in distributed_task_list:
+            print(
+                f"{task_list['testbed']}: {len(task_list['task_instances'])} instances"
+            )
+
+        if len(distributed_task_list) == 1:
+            data_dict.func(distributed_task_list[0])
+            return
+
+        pool = Pool(processes=len(distributed_task_list))
+        pool.map(data_dict.func, distributed_task_list)
+        pool.close()
+        pool.join()
+
+
 def init_solve_worker():
     current_process().daemon = False
+
 
 def solve_instances(instances, args):
     if args.filter is not None:
@@ -170,6 +232,11 @@ if __name__ == "__main__":
         type=str,
         default="predictions.jsonl",
         help="Path to output predictions",
+    )
+    parser.add_argument(
+        "--keep",
+        action="store_true",
+        help="(Optional) Keep temporary directories after running",
     )
     args = parser.parse_args()
     main(args)
