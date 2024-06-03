@@ -62,7 +62,6 @@ jobs:
 
     - name: Activate Conda environment
       run: |
-        source ~/.bashrc
         conda activate swe-bench
 
     - name: Verify Conda environment
