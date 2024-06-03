@@ -7,7 +7,6 @@ on:
       projectFilter:
         description: 'Project or instance to filter for'
         required: true
-        default: 'pytest-dev__pytest-7490'
 
 jobs:
   run:
@@ -76,9 +75,10 @@ jobs:
 
     - name: Make Appmaps
       run: |
-        ./appmap/make_appmaps-github-actions.sh --filter pytest-dev__pytest-11148
+        ./appmap/make_appmaps-github-actions.sh --filter pyvista__pyvista-4315
 
-    - name: Setup upterm session
-      uses: owenthereal/action-upterm@v1
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
       with:
-        wait-timeout-minutes: 5
+        name: project-filter-${{ github.event.inputs.projectFilter }}
+        path: ./appmaps/
