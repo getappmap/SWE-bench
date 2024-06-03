@@ -75,7 +75,7 @@ jobs:
 
     - name: Make Appmaps
       run: |
-        ./appmap/make_appmaps-github-actions.sh --filter pyvista__pyvista-4315
+        ./appmap/make_appmaps-github-actions.sh --filter matplotlib__matplotlib-25433
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v3
