@@ -86,6 +86,7 @@ def worker_init(data: dict):
     assert data_dict.output is not None
     assert data_dict.solver_path is not None
     assert data_dict.appmap_command is not None
+    assert data_dict.path_conda is not None
 
     solver_path = abspath(data_dict.solver_path)
     output_file = abspath(data_dict.output)
