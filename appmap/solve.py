@@ -54,13 +54,7 @@ def solve_instance(data, args):
                 cwd=data["testbed"],
             )
 
-            run(
-                ["git", "clean", "-fdX"],
-                check=True,
-                cwd=data[
-                    "testbed"
-                ],  # Redundant with the first CLI argument, but that arg is required
-            )
+            run(["git", "clean", "-fdX"], check=True, cwd=data["testbed"])
 
             run(
                 [
@@ -75,9 +69,9 @@ def solve_instance(data, args):
             run(
                 run_args,
                 check=True,
-                cwd=args.testbed,
-                capture_output=True,
-                text=True,
+                cwd=data[
+                    "testbed"
+                ],  # Redundant with the first arg, but that arg is required.
             )
             output = run(
                 ["git", "--no-pager", "diff"],
@@ -104,7 +98,6 @@ def create_solver(args):
     assert output_file is not None
     assert args.solver_path is not None
     assert args.appmap_command is not None
-    assert args.testbed is not None
 
     return functools.partial(solve_instance, args=args)
 
