@@ -12,7 +12,6 @@ from filelock import FileLock
 
 datasets_dir = Path(__file__).parent / "datasets"
 
-
 def load_data(dataset_name, split) -> tuple[DatasetDict, str]:
     dataset_dir = datasets_dir / dataset_name.replace("/", "__")
     dataset = None
@@ -66,9 +65,8 @@ def solve_instance(instance, output_file, testbed, appmap_command, solver_path):
                 with open(output_file, "a+") as f:
                     f.write(json.dumps(instance) + "\n")
     except Exception:
-        import traceback
-
         print(f"Error processing {instance['instance_id']}")
+        import traceback
         traceback.print_exc()
 
 
