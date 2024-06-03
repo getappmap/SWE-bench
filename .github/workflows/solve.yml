@@ -20,6 +20,7 @@ jobs:
         run: |
           conda init bash
           conda env create -f environment.yml
+          pip install flake8 black
       - name: Build submodules
         env:
           PUPPETEER_SKIP_DOWNLOAD: true
@@ -46,8 +47,10 @@ jobs:
           chmod +x appmap.sh
 
           python appmap/solve.py \
+            --filter requests \
             --solver_path submodules/appmap-js/packages/cli/bin/solve.py \
             --appmap_command $(pwd)/appmap.sh \
+            --lint_command "flake8 --extend-ignore=BLK100,W293,E501,E302,D" \
             --temp_dir ${{ runner.temp }}
 
           mkdir -p logs
