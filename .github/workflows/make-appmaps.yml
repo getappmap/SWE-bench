@@ -75,7 +75,7 @@ jobs:
 
     - name: Make Appmaps
       run: |
-        ./appmap/make_appmaps-github-actions.sh --filter pytest-dev__pytest-7490
+        ./appmap/make_appmaps-github-actions.sh --filter pytest-dev__pytest-11148
 
     - name: Setup upterm session
       uses: lhotari/action-upterm@v1
