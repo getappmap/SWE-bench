@@ -4,14 +4,10 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      instancePath:
-        description: 'Input variable 1'
+      projectFilter:
+        description: 'Project or instance to filter for'
         required: true
-        default: 'default_value1'
-      var2:
-        description: 'Input variable 2'
-        required: true
-        default: 'default_value2'
+        default: 'pytest-dev__pytest-7490'
 
 jobs:
   run:
@@ -74,5 +70,6 @@ jobs:
         yarn
         yarn build
     
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
+    - name: Make Appmaps
+      run: |
+        ./appmap/make_appmaps-github-actions.sh --filter pytest-dev__pytest-7490
