@@ -2,7 +2,7 @@ import argparse
 import json
 from pathlib import Path
 from multiprocessing import Pool, current_process, cpu_count
-from swebench.harness.context_manager import TestbedContextManager
+from swebench.harness.context_manager import TestbedContextManager, TaskEnvContextManager
 from swebench.harness.engine_validation import setup_testbed
 from datasets import DatasetDict, load_dataset, load_from_disk
 from swebench.harness.utils import split_instances, DotDict
@@ -26,53 +26,50 @@ def load_data(dataset_name, split) -> tuple[DatasetDict, str]:
     return dataset[split]
 
 
-def solve_instance(data):
-    # Check that this is defined
-    output_file = data["output_file"]
+def solve_instance(instance, output_file, testbed, appmap_command, solver_path):
+    # Create a temporary directory to store the problem statement and the working files
+    issue_dir = Path(testbed) / instance["instance_id"]
+    issue_dir.mkdir(parents=True, exist_ok=True)
+    issue_file = issue_dir / "issue.txt"
+    with open(issue_file, "w") as f:
+        f.write(instance["problem_statement"])
 
-    for instance in data["task_instances"]:
-        # Create a temporary directory to store the problem statement and the working files
-        issue_dir = Path(data["testbed"]) / instance["instance_id"]
-        issue_dir.mkdir(parents=True, exist_ok=True)
-        issue_file = issue_dir / "issue.txt"
-        with open(issue_file, "w") as f:
-            f.write(instance["problem_statement"])
+    try:
+        run(
+            ["git", "checkout", instance["base_commit"]],
+            cwd=testbed,
+            check=True,
+        )
+        run(
+            [
+                "python",
+                abspath(solver_path),
+                testbed,
+                str(issue_file),
+                "--appmap-command",
+                appmap_command,
+            ],
+            check=True,
+            cwd=testbed,
+        )
+        output = run(
+            ["git", "--no-pager", "diff"],
+            check=True,
+            cwd=testbed,
+            capture_output=True,
+            text=True,
+        )
+        if output.stdout:
+            instance["model_patch"] = output.stdout
+            instance["model_name_or_path"] = "navie"
+            with FileLock(f"{output_file}.lock"):
+                with open(output_file, "a+") as f:
+                    f.write(json.dumps(instance) + "\n")
+    except Exception:
+        import traceback
 
-        try:
-            run(
-                ["git", "checkout", instance["base_commit"]],
-                cwd=data["testbed"],
-                check=True,
-            )
-            run(
-                [
-                    "python",
-                    abspath(data["solver_path"]),
-                    data["testbed"],
-                    str(issue_file),
-                    "--appmap-command",
-                    data["appmap_command"],
-                ],
-                check=True,
-                cwd=data["testbed"],
-            )
-            output = run(
-                ["git", "--no-pager", "diff"],
-                check=True,
-                cwd=data["testbed"],
-                capture_output=True,
-                text=True,
-            )
-            if output.stdout:
-                instance["model_patch"] = output.stdout
-                instance["model_name_or_path"] = "navie"
-                with FileLock(f"{output_file}.lock"):
-                    with open(output_file, "a+") as f:
-                        f.write(json.dumps(instance) + "\n")
-        except Exception:
-            import traceback
-            print(f"Error processing {instance['instance_id']}")
-            traceback.print_exc()
+        print(f"Error processing {instance['instance_id']}")
+        traceback.print_exc()
 
 
 def setup_testbed(data: dict):
@@ -103,25 +100,33 @@ def setup_testbed(data: dict):
         temp_dir=data_dict.temp_dir,
         timeout=data_dict.timeout,
         verbose=data_dict.verbose,
-        appmap_command=data_dict.appmap_command,
-        solver_path=data_dict.solver_path,
-        output_file=data_dict.output_file,
         keep=data_dict.keep,
     ) as tcm:
-        distributed_task_list = tcm.get_distributed_tasks()
-        for task_list in distributed_task_list:
-            print(
-                f"{task_list['testbed']}: {len(task_list['task_instances'])} instances"
-            )
-
-        if len(distributed_task_list) == 1:
-            data_dict.func(distributed_task_list[0])
-            return
-
-        pool = Pool(processes=len(distributed_task_list))
-        pool.map(data_dict.func, distributed_task_list)
-        pool.close()
-        pool.join()
+        for instance in data_dict.task_instances:
+            repo_prefix = instance["repo"].replace("/", "__")
+            env_name = f"{repo_prefix}__{instance['version']}"
+            testbed = Path(tcm.testbed) / env_name
+            solver_path = abspath(data_dict.solver_path)
+            output_file = abspath(data_dict.output_file)
+            with TaskEnvContextManager(
+                instance,
+                testbed.as_posix(),
+                env_name,
+                abspath(data_dict.log_dir),
+                data_dict.path_conda,
+                timeout=data_dict.timeout,
+                verbose=data_dict.verbose,
+                log_suffix=data_dict.log_suffix,
+            ) as task_manager:
+                if not task_manager.reset_task_env(instance):
+                    return
+                solve_instance(
+                    instance,
+                    output_file,
+                    testbed,
+                    data_dict.appmap_command,
+                    solver_path,
+                )
 
 
 def init_solve_worker():
