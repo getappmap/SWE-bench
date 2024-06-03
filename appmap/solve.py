@@ -31,8 +31,7 @@ def solve_instance(data):
     output_file = data["output_file"]
 
     for instance in data["task_instances"]:
-        # Create a temporary directory to store the problem statement and the working files
-        issue_dir = Path(data["testbed"]) / instance["instance_id"]
+        issue_dir = Path(data["log_dir"]) / "solve" / instance["instance_id"]
         issue_dir.mkdir(parents=True, exist_ok=True)
         issue_file = issue_dir / "issue.txt"
         with open(issue_file, "w") as f:
