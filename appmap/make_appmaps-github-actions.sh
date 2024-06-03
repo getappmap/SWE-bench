@@ -15,5 +15,5 @@ python $PROJECT_ROOT/appmap/make_appmaps.py \
     --num_workers 1 \
     --verbose \
     --path_conda $(conda info --base) \
-    --appmap-bin ./submodules/appmap-js/packages/cli/built/cli.js \
+    --appmap-bin /home/runner/work/SWE-bench/SWE-bench/submodules/appmap-js/packages/cli/built/cli.js \
     "$@"
