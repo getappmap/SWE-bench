@@ -1,5 +1,6 @@
 on:
   workflow_dispatch:
+  pull:
 
 jobs:
   solve:
