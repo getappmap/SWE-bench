@@ -2,7 +2,10 @@ import argparse
 import json
 from pathlib import Path
 from multiprocessing import Pool, current_process, cpu_count
-from swebench.harness.context_manager import TestbedContextManager, TaskEnvContextManager
+from swebench.harness.context_manager import (
+    TestbedContextManager,
+    TaskEnvContextManager,
+)
 from swebench.harness.utils import split_instances, DotDict
 from subprocess import run
 from os.path import abspath
@@ -19,23 +22,29 @@ def output_results(instance, output_file, patch):
         with open(output_file, "a+") as f:
             f.write(json.dumps(instance) + "\n")
 
-def solve_instance(instance, log_dir, testbed, appmap_command, solver_path, lint_command):
+
+def solve_instance(instance, log_dir, testbed, appmap_command, lint_command):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"]
     issue_dir.mkdir(parents=True, exist_ok=True)
     issue_file = issue_dir / "issue.txt"
     with open(issue_file, "w") as f:
         f.write(instance["problem_statement"])
+
+    solver_path = Path(__file__).parent / "solve" / "solver.py"
     run_args = [
         "python",
-        solver_path,
-        testbed,
+        str(solver_path),
         str(issue_file),
+        "--log-dir",
+        log_dir,
         "--appmap-command",
         appmap_command,
     ]
     if lint_command is not None:
         run_args.extend(["--lint-command", lint_command])
+
     try:
+        # Run this as a separate process so that it can change the working directory.
         run(
             run_args,
             check=True,
@@ -52,7 +61,9 @@ def solve_instance(instance, log_dir, testbed, appmap_command, solver_path, lint
     except Exception:
         print(f"Error processing {instance['instance_id']}")
         import traceback
+
         traceback.print_exc()
+
 
 def worker_init(data: dict):
     """
@@ -67,17 +78,14 @@ def worker_init(data: dict):
         timeout: Timeout (seconds) for testing script execution
         verbose: Verbose mode
         appmap_command: Path to appmap command
-        solver_path: Path to solver
         output_file: Path to output file
     """
     data_dict = DotDict(data)
 
     assert data_dict.output is not None
-    assert data_dict.solver_path is not None
     assert data_dict.appmap_command is not None
     assert data_dict.path_conda is not None
 
-    solver_path = abspath(data_dict.solver_path)
     output_file = abspath(data_dict.output)
 
     with TestbedContextManager(
@@ -114,13 +122,13 @@ def worker_init(data: dict):
                         log_dir,
                         testbed,
                         data_dict.appmap_command,
-                        solver_path,
                         data_dict.lint_command,
                     )
                     output_results(instance, output_file, patch)
             except Exception:
                 print(f"Error processing {instance['instance_id']}")
                 import traceback
+
                 traceback.print_exc()
 
 
@@ -219,9 +227,6 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="(Optional) Filter to apply to task instances",
-    )
-    parser.add_argument(
-        "--solver_path", type=str, default=None, help="Path to solver", required=True
     )
     parser.add_argument(
         "--appmap_command", type=str, default="appmap", help="Path to appmap command"
