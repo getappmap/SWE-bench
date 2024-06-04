@@ -35,19 +35,20 @@ jobs:
 
     - name: Set up Python
       uses: actions/setup-python@v4
-      with:
-        python-version: '3.11.6' 
    
     - name: Set up Conda
       uses: conda-incubator/setup-miniconda@v3
       with:
-        environment-file: ./environment.yml
-        activate-environment: swe-bench
         python-version: 3.9
 
     - name: Make dirs
       run: |
-        mkdir -p appmaps appmap_logs /tmp/swe-appmaps        
+        mkdir -p appmaps appmap_logs /tmp/swe-appmaps
+        
+    - name: Create conda env
+      run: |
+        conda init bash
+        conda env create -f environment.yml
 
     - name: Make Appmaps
       run: |
