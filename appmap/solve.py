@@ -3,26 +3,11 @@ import json
 from pathlib import Path
 from multiprocessing import Pool, current_process, cpu_count
 from swebench.harness.context_manager import TestbedContextManager, TaskEnvContextManager
-from datasets import DatasetDict, load_dataset, load_from_disk
 from swebench.harness.utils import split_instances, DotDict
 from subprocess import run
 from os.path import abspath
 from filelock import FileLock
-
-datasets_dir = Path(__file__).parent / "datasets"
-
-def load_data(dataset_name, split) -> tuple[DatasetDict, str]:
-    dataset_dir = datasets_dir / dataset_name.replace("/", "__")
-    dataset = None
-    if Path(dataset_dir).exists():
-        dataset = load_from_disk(str(dataset_dir))
-    else:
-        dataset = load_dataset(dataset_name)
-        Path.mkdir(dataset_dir, parents=True)
-        dataset.save_to_disk(str(dataset_dir))
-
-    return dataset[split]
-
+from appmap.data import load_data
 
 def solve_instance(instance, output_file, log_dir, testbed, appmap_command, solver_path, lint_command):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"]
@@ -41,7 +26,6 @@ def solve_instance(instance, output_file, log_dir, testbed, appmap_command, solv
     if lint_command is not None:
         run_args.extend(["--lint-command", lint_command])
     try:
-
         run(
             run_args,
             check=True,
