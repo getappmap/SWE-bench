@@ -10,7 +10,7 @@ on:
 
 jobs:
   run:
-    runs-on: swe-bench-ubuntu-latest
+    runs-on: SWE-Bench_Larger
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -51,11 +51,6 @@ jobs:
         mkdir -p appmaps appmap_logs /tmp/swe-appmaps
         df -h /tmp/swe-appmaps
 
-    - name: Setup upterm session
-      uses: owenthereal/action-upterm@v1
-      with:
-        wait-timeout-minutes: 5
-
     - name: Make Appmaps
       run: |
         ./appmap/make_appmaps-github-actions.sh --filter matplotlib__matplotlib-25433
@@ -66,3 +61,9 @@ jobs:
         path: | 
           ./appmaps/*.tar.gz
           ./appmap_logs/
+
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      if: ${{ failure() }}
+      with:
+        wait-timeout-minutes: 5
