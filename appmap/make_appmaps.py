@@ -1,12 +1,12 @@
 import argparse, glob, itertools, os, tarfile, subprocess
 
 from multiprocessing import Pool, cpu_count
-from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK, PatchType
+from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 from swebench.harness.context_manager import (
     TaskEnvContextManager,
     TestbedContextManager,
 )
-from swebench.harness.utils import get_instances, split_instances, DotDict
+from swebench.harness.utils import split_instances, DotDict
 from swebench.metrics.getters import get_eval_refs
 
 
@@ -36,9 +36,9 @@ def validate_args(args):
 
     # If value is provided, check that it is valid
     if args.timeout is not None and args.timeout < 0:
-        raise ValueError(f"Timeout must be a positive integer")
+        raise ValueError("Timeout must be a positive integer")
     if args.num_workers is not None and args.num_workers < 1:
-        raise ValueError(f"Number of workers must be a positive integer")
+        raise ValueError("Number of workers must be a positive integer")
 
     if not os.path.exists(appmap_bin):
         raise ValueError(f"Could not find appmap binary at {args.appmap_bin}")
@@ -252,7 +252,7 @@ if __name__ == "__main__":
         "--num_workers", type=int, default=None, help="(Optional) Number of workers"
     )
     parser.add_argument(
-        "--appmap-bin",
+        "--appmap_bin",
         type=str,
         help="path to appmap binary",
         default="~/.appmap/bin/appmap",

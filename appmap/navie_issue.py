@@ -9,7 +9,6 @@ from typing import Optional, Union
 from datasets import DatasetDict, load_dataset, load_from_disk
 
 from swebench.harness.utils import clone_to
-from swebench.metrics.getters import get_eval_refs
 from subprocess import PIPE, Popen
 import json
 from filelock import FileLock
