@@ -13,15 +13,38 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: true
+
       - name: Set up Python
         uses: actions/setup-python@v4
-      # TODO: Cache conda env
+
+      # Cache the conda environment
+      - name: Cache conda environment
+        id: cache-conda
+        uses: actions/cache@v3
+        with:
+          path: ~/.conda/envs/swe-bench
+          key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
+
+      # Create conda env if cache miss happens
       - name: Create conda env
+        if: steps.cache-conda.outputs.cache-hit != 'true'
         run: |
           conda init bash
           conda env create -f environment.yml
           pip install flake8 black
+
+      # Cache the appmap-js build
+      - name: Cache appmap-js build
+        uses: actions/cache@v3
+        id: cache-appmap-js
+        with:
+          path: |
+            submodules/appmap-js/node_modules
+            submodules/appmap-js/packages/*/built
+          key: appmap-js-${{ runner.os }}-${{ hashFiles('submodules/appmap-js/package.json') }}
+
       - name: Build submodules
+        if: steps.cache-appmap-js.outputs.cache-hit != 'true'
         env:
           PUPPETEER_SKIP_DOWNLOAD: true
         run: |
@@ -29,6 +52,8 @@ jobs:
           git checkout -- .
           yarn
           yarn build
+          chmod +x packages/cli/built/cli.js
+
       - name: Run benchmark
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -36,27 +61,21 @@ jobs:
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          conda info
-
-          cat > appmap.sh <<EOF
-            #!/bin/bash
-            set -e
-            node $(pwd)/submodules/appmap-js/packages/cli/built/cli.js "\$@"
-          EOF
-
-          chmod +x appmap.sh
-
           python appmap/solve.py \
             --filter astropy \
-            --appmap_command $(pwd)/appmap.sh \
+            --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,W293,E201,E202,E303,E501,E128,E231,C408,F401,C402,E402,C416,E261,E302,D" \
             --temp_dir ${{ runner.temp }} \
             --num_workers 6 \
             --path_conda $(conda info --base) \
             --verbose
 
+      - name: Run evaluation
+        run: |
           mkdir -p logs
-
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate swe-bench
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
           python swebench/harness/run_evaluation.py \
             --predictions_path predictions.jsonl \
             --swe_bench_tasks princeton-nlp/SWE-bench_Lite \
@@ -68,6 +87,12 @@ jobs:
             --num_processes 8 \
             --path_conda $(conda info --base)
 
+      - name: Generate AppMap report
+        run: |
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate swe-bench
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          conda info
           python appmap/report.py
 
       - name: Archive predictions and logs
