@@ -23,7 +23,7 @@ def output_results(instance, output_file, patch):
             f.write(json.dumps(instance) + "\n")
 
 
-def solve_instance(instance, log_dir, testbed, appmap_command, lint_command):
+def solve_instance(instance, log_dir, testbed, appmap_command, lint_command, retries):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"]
     issue_dir.mkdir(parents=True, exist_ok=True)
     issue_file = issue_dir / "issue.txt"
@@ -35,6 +35,8 @@ def solve_instance(instance, log_dir, testbed, appmap_command, lint_command):
         "python",
         str(solver_path),
         str(issue_file),
+        "--retries",
+        str(retries),
         "--log-dir",
         log_dir,
         "--appmap-command",
@@ -45,11 +47,7 @@ def solve_instance(instance, log_dir, testbed, appmap_command, lint_command):
 
     try:
         # Run this as a separate process so that it can change the working directory.
-        run(
-            run_args,
-            check=True,
-            cwd=testbed,
-        )
+        run(run_args, check=True, cwd=testbed)
         output = run(
             ["git", "--no-pager", "diff"],
             check=True,
@@ -77,7 +75,6 @@ def worker_init(data: dict):
         temp_dir: Path to temporary directory for storing virtual envs
         timeout: Timeout (seconds) for testing script execution
         verbose: Verbose mode
-        appmap_command: Path to appmap command
         output_file: Path to output file
     """
     data_dict = DotDict(data)
@@ -85,6 +82,7 @@ def worker_init(data: dict):
     assert data_dict.output is not None
     assert data_dict.appmap_command is not None
     assert data_dict.path_conda is not None
+    assert data_dict.retries is not None
 
     output_file = abspath(data_dict.output)
 
@@ -124,6 +122,7 @@ def worker_init(data: dict):
                             testbed,
                             data_dict.appmap_command,
                             data_dict.lint_command,
+                            data_dict.retries
                         )
                         output_results(instance, output_file, patch)
                 except Exception:
@@ -212,6 +211,12 @@ if __name__ == "__main__":
         type=int,
         default=None,
         help="(Optional) Timeout (seconds) for testing script execution",
+    )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=3,
+        help="Number of times to try and create a code update for each test instance",
     )
     parser.add_argument(
         "--verbose", action="store_true", help="(Optional) Verbose mode"
