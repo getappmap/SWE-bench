@@ -1,3 +1,4 @@
+from log import log_diff, log_lint
 from run_command import run_command
 from run_navie_command import run_navie_command
 from format_instructions import format_instructions
@@ -8,11 +9,13 @@ import re
 import subprocess
 
 
-def step_lint_repair(args, work_dir, appmap_command, base_file_content):
+def step_lint_repair(args, log_dir, work_dir, appmap_command, base_file_content):
     lint_command = args.lint_command
     lint_error_pattern = args.lint_error_pattern
 
     print("Linting source files")
+
+    work_dir_base_name = os.path.basename(work_dir)
 
     for file in base_file_content.keys():
         print(f"Linting {file}")
@@ -28,7 +31,7 @@ def step_lint_repair(args, work_dir, appmap_command, base_file_content):
 
         lint_output = lint_result.stdout + lint_result.stderr
 
-        print(lint_output)
+        log_lint(log_dir, os.path.join(work_dir_base_name, file), lint_output)
 
         # If lint_error_pattern starts and ends with '/', treat it as a regular expression.
         # Otherwise, treat it as a string literal.
@@ -58,7 +61,7 @@ def step_lint_repair(args, work_dir, appmap_command, base_file_content):
         diff_command = f"diff -u {os.path.join(temp_dir, 'base')} {os.path.join(temp_dir, 'updated')}"
         file_diff = run_command(diff_command, fail_on_error=False)
 
-        print(file_diff)
+        log_diff(log_dir, os.path.join(work_dir_base_name, file), file_diff)
 
         # Lint errors are formatted like this:
         # bin/solve.py:257:80: E501 line too long (231 > 79 characters)
@@ -67,13 +70,12 @@ def step_lint_repair(args, work_dir, appmap_command, base_file_content):
         for error in lint_errors:
             if error:
                 line_number = error.split(":")[1]
-                print(f"Error reported on line {line_number}: ${error}")
                 lint_errors_by_line_number[int(line_number)] = error
 
-            # The file diff contains chunks like:
-            # @@ -147,15 +147,21 @@
-            # Find the '+' number, which indicates the start line. Also find the number after the
-            # comma, which indicates the number of lines. Report these two numbers for each chunk.
+        # The file diff contains chunks like:
+        # @@ -147,15 +147,21 @@
+        # Find the '+' number, which indicates the start line. Also find the number after the
+        # comma, which indicates the number of lines. Report these two numbers for each chunk.
         diff_ranges = [
             [int(ch) for ch in chunk.split(" ")[2].split(",")]
             for chunk in file_diff.split("\n")
@@ -93,11 +95,29 @@ def step_lint_repair(args, work_dir, appmap_command, base_file_content):
         ]
 
         if lint_error_line_numbers_within_diff_sections:
-            print(
-                f"Lint errors within diff sections: {lint_error_line_numbers_within_diff_sections}"
+            lint_errors = [
+                lint_errors_by_line_number[line_number]
+                for line_number in lint_error_line_numbers_within_diff_sections
+            ]
+
+            lint_error_message = "\n".join(
+                [
+                    "Lint errors within diff sections:",
+                    *lint_errors,
+                ]
+            )
+
+            print(lint_error_message)
+            log_diff(
+                log_dir, os.path.join(work_dir_base_name, file), lint_error_message
             )
         else:
             print("There are no lint errors within diff sections")
+            log_diff(
+                log_dir,
+                os.path.join(work_dir_base_name, file),
+                "No lint errors within diff sections",
+            )
 
         for line_number in lint_error_line_numbers_within_diff_sections:
             lint_error = lint_errors_by_line_number[line_number]

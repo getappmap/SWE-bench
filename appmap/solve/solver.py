@@ -15,6 +15,7 @@ class Solver:
     def __init__(
         self,
         issue_file,
+        log_dir,
         format_command=None,
         lint_command=None,
         lint_error_pattern=None,
@@ -22,6 +23,7 @@ class Solver:
         steps=None,
     ):
         self.issue_file = issue_file
+        self.log_dir = log_dir
         self.format_command = format_command
         self.lint_command = lint_command
         self.lint_error_pattern = lint_error_pattern
@@ -90,7 +92,11 @@ class Solver:
 
     def lint_repair(self):
         step_lint_repair(
-            self, self.work_dir, self.appmap_command, self.base_file_content
+            self,
+            self.log_dir,
+            self.work_dir,
+            self.appmap_command,
+            self.base_file_content,
         )
 
 
@@ -103,7 +109,13 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--directory", type=str, help="Working directory of the project to modify"
+        "--directory",
+        type=str,
+        help="Working directory of the project to modify",
+        default=None,
+    )
+    parser.add_argument(
+        "--log-dir", type=str, help="Directory to store logs", default="logs"
     )
     parser.add_argument(
         "--format-command", type=str, help="Format command to use", default=None
@@ -142,8 +154,12 @@ if __name__ == "__main__":
     if args.directory:
         os.chdir(args.directory)
 
+    if args.log_dir:
+        os.makedirs(args.log_dir, exist_ok=True)
+
     solver = Solver(
         issue_file=args.issue_file,
+        log_dir=args.log_dir,
         format_command=args.format_command,
         lint_command=args.lint_command,
         lint_error_pattern=args.lint_error_pattern,
