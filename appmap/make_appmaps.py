@@ -1,17 +1,24 @@
-import argparse, glob, itertools, os, tarfile, subprocess
-
+import argparse
+import faulthandler
+import glob
+import itertools
 import json
+import os
+import signal
+import subprocess
 import sys
-
+import tarfile
 from multiprocessing import Pool, cpu_count
-from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK, PatchType
+
+from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 from swebench.harness.context_manager import (
     TaskEnvContextManager,
     TestbedContextManager,
 )
-from swebench.harness.utils import get_instances, split_instances, DotDict
+from swebench.harness.utils import DotDict, split_instances
 from swebench.metrics.getters import get_eval_refs
 
+faulthandler.register(signal.SIGUSR1)
 
 SKIP_INSTANCES = {"pytest-dev/pytest": ["6387", "7956", "3805"]}
 
@@ -83,12 +90,15 @@ def make_appmaps(data: dict):
         tcm.run_install_task(task_instance)
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
+        tcm.log.write("Installing pytest-test-groups")
+        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install pytest-test-groups"])
         task_instance["test_cmd"] = MAP_REPO_TO_TEST_FRAMEWORK[
             task_instance["repo"]
         ]  # run all tests
         tcm.log.write("Running tests with appmap")
-        task_instance["test_cmd"] = f"APPMAP_DISPLAY_PARAMS=false APPMAP_MAX_EVENTS=50000 appmap-python {task_instance['test_cmd']}"
-        tcm.run_tests_task(task_instance)
+        for i in range(1,100):
+            test_cmd = f"APPMAP_DISPLAY_PARAMS=false APPMAP_MAX_EVENTS=50000 PYTHONUNBUFFERED=1 appmap-python {task_instance['test_cmd']}  --test-group-count 100 --test-group {i}"
+            tcm.run_tests_task(task_instance, test_cmd)
         tcm.log.write("Uninstalling appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip uninstall -y appmap"])
         # count .appmap.json files in testbed/tmp/appmap (recursively)
