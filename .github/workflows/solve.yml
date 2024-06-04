@@ -19,10 +19,11 @@ on:
         default: "3"
 
   pull_request:
-
+    types: [labeled]
 
 jobs:
   solve:
+    if: ${{ github.event.label.name == 'evaluate' || github.event_name == 'workflow_dispatch' }}
     runs-on: swe-bench-ubuntu-latest
     defaults:
       run:
