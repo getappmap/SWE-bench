@@ -88,48 +88,52 @@ def worker_init(data: dict):
 
     output_file = abspath(data_dict.output)
 
-    with TestbedContextManager(
-        data_dict.task_instances,
-        data_dict.log_dir,
-        conda_link=data_dict.conda_link,
-        path_conda=data_dict.path_conda,
-        testbed=data_dict.testbed,
-        temp_dir=data_dict.temp_dir,
-        timeout=data_dict.timeout,
-        verbose=data_dict.verbose,
-        keep=data_dict.keep,
-    ) as tcm:
-        for instance in data_dict.task_instances:
-            repo_prefix = instance["repo"].replace("/", "__")
-            env_name = f"{repo_prefix}__{instance['version']}"
-            testbed = Path(tcm.testbed) / env_name
-            log_dir = abspath(data_dict.log_dir)
-            try:
-                with TaskEnvContextManager(
-                    instance,
-                    testbed.as_posix(),
-                    env_name,
-                    log_dir,
-                    data_dict.path_conda,
-                    timeout=data_dict.timeout,
-                    verbose=data_dict.verbose,
-                    log_suffix=data_dict.log_suffix,
-                ) as task_manager:
-                    if not task_manager.reset_task_env(instance):
-                        return
-                    patch = solve_instance(
+    try:
+        with TestbedContextManager(
+            data_dict.task_instances,
+            data_dict.log_dir,
+            conda_link=data_dict.conda_link,
+            path_conda=data_dict.path_conda,
+            testbed=data_dict.testbed,
+            temp_dir=data_dict.temp_dir,
+            timeout=data_dict.timeout,
+            verbose=data_dict.verbose,
+            keep=data_dict.keep,
+        ) as tcm:
+            for instance in data_dict.task_instances:
+                repo_prefix = instance["repo"].replace("/", "__")
+                env_name = f"{repo_prefix}__{instance['version']}"
+                testbed = Path(tcm.testbed) / env_name
+                log_dir = abspath(data_dict.log_dir)
+                try:
+                    with TaskEnvContextManager(
                         instance,
+                        testbed.as_posix(),
+                        env_name,
                         log_dir,
-                        testbed,
-                        data_dict.appmap_command,
-                        data_dict.lint_command,
-                    )
-                    output_results(instance, output_file, patch)
-            except Exception:
-                print(f"Error processing {instance['instance_id']}")
-                import traceback
-
-                traceback.print_exc()
+                        data_dict.path_conda,
+                        timeout=data_dict.timeout,
+                        verbose=data_dict.verbose,
+                        log_suffix=data_dict.log_suffix,
+                    ) as task_manager:
+                        if not task_manager.reset_task_env(instance):
+                            return
+                        patch = solve_instance(
+                            instance,
+                            log_dir,
+                            testbed,
+                            data_dict.appmap_command,
+                            data_dict.lint_command,
+                        )
+                        output_results(instance, output_file, patch)
+                except Exception:
+                    print(f"Error processing {instance['instance_id']}")
+                    import traceback
+                    traceback.print_exc()
+    except Exception:
+        print("Error instantiating testbed")
+        import traceback
+        traceback.print_exc()
 
 
 def solve_instances(instances, args):
