@@ -572,7 +572,7 @@ MAP_VERSION_TO_INSTALL = {
 MAP_REPO_TO_INSTALL = {}
 
 # Constants - Task Instance Test Frameworks
-TEST_PYTEST = "pytest --no-header -rA --tb=no -p no:cacheprovider"
+TEST_PYTEST = "pytest --no-header -rA --tb=no -p no:cacheprovider -v"
 MAP_REPO_TO_TEST_FRAMEWORK = {
     "astropy/astropy": TEST_PYTEST,
     "django/django": "./tests/runtests.py --verbosity 2",
