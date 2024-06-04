@@ -29,8 +29,6 @@ jobs:
           git checkout -- .
           yarn
           yarn build
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
       - name: Run benchmark
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
