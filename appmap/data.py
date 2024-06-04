@@ -3,6 +3,7 @@ from pathlib import Path
 
 datasets_dir = Path(__file__).parent / "datasets"
 
+
 def load_data(dataset_name, split) -> tuple[DatasetDict, str]:
     dataset_dir = datasets_dir / dataset_name.replace("/", "__")
     dataset = None
