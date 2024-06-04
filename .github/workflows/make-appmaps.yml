@@ -61,5 +61,5 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         path: | 
-          ./appmaps/*.tar.gz
+          ./appmaps/
           ./appmap_logs/
