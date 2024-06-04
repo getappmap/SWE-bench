@@ -15,21 +15,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Cache conda
-      id: cache-conda
-      uses: actions/cache@v3
-      env:
-          # Increase this value to reset cache if etc/example-environment.yml has not changed
-          CACHE_NUMBER: 2
-      with:
-        path: |
-          ~/conda_pkgs_dir
-          /usr/share/miniconda/envs/
-          /home/runner/.conda/envs/
-        key:
-          ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{
-          hashFiles('./environment.yml') }}
-    
     - name: Install AppMap tools
       uses: getappmap/install-action@v1
       with:
@@ -42,7 +27,6 @@ jobs:
         cache: 'pip'
    
     - name: Set up Conda
-      if: steps.cache-conda.outputs.cache-hit != 'true'
       uses: conda-incubator/setup-miniconda@v3
       with:
         python-version: 3.9
