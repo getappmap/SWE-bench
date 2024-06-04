@@ -47,15 +47,17 @@ jobs:
           APPMAP_MAX_EVENTS=10000 ./appmap/make_appmaps-github-actions.sh --filter pydicom__pydicom-1694
 
     - name: Get Artifact Name
+      id: get-artifact-name  # Add an ID for this step
       run: |
-        file=$(find ./appmaps -name "*.tar.gz" | head -n 1)
+        file=$(ls appmaps/ | head -n 1)
         echo "file_name=$file" >> $GITHUB_ENV
+        echo "::set-output name=file_name::$file" 
 
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v3
+    - name: Upload AppMaps
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.file_name }}
-        path: ./appmaps/${{ env.file_name }}
+        name: ${{ steps.get-artifact-name.outputs.file_name }}  # Use the output from the previous step
+        path: ./appmaps/${{ steps.get-artifact-name.outputs.file_name }}
 
     - name: Upload SWE Bench Logs
       uses: actions/upload-artifact@v4
