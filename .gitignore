@@ -176,3 +176,6 @@ data/repos/copies
 notebooks/
 *.csv
 appmap.sh
+work
+appmap/datasets
+

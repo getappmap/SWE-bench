@@ -3,6 +3,15 @@ import os
 from filelock import FileLock
 
 
+def log_command(dir, command):
+    command_lock_file = os.path.join(dir, "command.lock")
+    command_log_file = os.path.join(dir, "command.log")
+
+    with FileLock(command_lock_file):
+        with open(command_log_file, "a+") as f:
+            f.write(command + "\n")
+
+
 def log_lint(dir, file, lint_messages):
     lint_lock_file = os.path.join(dir, "lint.lock")
     lint_log_file = os.path.join(dir, "lint.log")

@@ -51,9 +51,9 @@ jobs:
             --appmap_command $(pwd)/appmap.sh \
             --lint_command "flake8 --extend-ignore=BLK100,W293,E501,E128,E231,C408,F401,C402,E402,C416,E261,E302,D" \
             --temp_dir ${{ runner.temp }} \
-            --verbose \
             --num_workers 6 \
-            --path_conda $(conda info --base)
+            --path_conda $(conda info --base) \
+            --verbose
 
           mkdir -p logs
 
