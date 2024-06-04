@@ -47,7 +47,7 @@ jobs:
       run: |
           source /home/runner/.bashrc
           conda activate swe-bench
-          conda info
+          conda info  
           APPMAP_MAX_EVENTS=${{ github.event.inputs.appmapMaxEvents }} ./appmap/make_appmaps-github-actions.sh --filter ${{ github.event.inputs.projectFilter }}
 
     - name: Upload Build Artifacts

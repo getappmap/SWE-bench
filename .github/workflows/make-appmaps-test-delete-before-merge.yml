@@ -3,12 +3,15 @@ name: Make AppMaps (delete me before we merge)
 on:
   pull_request:
 
+permissions:
+    contents: write
+
 jobs:
   run:
     runs-on: SWE-Bench_Larger
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install AppMap tools
       uses: getappmap/install-action@v1
@@ -17,7 +20,7 @@ jobs:
         tools-url: https://github.com/getappmap/appmap-js/releases/download/%40appland%2Fappmap-v3.147.0/appmap-linux-x64
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         cache: 'pip'
    
@@ -37,12 +40,33 @@ jobs:
 
     - name: Setup upterm session
       uses: owenthereal/action-upterm@v1
-      with:
-        wait-timeout-minutes: 5
+
+    # - name: Make Appmaps
+    #   run: |
+    #       source /home/runner/.bashrc
+    #       conda activate swe-bench
+    #       conda info
+    #       APPMAP_MAX_EVENTS=10000 ./appmap/make_appmaps-github-actions.sh --filter pydicom__pydicom-1694
+
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+
+    - name: Upload individual artifacts
+      run: |
+        for file in $(find ./appmaps -name "*.tar.gz"); do
+          base_name=$(basename "$file")
+          artifact_name="${base_name%.tar.gz}"
+          gh api --method POST \
+              -H "Content-Type: application/zip" \
+              --silent \
+              --timeout 600 \
+              --input "$file" \
+              repos/$GITHUB_REPOSITORY/actions/artifacts \
+              -F name="$artifact_name"
+        done
 
     - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        path: | 
-          ./appmaps/
-          ./appmap_logs/
+        name: appmap-logs.zip
+        path: ./appmap_logs/
