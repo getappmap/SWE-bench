@@ -37,7 +37,7 @@ jobs:
         id: cache-conda
         uses: actions/cache@v3
         with:
-          path: ~/.conda/envs/swe-bench
+          path: /usr/share/miniconda/envs/swe-bench
           key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
 
       # Create conda env if cache miss happens
