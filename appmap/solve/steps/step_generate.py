@@ -7,11 +7,12 @@ import os
 import sys
 
 
-def step_generate(args, work_dir, appmap_command, plan_file, solution_file, files):
+def step_generate(
+    log_dir, args, work_dir, appmap_command, plan_file, solution_file, files
+):
     context_file = os.path.join(work_dir, "context.txt")
     with open(context_file, "w") as context_f:
         for file in files:
-            print("Collecting source file", file)
             context_f.write("<file>\n")
             context_f.write(f"<path>{file}</path>\n")
             context_f.write("<content>\n")
@@ -72,9 +73,10 @@ Avoid refactorings that will affect multiple parts of the codebase.
         with open(context_file, "r") as context_content:
             generate_f.write(context_content.read())
 
-    print("Solving plan", generate_prompt, "into code")
+    print("Solving plan", plan_file, "using", generate_prompt)
 
     run_navie_command(
+        log_dir,
         command=appmap_command,
         input_path=generate_prompt,
         output_path=solution_file,

@@ -60,16 +60,22 @@ class Solver:
 
     def plan(self):
         step_plan(
-            self, self.issue_file, self.work_dir, self.appmap_command, self.plan_file
+            self.log_dir,
+            self,
+            self.issue_file,
+            self.work_dir,
+            self.appmap_command,
+            self.plan_file,
         )
 
     def list_files(self):
-        step_list(self.work_dir, self.appmap_command, self.plan_file)
+        step_list(self.log_dir, self.work_dir, self.appmap_command, self.plan_file)
         with open(os.path.join(self.work_dir, "files.json")) as f:
             self.files = json.load(f)
 
     def generate_code(self):
         step_generate(
+            self.log_dir,
             self,
             self.work_dir,
             self.appmap_command,
@@ -87,13 +93,17 @@ class Solver:
 
     def apply_changes(self):
         step_apply(
-            self.work_dir, self.appmap_command, self.solution_file, self.apply_file
+            self.log_dir,
+            self.work_dir,
+            self.appmap_command,
+            self.solution_file,
+            self.apply_file,
         )
 
     def lint_repair(self):
         step_lint_repair(
-            self,
             self.log_dir,
+            self,
             self.work_dir,
             self.appmap_command,
             self.base_file_content,
