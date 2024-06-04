@@ -5,13 +5,14 @@ import os
 from swebench import get_model_report
 from appmap.data import load_data
 
+
 def main(predictions, instances, log_dir, model, split, save_results, verbose, output):
     report = get_model_report(
         model=model,
         predictions_path=os.path.abspath(predictions),
         swe_bench_tasks=instances,
         log_dir=os.path.join(log_dir, model),
-        verbose=verbose
+        verbose=verbose,
     )
 
     for k, v in report.items():
@@ -27,7 +28,7 @@ def main(predictions, instances, log_dir, model, split, save_results, verbose, o
         )
 
 
-def write_csv_report(report_map, dataset, split,output_csv_path):
+def write_csv_report(report_map, dataset, split, output_csv_path):
     # Prepare CSV headers
     headers = ["instance_id", "split"] + [
         key for key in report_map.keys() if key != "no_generation"
@@ -38,7 +39,6 @@ def write_csv_report(report_map, dataset, split,output_csv_path):
         all_preds.update(ids)
 
     # Write to CSV
-    import pdb; pdb.set_trace()
     with open(output_csv_path, "w", newline="") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=headers)
         writer.writeheader()
@@ -55,18 +55,42 @@ def write_csv_report(report_map, dataset, split,output_csv_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--predictions", type=str, default="predictions.jsonl", help="Path to predictions file")
+    parser.add_argument(
+        "--predictions",
+        type=str,
+        default="predictions.jsonl",
+        help="Path to predictions file",
+    )
     parser.add_argument(
         "--instances",
         type=str,
         help="huggingface name of task instances dataset",
         default="princeton-nlp/SWE-bench_Lite",
     )
-    parser.add_argument("--log_dir", type=str, help="Path to log directory", default="logs")
-    parser.add_argument("--model", type=str, default="navie",help="Name of folder containing model evaluation results (e.g. '20240402_sweagent_gpt4)")
-    parser.add_argument("--split", type=str, default="test", help="Name of split to get evaluation results for (should be parent folder, e.g. 'test', 'lite')", choices=["test", "lite"])
-    parser.add_argument("--save_results", default=True, action="store_true", help="Save results to file")
-    parser.add_argument("--verbose", action="store_true", help="Show intermediate messages")
-    parser.add_argument("--output", type=str, default="results.csv", help="Path to output file")
+    parser.add_argument(
+        "--log_dir", type=str, help="Path to log directory", default="logs"
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="navie",
+        help="Name of folder containing model evaluation results (e.g. '20240402_sweagent_gpt4)",
+    )
+    parser.add_argument(
+        "--split",
+        type=str,
+        default="test",
+        help="Name of split to get evaluation results for (should be parent folder, e.g. 'test', 'lite')",
+        choices=["test", "lite"],
+    )
+    parser.add_argument(
+        "--save_results", default=True, action="store_true", help="Save results to file"
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", help="Show intermediate messages"
+    )
+    parser.add_argument(
+        "--output", type=str, default="results.csv", help="Path to output file"
+    )
     args = parser.parse_args()
     main(**vars(args))

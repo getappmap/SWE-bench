@@ -1,7 +1,10 @@
 import os
 
+from .log import log_command
+
 
 def run_navie_command(
+    log_dir,
     command,
     output_path,
     log_path,
@@ -32,7 +35,7 @@ def run_navie_command(
         cmd += f" {additional_args}"
     cmd += f" > {log_path} 2>&1"
 
-    print(f"Executing command: {cmd}")
+    log_command(log_dir, cmd)
 
     result = os.system(cmd)
 

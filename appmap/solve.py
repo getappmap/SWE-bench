@@ -10,7 +10,7 @@ from swebench.harness.utils import split_instances, DotDict
 from subprocess import run
 from os.path import abspath
 from filelock import FileLock
-from appmap.data import load_data
+from data import load_data
 
 
 def output_results(instance, output_file, patch):

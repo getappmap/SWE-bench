@@ -1,7 +1,7 @@
-from log import log_diff, log_lint
-from run_command import run_command
-from run_navie_command import run_navie_command
-from format_instructions import format_instructions
+from ..log import log_diff, log_lint
+from ..run_command import run_command
+from ..run_navie_command import run_navie_command
+from ..format_instructions import format_instructions
 
 
 import os
@@ -9,7 +9,7 @@ import re
 import subprocess
 
 
-def step_lint_repair(args, log_dir, work_dir, appmap_command, base_file_content):
+def step_lint_repair(log_dir, args, work_dir, appmap_command, base_file_content):
     lint_command = args.lint_command
     lint_error_pattern = args.lint_error_pattern
 
@@ -59,7 +59,7 @@ def step_lint_repair(args, log_dir, work_dir, appmap_command, base_file_content)
                 f2.write(f.read())
             # Run the diff command
         diff_command = f"diff -u {os.path.join(temp_dir, 'base')} {os.path.join(temp_dir, 'updated')}"
-        file_diff = run_command(diff_command, fail_on_error=False)
+        file_diff = run_command(log_dir, diff_command, fail_on_error=False)
 
         log_diff(log_dir, os.path.join(work_dir_base_name, file), file_diff)
 
@@ -189,6 +189,7 @@ only present in the file/content to help you identify which line has the lint er
                 # Plan the repair
             print(f"Generating code to repair {file}")
             run_navie_command(
+                log_dir,
                 command=appmap_command,
                 input_path=repair_prompt,
                 output_path=repair_output,
@@ -204,6 +205,7 @@ only present in the file/content to help you identify which line has the lint er
 
             print("Applying changes to source files")
             run_navie_command(
+                log_dir,
                 command=appmap_command,
                 input_path=repair_apply_prompt,
                 output_path=repair_apply_output,

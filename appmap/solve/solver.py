@@ -1,12 +1,17 @@
 import argparse
 import json
 import os
+from posixpath import dirname
+import sys
 
-from steps.step_lint_repair import step_lint_repair
-from steps.step_apply import step_apply
-from steps.step_generate import step_generate
-from steps.step_list import step_list
-from steps.step_plan import step_plan
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(SCRIPT_DIR, '..', '..'))
+        
+from appmap.solve.steps.step_lint_repair import step_lint_repair
+from appmap.solve.steps.step_apply import step_apply
+from appmap.solve.steps.step_generate import step_generate
+from appmap.solve.steps.step_list import step_list
+from appmap.solve.steps.step_plan import step_plan
 
 DEFAULT_STEPS = {"plan": True, "list": True, "generate": True, "apply": True}
 
@@ -60,16 +65,22 @@ class Solver:
 
     def plan(self):
         step_plan(
-            self, self.issue_file, self.work_dir, self.appmap_command, self.plan_file
+            self.log_dir,
+            self,
+            self.issue_file,
+            self.work_dir,
+            self.appmap_command,
+            self.plan_file,
         )
 
     def list_files(self):
-        step_list(self.work_dir, self.appmap_command, self.plan_file)
+        step_list(self.log_dir, self.work_dir, self.appmap_command, self.plan_file)
         with open(os.path.join(self.work_dir, "files.json")) as f:
             self.files = json.load(f)
 
     def generate_code(self):
         step_generate(
+            self.log_dir,
             self,
             self.work_dir,
             self.appmap_command,
@@ -87,13 +98,17 @@ class Solver:
 
     def apply_changes(self):
         step_apply(
-            self.work_dir, self.appmap_command, self.solution_file, self.apply_file
+            self.log_dir,
+            self.work_dir,
+            self.appmap_command,
+            self.solution_file,
+            self.apply_file,
         )
 
     def lint_repair(self):
         step_lint_repair(
-            self,
             self.log_dir,
+            self,
             self.work_dir,
             self.appmap_command,
             self.base_file_content,
