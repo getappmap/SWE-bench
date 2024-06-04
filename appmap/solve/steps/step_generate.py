@@ -1,6 +1,6 @@
-from run_command import run_command
-from run_navie_command import run_navie_command
-from format_instructions import format_instructions
+from ..run_command import run_command
+from ..run_navie_command import run_navie_command
+from ..format_instructions import format_instructions
 
 
 import os

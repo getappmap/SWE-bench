@@ -1,6 +1,6 @@
 import os
 
-from log import log_command
+from .log import log_command
 
 
 def run_navie_command(
