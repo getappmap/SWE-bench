@@ -53,6 +53,11 @@ jobs:
       run: |
         mkdir -p appmaps appmap_logs tmp/swe-appmaps
 
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      with:
+        wait-timeout-minutes: 5
+
     - name: Make Appmaps
       run: |
         ./appmap/make_appmaps-github-actions.sh --filter matplotlib__matplotlib-25433
