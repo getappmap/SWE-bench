@@ -4,7 +4,8 @@ on:
   pull_request:
 
 permissions:
-    contents: write
+  contents: write
+  actions: write
 
 jobs:
   run:
@@ -38,35 +39,32 @@ jobs:
         conda init bash
         conda env create -f environment.yml
 
-    - name: Setup upterm session
-      uses: owenthereal/action-upterm@v1
-
-    # - name: Make Appmaps
-    #   run: |
-    #       source /home/runner/.bashrc
-    #       conda activate swe-bench
-    #       conda info
-    #       APPMAP_MAX_EVENTS=10000 ./appmap/make_appmaps-github-actions.sh --filter pydicom__pydicom-1694
-
-    - name: Setup upterm session
-      uses: owenthereal/action-upterm@v1
-
-    - name: Upload individual artifacts
+    - name: Make Appmaps
       run: |
-        for file in $(find ./appmaps -name "*.tar.gz"); do
-          base_name=$(basename "$file")
-          artifact_name="${base_name%.tar.gz}"
-          gh api --method POST \
-              -H "Content-Type: application/zip" \
-              --silent \
-              --timeout 600 \
-              --input "$file" \
-              repos/$GITHUB_REPOSITORY/actions/artifacts \
-              -F name="$artifact_name"
-        done
+          source /home/runner/.bashrc
+          conda activate swe-bench
+          conda info
+          APPMAP_MAX_EVENTS=10000 ./appmap/make_appmaps-github-actions.sh --filter pydicom__pydicom-1694
+
+    - name: Get Artifact Name
+      run: |
+        file=$(find ./appmaps -name "*.tar.gz" | head -n 1)
+        echo "file_name=$file" >> $GITHUB_ENV
 
     - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.file_name }}
+        path: ./appmaps/${{ env.file_name }}
+
+    - name: Upload SWE Bench Logs
       uses: actions/upload-artifact@v4
       with:
         name: appmap-logs.zip
         path: ./appmap_logs/
+
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      if: ${{ failure() }}
+      with:
+        wait-timeout-minutes: 5
