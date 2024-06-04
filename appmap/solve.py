@@ -136,10 +136,6 @@ def worker_init(data: dict):
         traceback.print_exc()
 
 
-def init_solve_worker():
-    current_process().daemon = False
-
-
 def solve_instances(instances, args):
     if args.filter is not None:
         instances = [
@@ -160,7 +156,7 @@ def solve_instances(instances, args):
         worker_init(data_groups[0])
         return
 
-    pool = Pool(processes=args.num_workers, initializer=init_solve_worker)
+    pool = Pool(processes=args.num_workers)
     pool.map(worker_init, data_groups)
     pool.close()
     pool.join()
