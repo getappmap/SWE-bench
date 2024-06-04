@@ -52,6 +52,7 @@ jobs:
 
     - name: Make Appmaps
       run: |
+          source /home/runner/.bashrc
           conda activate swe-bench
           conda info
           ./appmap/make_appmaps-github-actions.sh --filter matplotlib__matplotlib-25433
