@@ -19,10 +19,11 @@ on:
         default: "3"
 
   pull_request:
-
+    types: [opened, synchronize, labeled, reopened]
 
 jobs:
   solve:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
     runs-on: swe-bench-ubuntu-latest
     defaults:
       run:
