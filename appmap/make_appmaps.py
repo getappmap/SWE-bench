@@ -87,7 +87,7 @@ def make_appmaps(data: dict):
             task_instance["repo"]
         ]  # run all tests
         tcm.log.write("Running tests with appmap")
-        task_instance["test_cmd"] = f"APPMAP_DISPLAY_PARAMS=false APPMAP_MAX_EVENTS=50000 APPMAP=false {task_instance['test_cmd']}"
+        task_instance["test_cmd"] = f"APPMAP_DISPLAY_PARAMS=false APPMAP_MAX_EVENTS=20000 appmap-python {task_instance['test_cmd']}"
         tcm.run_tests_task(task_instance)
         tcm.log.write("Uninstalling appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip uninstall -y appmap"])
