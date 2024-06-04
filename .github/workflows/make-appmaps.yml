@@ -1,12 +1,15 @@
 name: Make AppMaps
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       projectFilter:
         description: 'Project or instance to filter for'
         required: true
+      appmapMaxEvents:
+        description: 'Max Events per AppMap'
+        required: true
+        default: '25000'
 
 jobs:
   run:
@@ -40,17 +43,12 @@ jobs:
         conda init bash
         conda env create -f environment.yml
 
-    # - name: Setup upterm session
-    #   uses: owenthereal/action-upterm@v1
-    #   with:
-    #     wait-timeout-minutes: 5
-
     - name: Make Appmaps
       run: |
           source /home/runner/.bashrc
           conda activate swe-bench
           conda info
-          ./appmap/make_appmaps-github-actions.sh --filter matplotlib__matplotlib-25433
+          APPMAP_MAX_EVENTS=${{ github.event.inputs.appmapMaxEvents }} ./appmap/make_appmaps-github-actions.sh --filter ${{ github.event.inputs.projectFilter }}
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v3
@@ -59,4 +57,8 @@ jobs:
           ./appmaps/*.tar.gz
           ./appmap_logs/
 
-    
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      if: ${{ failure() }}
+      with:
+        wait-timeout-minutes: 5
