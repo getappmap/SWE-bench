@@ -1,12 +1,17 @@
 import argparse
 import json
 import os
+from posixpath import dirname
+import sys
 
-from steps.step_lint_repair import step_lint_repair
-from steps.step_apply import step_apply
-from steps.step_generate import step_generate
-from steps.step_list import step_list
-from steps.step_plan import step_plan
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(SCRIPT_DIR, '..', '..'))
+        
+from appmap.solve.steps.step_lint_repair import step_lint_repair
+from appmap.solve.steps.step_apply import step_apply
+from appmap.solve.steps.step_generate import step_generate
+from appmap.solve.steps.step_list import step_list
+from appmap.solve.steps.step_plan import step_plan
 
 DEFAULT_STEPS = {"plan": True, "list": True, "generate": True, "apply": True}
 

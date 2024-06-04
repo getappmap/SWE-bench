@@ -178,4 +178,5 @@ notebooks/
 appmap.sh
 work
 appmap/datasets
+logs
 
