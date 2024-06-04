@@ -1,0 +1,56 @@
+name: Make AppMaps (delete me before we merge)
+
+on:
+  pull_request:
+
+jobs:
+  run:
+    runs-on: SWE-Bench_Larger
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install AppMap tools
+      uses: getappmap/install-action@v1
+      with:
+        install-appmap-library: false
+        tools-url: https://github.com/getappmap/appmap-js/releases/download/%40appland%2Fappmap-v3.147.0/appmap-linux-x64
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        cache: 'pip'
+   
+    - name: Set up Conda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        python-version: 3.9
+
+    - name: Make dirs
+      run: |
+        mkdir -p appmaps appmap_logs /tmp/swe-appmaps
+        
+    - name: Create conda env
+      run: |
+        conda init bash
+        conda env create -f environment.yml
+
+    - name: Make Appmaps
+      run: |
+          source /home/runner/.bashrc
+          conda activate swe-bench
+          conda info
+          APPMAP_MAX_EVENTS=10000 ./appmap/make_appmaps-github-actions.sh --filter matplotlib__matplotlib-25433
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        path: | 
+          ./appmaps/
+          ./appmap_logs/
+
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      if: ${{ failure() }}
+      with:
+        wait-timeout-minutes: 5
