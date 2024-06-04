@@ -48,8 +48,13 @@ jobs:
 
     - name: Make dirs
       run: |
-        mkdir -p appmaps appmap_logs /home/runner/work/tmp/swe-appmaps
-        df -h /home/runner/work/tmp/swe-appmaps
+        mkdir -p appmaps appmap_logs /tmp/swe-appmaps
+        df -h /tmp/swe-appmaps
+
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      with:
+        wait-timeout-minutes: 5
 
     - name: Make Appmaps
       run: |

@@ -11,7 +11,7 @@ python $PROJECT_ROOT/appmap/make_appmaps.py \
     --instances_path "$INSTANCES" \
     --log_dir "appmap_logs" \
     --appmap_archive_dir appmaps \
-    --temp_dir "/home/runner/work/tmp/swe-appmaps" \
+    --temp_dir "/tmp/swe-appmaps" \
     --num_workers 1 \
     --verbose \
     --path_conda $(conda info --base) \
