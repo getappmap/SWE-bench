@@ -1,5 +1,5 @@
 import textwrap
-from run_navie_command import run_navie_command
+from ..run_navie_command import run_navie_command
 
 
 import os

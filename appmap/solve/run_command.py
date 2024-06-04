@@ -1,6 +1,6 @@
 import subprocess
 
-from log import log_command
+from .log import log_command
 
 
 def run_command(log_dir, command, fail_on_error=True):
