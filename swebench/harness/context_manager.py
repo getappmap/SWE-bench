@@ -4,6 +4,7 @@ import os
 import platform
 import subprocess
 from logging import CRITICAL, DEBUG, ERROR, INFO, WARNING
+import sys
 from tempfile import TemporaryDirectory, gettempdir, mkdtemp
 from traceback import format_exc
 
@@ -119,7 +120,7 @@ class ExecWrapper:
             output = subprocess.Popen(cmd, **combined_args)
             self.logger.write("Std. Output:\n", level=DEBUG)
             for line in output.stdout:
-                print(line, end="")
+                print(line, end="", file=sys.stderr)
                 with open(self.logger.log_file, "a") as f:
                     f.write(line)
             output.wait()
