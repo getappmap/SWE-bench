@@ -9,7 +9,17 @@ from os.path import abspath
 from filelock import FileLock
 from appmap.data import load_data
 
-def solve_instance(instance, output_file, log_dir, testbed, appmap_command, solver_path, lint_command):
+
+def output_results(instance, output_file, patch):
+    if patch is None:
+        return
+    instance["model_patch"] = patch
+    instance["model_name_or_path"] = "navie"
+    with FileLock(f"{output_file}.lock"):
+        with open(output_file, "a+") as f:
+            f.write(json.dumps(instance) + "\n")
+
+def solve_instance(instance, log_dir, testbed, appmap_command, solver_path, lint_command):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"]
     issue_dir.mkdir(parents=True, exist_ok=True)
     issue_file = issue_dir / "issue.txt"
@@ -38,12 +48,7 @@ def solve_instance(instance, output_file, log_dir, testbed, appmap_command, solv
             capture_output=True,
             text=True,
         )
-        if output.stdout:
-            instance["model_patch"] = output.stdout
-            instance["model_name_or_path"] = "navie"
-            with FileLock(f"{output_file}.lock"):
-                with open(output_file, "a+") as f:
-                    f.write(json.dumps(instance) + "\n")
+        return output.stdout
     except Exception:
         print(f"Error processing {instance['instance_id']}")
         import traceback
@@ -91,27 +96,32 @@ def worker_init(data: dict):
             env_name = f"{repo_prefix}__{instance['version']}"
             testbed = Path(tcm.testbed) / env_name
             log_dir = abspath(data_dict.log_dir)
-            with TaskEnvContextManager(
-                instance,
-                testbed.as_posix(),
-                env_name,
-                log_dir,
-                data_dict.path_conda,
-                timeout=data_dict.timeout,
-                verbose=data_dict.verbose,
-                log_suffix=data_dict.log_suffix,
-            ) as task_manager:
-                if not task_manager.reset_task_env(instance):
-                    return
-                solve_instance(
+            try:
+                with TaskEnvContextManager(
                     instance,
-                    output_file,
+                    testbed.as_posix(),
+                    env_name,
                     log_dir,
-                    testbed,
-                    data_dict.appmap_command,
-                    solver_path,
-                    data_dict.lint_command,
-                )
+                    data_dict.path_conda,
+                    timeout=data_dict.timeout,
+                    verbose=data_dict.verbose,
+                    log_suffix=data_dict.log_suffix,
+                ) as task_manager:
+                    if not task_manager.reset_task_env(instance):
+                        return
+                    patch = solve_instance(
+                        instance,
+                        log_dir,
+                        testbed,
+                        data_dict.appmap_command,
+                        solver_path,
+                        data_dict.lint_command,
+                    )
+                    output_results(instance, output_file, patch)
+            except Exception:
+                print(f"Error processing {instance['instance_id']}")
+                import traceback
+                traceback.print_exc()
 
 
 def init_solve_worker():
