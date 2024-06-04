@@ -51,7 +51,7 @@ jobs:
 
     - name: Make dirs
       run: |
-        mkdir appmaps appmap_logs /swe-appmaps 
+        mkdir -p appmaps appmap_logs tmp/swe-appmaps
 
     - name: Make Appmaps
       run: |
