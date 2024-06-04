@@ -52,7 +52,8 @@ jobs:
             --appmap_command $(pwd)/appmap.sh \
             --lint_command "flake8 --extend-ignore=BLK100,W293,E501,E302,D" \
             --temp_dir ${{ runner.temp }} \
-            --path_conda $(conda info --base)
+            --path_conda $(conda info --base) \
+            --verbose
 
           mkdir -p logs
 
@@ -67,6 +68,8 @@ jobs:
             --num_processes 8 \
             --path_conda $(conda info --base)
 
+          python appmap/report.py
+
       - name: Archive predictions and logs
         uses: actions/upload-artifact@v4
         with:
@@ -74,3 +77,4 @@ jobs:
           path: |
             logs/
             predictions.jsonl
+            results.csv
