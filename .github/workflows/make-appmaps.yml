@@ -11,9 +11,6 @@ on:
 jobs:
   run:
     runs-on: swe-bench-ubuntu-latest
-    defaults:
-      run:
-        shell: bash -leo pipefail {0}
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -51,12 +48,8 @@ jobs:
 
     - name: Make dirs
       run: |
-        mkdir -p appmaps appmap_logs tmp/swe-appmaps
-
-    - name: Setup upterm session
-      uses: owenthereal/action-upterm@v1
-      with:
-        wait-timeout-minutes: 5
+        mkdir -p appmaps appmap_logs /home/runner/work/tmp/swe-appmaps
+        df -h /home/runner/work/tmp/swe-appmaps
 
     - name: Make Appmaps
       run: |
