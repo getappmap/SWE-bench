@@ -53,6 +53,7 @@ jobs:
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v3
       with:
+        name: pytest-8.0
         path: | 
           ./appmaps/
           ./appmap_logs/

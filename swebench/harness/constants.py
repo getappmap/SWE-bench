@@ -243,6 +243,7 @@ MAP_VERSION_TO_INSTALL_PYTEST["7.4"]["pip_packages"] = [
 MAP_VERSION_TO_INSTALL_PYTEST["8.0"]["pip_packages"] = [
     "iniconfig==2.0.0", "packaging==23.1", "pluggy==1.3.0",
     "exceptiongroup==1.1.3", "tomli==2.0.1"]
+MAP_VERSION_TO_INSTALL_PYTEST["8.0"]["install"] = "pip install -e .[testing]"
 
 MAP_VERSION_TO_INSTALL_MATPLOTLIB = {
     k: {
@@ -585,7 +586,7 @@ MAP_REPO_TO_TEST_FRAMEWORK = {
     "pydicom/pydicom": TEST_PYTEST,
     "pylint-dev/astroid": TEST_PYTEST,
     "pylint-dev/pylint": TEST_PYTEST,
-    "pytest-dev/pytest": "pytest -rA",
+    "pytest-dev/pytest": "pytest -vrA",
     "pyvista/pyvista": TEST_PYTEST,
     "scikit-learn/scikit-learn": TEST_PYTEST,
     "sphinx-doc/sphinx": "tox -epy39 -v --",
