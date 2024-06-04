@@ -77,7 +77,6 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SWE_DATASET: ${{ inputs.dataset }}
-          SWE_SPLIT: ${{ inputs.split }}
           SWE_RETRIES: ${{ inputs.retries }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
@@ -85,7 +84,6 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           python appmap/solve.py \
             --instances ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite} \
-            --split ${SWE_SPLIT:-dev} \
             --retries ${SWE_RETRIES:-3} \
             --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,W293,E201,E202,E303,E501,E128,E231,C408,F401,C402,E402,C416,E261,E302,D" \
@@ -116,15 +114,13 @@ jobs:
       - name: Generate AppMap report
         env:
           SWE_DATASET: ${{ inputs.dataset }}
-          SWE_SPLIT: ${{ inputs.split }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           conda info
           python appmap/report.py \
-            --instances ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite} \
-            --split ${SWE_SPLIT:-dev}
+            --instances ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}
 
       - name: Archive predictions and logs
         uses: actions/upload-artifact@v4
