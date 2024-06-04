@@ -183,7 +183,7 @@ def main(
                 if not all:
                     del task_groups[rv]
             else:
-                print(f"Found archive for {rv}: {archive.name}")
+                print(f"Found archive for {rv}: {archive}")
                 archives[rv] = archive
 
         # print statistics
