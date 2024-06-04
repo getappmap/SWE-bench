@@ -57,7 +57,7 @@ def step_lint_repair(log_dir, args, work_dir, appmap_command, base_file_content)
         with open(file, "r") as f:
             with open(os.path.join(temp_dir, "updated"), "w") as f2:
                 f2.write(f.read())
-            # Run the diff command
+        # Run the diff command
         diff_command = f"diff -u {os.path.join(temp_dir, 'base')} {os.path.join(temp_dir, 'updated')}"
         file_diff = run_command(log_dir, diff_command, fail_on_error=False)
 
