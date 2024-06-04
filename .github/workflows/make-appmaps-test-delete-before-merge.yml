@@ -35,12 +35,10 @@ jobs:
         conda init bash
         conda env create -f environment.yml
 
-    - name: Make Appmaps
-      run: |
-          source /home/runner/.bashrc
-          conda activate swe-bench
-          conda info
-          APPMAP_MAX_EVENTS=10000 ./appmap/make_appmaps-github-actions.sh --filter matplotlib__matplotlib-25433
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      with:
+        wait-timeout-minutes: 5
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v3
@@ -48,9 +46,3 @@ jobs:
         path: | 
           ./appmaps/
           ./appmap_logs/
-
-    - name: Setup upterm session
-      uses: owenthereal/action-upterm@v1
-      if: ${{ failure() }}
-      with:
-        wait-timeout-minutes: 5
