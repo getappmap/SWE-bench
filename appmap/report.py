@@ -80,8 +80,8 @@ if __name__ == "__main__":
         "--split",
         type=str,
         default="test",
-        help="Name of split to get evaluation results for (should be parent folder, e.g. 'test', 'lite')",
-        choices=["test", "lite"],
+        help="Name of split to get evaluation results for (should be parent folder, e.g. 'test', 'dev')",
+        choices=["test", "dev"],
     )
     parser.add_argument(
         "--save_results", default=True, action="store_true", help="Save results to file"

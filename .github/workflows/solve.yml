@@ -1,6 +1,21 @@
 on:
   workflow_dispatch:
+    inputs:
+      filter:
+        description: "Instance filter"
+        required: true
+        default: marshmallow
+      dataset:
+        description: "Dataset name"
+        required: true
+        default: princeton-nlp/SWE-bench_Lite
+      split:
+        description: "Dataset split"
+        required: true
+        default: dev
+
   pull_request:
+
 
 jobs:
   solve:
@@ -57,12 +72,17 @@ jobs:
       - name: Run benchmark
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SWE_DATASET: ${{ inputs.dataset }}
+          SWE_SPLIT: ${{ inputs.split }}
+          SWE_FILTER: ${{ inputs.filter }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           python appmap/solve.py \
-            --filter astropy \
+            --instances ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite} \
+            --split ${SWE_SPLIT:-dev} \
+            --filter ${SWE_FILTER:-marshmallow} \
             --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,W293,E201,E202,E303,E501,E128,E231,C408,F401,C402,E402,C416,E261,E302,D" \
             --temp_dir ${{ runner.temp }} \
@@ -71,6 +91,8 @@ jobs:
             --verbose
 
       - name: Run evaluation
+        env:
+          SWE_DATASET: ${{ inputs.dataset }}
         run: |
           mkdir -p logs
           source /usr/share/miniconda/etc/profile.d/conda.sh
@@ -78,7 +100,7 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           python swebench/harness/run_evaluation.py \
             --predictions_path predictions.jsonl \
-            --swe_bench_tasks princeton-nlp/SWE-bench_Lite \
+            --swe_bench_tasks ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite} \
             --log_dir logs \
             --testbed ${{ runner.temp }} \
             --skip_existing \
@@ -88,12 +110,17 @@ jobs:
             --path_conda $(conda info --base)
 
       - name: Generate AppMap report
+        env:
+          SWE_DATASET: ${{ inputs.dataset }}
+          SWE_SPLIT: ${{ inputs.split }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           conda info
-          python appmap/report.py
+          python appmap/report.py \
+            --instances ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite} \
+            --split ${SWE_SPLIT:-dev}
 
       - name: Archive predictions and logs
         uses: actions/upload-artifact@v4
