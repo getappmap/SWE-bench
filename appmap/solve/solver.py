@@ -197,9 +197,15 @@ if __name__ == "__main__":
     if args.log_dir:
         os.makedirs(args.log_dir, exist_ok=True)
 
+    issue_name = os.path.basename(os.path.dirname(args.issue_file))
+    retries = args.retries or 1
     attempt_number = 0
-    files_changed = []
-    while len(files_changed) == 0:
+
+    print(f"Solver will make {retries} attempts to solve issue {issue_name}")
+    while attempt_number < retries:
+        print(
+            f"Solving issue {issue_name} (attempt number {attempt_number + 1} of {args.retries})"
+        )
         solver = Solver(
             issue_file=args.issue_file,
             log_dir=args.log_dir,
@@ -211,12 +217,13 @@ if __name__ == "__main__":
         )
         solver.solve()
         files_changed = solver.files_changed
-        if len(files_changed) == 0:
-            print("No files were changed.")
+        if len(files_changed) > 0:
+            print(f"Solver changed {len(files_changed)} files in {issue_name}:")
+            for file in files_changed:
+                print(f" {file}")
+            break
+        else:
+            print("Solver did not change any files in {issue_name}.")
             attempt_number += 1
-            if attempt_number == args.retries:
-                print("Giving up after {attempt_number} attempts")
-            else:
-                print(
-                    f"Retrying (attempt number {attempt_number + 1} of {args.retries})"
-                )
+            if attempt_number >= retries:
+                print(f"Giving up after {attempt_number} attempts")
