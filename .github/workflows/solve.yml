@@ -61,7 +61,8 @@ jobs:
           path: |
             submodules/appmap-js/node_modules
             submodules/appmap-js/packages/*/built
-          key: appmap-js-${{ runner.os }}-${{ hashFiles('submodules/appmap-js/package.json') }}
+            submodules/appmap-js/packages/*/node_modules
+          key: appmap-js-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/ORIG_HEAD') }}
 
       - name: Build submodules
         # TODO: figure out why it doesn't work with cache
