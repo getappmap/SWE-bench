@@ -115,6 +115,8 @@ class Solver:
         return result
 
     def apply_changes(self):
+        base_file_content = self.load_file_content()
+
         step_apply(
             self.log_dir,
             self.work_dir,
@@ -122,6 +124,23 @@ class Solver:
             self.solution_file,
             self.apply_file,
         )
+
+        # Test file is any ".py" file whose basename starts with "test_" or ends with "_test.py"
+        is_test_file = (
+            lambda file: file.endswith(".py")
+            and os.path.basename(file).startswith("test_")
+            or file.endswith("_test.py")
+        )
+
+        # Revert changes to test cases
+        for file in self.load_file_content():
+            if is_test_file(file):
+                print(f"Reverting changes to test file {file}")
+                if file in base_file_content:    
+                    with open(file, "w") as f:
+                        f.write(base_file_content[file])
+                else:
+                    os.remove(file)
 
     def lint_repair(self):
         step_lint_repair(
