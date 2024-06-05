@@ -5,7 +5,7 @@ PROJECT_ROOT=$(git rev-parse --show-toplevel)
 # add it to python path
 export PYTHONPATH=$PROJECT_ROOT:$PYTHONPATH
 
-INSTANCES="princeton-nlp/SWE-bench_Lite"
+INSTANCES="princeton-nlp/SWE-bench"
 
 python $PROJECT_ROOT/appmap/make_appmaps.py \
     --instances_path "$INSTANCES" \
