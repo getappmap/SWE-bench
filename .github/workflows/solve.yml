@@ -65,7 +65,6 @@ jobs:
           key: appmap-js-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/refs/heads') }}
 
       - name: Build submodules
-        if: steps.cache-appmap-js.outputs.cache-hit != 'true'
         env:
           PUPPETEER_SKIP_DOWNLOAD: true
         run: |
