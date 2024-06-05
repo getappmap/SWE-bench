@@ -348,7 +348,7 @@ class TestbedContextManager:
     def create_conda_env(
         self, version, path_activate, exec_cmd, version_to_setup_ref, install, env_name
     ):
-        with FileLock(f"/tmp/conda-env-setup-{env_name}.lock"):
+        with FileLock(f"/tmp/conda-env-create.lock"):
             if env_name in get_conda_env_names(exec_cmd):
                 self.log.write(f"Environment {env_name} already exists; skipping")
                 return
