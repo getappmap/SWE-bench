@@ -106,6 +106,7 @@ jobs:
 
       - name: Run benchmark
         env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SWE_DATASET: ${{ inputs.dataset }}
           SWE_SPLIT: ${{ inputs.split }}

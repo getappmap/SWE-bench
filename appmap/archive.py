@@ -66,7 +66,7 @@ class GithubArchive:
         appmaps = glob.glob(
             os.path.join(workdir, "tmp/appmap/**/*.appmap.json"), recursive=True
         )
-        print(f"Extracted {len(appmaps)} appmaps")
+        print(f"Extracted {len(appmaps)} appmaps", flush=True)
 
     def _download_archive(self) -> None:
         if os.path.exists(self.path):
@@ -83,19 +83,19 @@ class GithubArchive:
 
 
 @cache
-def get_artifacts(repo_id: str, run_id: str) -> Optional[list[Artifact]]:
+def get_artifacts(repo_id: str, run_id: str) -> list[Artifact]:
     try:
         repo = github_client.get_repo(repo_id)
     except UnknownObjectException:
-        print(f"Repository {repo_id} is unavailable")
-        return None
+        print(f"Repository {repo_id} is unavailable", flush=True)
+        return []
     run = repo.get_workflow_run(run_id)
     return run.get_artifacts()
 
 
 class ArchiveFinder:
 
-    def __init__(self, base_path: Optional[str]) -> None:
+    def __init__(self, base_path: Optional[str] = None) -> None:
         self.base_path = base_path
 
     def find_archive(self, repo_version: str) -> Archive:
