@@ -164,13 +164,6 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--retries",
-        type=int,
-        default=3,
-        help="Number of times to try and create a code update for each test instance",
-    )
-
-    parser.add_argument(
         "--directory",
         type=str,
         help="Working directory of the project to modify",
@@ -225,34 +218,28 @@ if __name__ == "__main__":
     if args.log_dir:
         os.makedirs(args.log_dir, exist_ok=True)
 
-    issue_name = os.path.basename(os.path.dirname(args.issue_file))
-    retries = args.retries or 1
-    attempt_number = 0
+    iteration = os.path.basename(os.path.dirname(args.issue_file))
+    instance_name = os.path.basename(os.path.dirname(os.path.dirname(args.issue_file)))
+    issue_name = os.path.join(instance_name, iteration)
 
-    print(f"Solver will make {retries} attempts to solve issue {issue_name}")
-    while attempt_number < retries:
-        print(
-            f"Solving issue {issue_name} (attempt number {attempt_number + 1} of {args.retries})"
-        )
-        solver = Solver(
-            path_conda=args.path_conda,
-            issue_file=args.issue_file,
-            log_dir=args.log_dir,
-            format_command=args.format_command,
-            lint_command=args.lint_command,
-            lint_error_pattern=args.lint_error_pattern,
-            appmap_command=args.appmap_command,
-            steps=steps,
-        )
-        solver.solve()
-        files_changed = solver.files_changed
-        if len(files_changed) > 0:
-            print(f"Solver changed {len(files_changed)} files in {issue_name}:")
-            for file in files_changed:
-                print(f"  {file}")
-            break
-        else:
-            print(f"Solver did not change any files in {issue_name}.")
-            attempt_number += 1
-            if attempt_number >= retries:
-                print(f"Giving up after {attempt_number} attempts")
+    solver = Solver(
+        path_conda=args.path_conda,
+        issue_file=args.issue_file,
+        log_dir=args.log_dir,
+        format_command=args.format_command,
+        lint_command=args.lint_command,
+        lint_error_pattern=args.lint_error_pattern,
+        appmap_command=args.appmap_command,
+        steps=steps,
+    )
+    solver.solve()
+    files_changed = solver.files_changed
+
+    if len(files_changed) == 0:
+        print(f"WARN: Solver did not change any files in {issue_name}.")
+        sys.exit(1)
+
+    if len(files_changed) > 0:
+        print(f"Solver changed {len(files_changed)} files in {issue_name}:")
+        for file in files_changed:
+            print(f"  {file}")

@@ -25,48 +25,43 @@ def output_results(instance, output_file, patch):
 
 
 def solve_instance(
-    instance, log_dir, testbed, path_conda, appmap_command, lint_command, retries
+    instance, log_dir, testbed, path_conda, appmap_command, lint_command, iteration
 ):
-    issue_dir = Path(log_dir) / "solve" / instance["instance_id"]
+    issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
     issue_dir.mkdir(parents=True, exist_ok=True)
     issue_file = issue_dir / "issue.txt"
     with open(issue_file, "w") as f:
         f.write(instance["problem_statement"])
 
     solver_path = Path(__file__).parent / "solve" / "solver.py"
-    run_args = [
+    solve_args = [
         "python",
         str(solver_path),
         str(issue_file),
         "--path-conda",
         path_conda,
-        "--retries",
-        str(retries),
         "--log-dir",
         log_dir,
         "--appmap-command",
         appmap_command,
     ]
     if lint_command is not None:
-        run_args.extend(["--lint-command", lint_command])
+        solve_args.extend(["--lint-command", lint_command])
 
-    try:
-        # Run this as a separate process so that it can change the working directory.
-        run(run_args, check=True, cwd=testbed)
-        output = run(
-            ["git", "--no-pager", "diff"],
-            check=True,
-            cwd=testbed,
-            capture_output=True,
-            text=True,
-        )
-        return output.stdout
-    except Exception:
-        print(f"Error processing {instance['instance_id']}")
-        import traceback
+    # Run this as a separate process so that it can change the working directory.
+    solve_result = run(solve_args, cwd=testbed)
+    if solve_result.returncode != 0:
+        print(f"Solver did not succeed for {instance['instance_id']}/{iteration + 1}. Maybe it will be retried.")
+        return
 
-        traceback.print_exc()
-
+    patch_result = run(
+        ["git", "--no-pager", "diff"],
+        check=True,
+        cwd=testbed,
+        capture_output=True,
+        text=True,
+    )
+    return patch_result.stdout
 
 def worker_init(data: dict):
     """
@@ -108,34 +103,64 @@ def worker_init(data: dict):
                 env_name = f"{repo_prefix}__{instance['version']}"
                 testbed = Path(tcm.testbed) / env_name
                 log_dir = abspath(data_dict.log_dir)
-                try:
-                    with TaskEnvContextManager(
-                        instance,
-                        testbed.as_posix(),
-                        env_name,
-                        log_dir,
-                        data_dict.path_conda,
-                        timeout=data_dict.timeout,
-                        verbose=data_dict.verbose,
-                        log_suffix=data_dict.log_suffix,
-                    ) as task_manager:
-                        if not task_manager.reset_task_env(instance):
-                            return
-                        patch = solve_instance(
-                            instance,
-                            log_dir,
-                            testbed,
-                            data_dict.path_conda,
-                            data_dict.appmap_command,
-                            data_dict.lint_command,
-                            data_dict.retries,
-                        )
-                        output_results(instance, output_file, patch)
-                except Exception:
-                    print(f"Error processing {instance['instance_id']}")
-                    import traceback
+                with TaskEnvContextManager(
+                    instance,
+                    testbed.as_posix(),
+                    env_name,
+                    log_dir,
+                    data_dict.path_conda,
+                    timeout=data_dict.timeout,
+                    verbose=data_dict.verbose,
+                    log_suffix=data_dict.log_suffix,
+                ) as task_manager:
+                    try:
+                        retries = data_dict.retries
+                        issue_name = env_name
 
-                    traceback.print_exc()
+                        print(
+                            f"Solver will make {retries} attempts to solve issue {env_name}"
+                        )
+                        attempt_number = 0
+                        while attempt_number < retries:
+                            print(
+                                f"Solving issue {issue_name} (attempt number {attempt_number + 1} of {retries})"
+                            )
+
+                            if not task_manager.reset_task_env(instance):
+                                print(
+                                    f"Error resetting task environment for {instance['instance_id']}"
+                                )
+                                return
+
+                            patch = solve_instance(
+                                instance,
+                                log_dir,
+                                testbed,
+                                data_dict.path_conda,
+                                data_dict.appmap_command,
+                                data_dict.lint_command,
+                                attempt_number,
+                            )
+                            if patch:
+                                print(
+                                    f"Patch generated for {instance['instance_id']} on iteration {attempt_number +1}"
+                                )
+                                print(patch)
+                                output_results(instance, output_file, patch)
+                                break
+                            else:
+                                print(
+                                    f"No patch generated for {instance['instance_id']}"
+                                )
+                                attempt_number += 1
+                                if attempt_number >= retries:
+                                    print(f"Giving up after {attempt_number} attempts")
+
+                    except Exception:
+                        print(f"Error processing {instance['instance_id']}")
+                        import traceback
+
+                        traceback.print_exc()
     except Exception:
         print("Error instantiating testbed")
         import traceback
@@ -147,7 +172,9 @@ def solve_instances(instances, args):
     if args.filter:
         pattern = re.compile(args.filter)
         instances = [
-            instance for instance in instances if pattern.search(instance["instance_id"])
+            instance
+            for instance in instances
+            if pattern.search(instance["instance_id"])
         ]
 
     instance_groups = split_instances(list(instances), args.num_workers)
