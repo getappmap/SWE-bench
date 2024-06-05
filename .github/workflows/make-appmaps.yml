@@ -51,19 +51,20 @@ jobs:
       run: |
           source /home/runner/.bashrc
           conda activate swe-bench
-          conda info  
+          conda info
           APPMAP_MAX_EVENTS=${{ github.event.inputs.appmapMaxEvents }} ./appmap/make_appmaps-github-actions.sh --filter ${{ github.event.inputs.projectFilter }}
 
     - name: Get Artifact Name
-      id: get-artifact-name  # Add an ID for this step
+      id: get-artifact-name
       run: |
         file=$(ls appmaps/ | head -n 1)
         echo "file_name=$file" >> $GITHUB_ENV
         echo "::set-output name=file_name::$file" 
+    
     - name: Upload AppMaps
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.get-artifact-name.outputs.file_name }}  # Use the output from the previous step
+        name: ${{ steps.get-artifact-name.outputs.file_name }}
         path: ./appmaps/${{ steps.get-artifact-name.outputs.file_name }}
 
     - name: Upload SWE Bench Logs
@@ -72,6 +73,8 @@ jobs:
         name: appmap-logs.zip
         path: ./appmap_logs/
 
+    # If the build fails leave a terminal open for 5 minutes 
+    # we can investigate if needed
     - name: Setup upterm session
       uses: owenthereal/action-upterm@v1
       if: ${{ failure() }}
