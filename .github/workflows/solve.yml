@@ -62,7 +62,7 @@ jobs:
             submodules/appmap-js/node_modules
             submodules/appmap-js/packages/*/built
             submodules/appmap-js/packages/*/node_modules
-          key: appmap-js-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/ORIG_HEAD') }}
+          key: appmap-js-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/refs/heads') }}
 
       - name: Build submodules
         if: steps.cache-appmap-js.outputs.cache-hit != 'true'
