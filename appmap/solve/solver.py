@@ -239,10 +239,10 @@ if __name__ == "__main__":
         if len(files_changed) > 0:
             print(f"Solver changed {len(files_changed)} files in {issue_name}:")
             for file in files_changed:
-                print(f" {file}")
+                print(f"  {file}")
             break
         else:
-            print("Solver did not change any files in {issue_name}.")
+            print(f"Solver did not change any files in {issue_name}.")
             attempt_number += 1
             if attempt_number >= retries:
                 print(f"Giving up after {attempt_number} attempts")
