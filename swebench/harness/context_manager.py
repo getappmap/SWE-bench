@@ -351,6 +351,7 @@ class TestbedContextManager:
         with FileLock(f"/tmp/conda-env-setup-{env_name}.lock"):
             if env_name in get_conda_env_names(exec_cmd):
                 self.log.write(f"Environment {env_name} already exists; skipping")
+                return
 
             # Get setup reference instance
             setup_ref_instance = version_to_setup_ref[version]
