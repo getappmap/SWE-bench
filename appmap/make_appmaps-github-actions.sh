@@ -15,5 +15,5 @@ python $PROJECT_ROOT/appmap/make_appmaps.py \
     --num_workers 1 \
     --verbose \
     --path_conda $(conda info --base) \
-    --appmap-bin /usr/local/bin/appmap \
+    --appmap_bin /usr/local/bin/appmap \
     "$@"
