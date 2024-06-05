@@ -26,6 +26,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Display Input Values
+      run: |
+        echo "Project Filter: ${{ github.event.inputs.projectFilter }}"
+        echo "AppMap Max Events: ${{ github.event.inputs.appmapMaxEvents }}"
+        echo "AppMap Max Time: ${{ github.event.inputs.appmapMaxTime }}"
+
     - name: Install AppMap tools
       uses: getappmap/install-action@v1
       with:

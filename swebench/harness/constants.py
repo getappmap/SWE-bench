@@ -198,7 +198,7 @@ MAP_VERSION_TO_INSTALL_SEABORN.update(
 MAP_VERSION_TO_INSTALL_PYTEST = {
     k: {
         "python": "3.9",
-        "install": "pip install -e ."
+        "install": "pip install -e . && pip install -e .[testing]"
     } for k in [
         '4.4','4.5','4.6','5.0','5.1','5.2','5.3','5.4',
         '6.0','6.2','6.3','7.0','7.1','7.2','7.4','8.0'
@@ -243,7 +243,6 @@ MAP_VERSION_TO_INSTALL_PYTEST["7.4"]["pip_packages"] = [
 MAP_VERSION_TO_INSTALL_PYTEST["8.0"]["pip_packages"] = [
     "iniconfig==2.0.0", "packaging==23.1", "pluggy==1.3.0",
     "exceptiongroup==1.1.3", "tomli==2.0.1"]
-MAP_VERSION_TO_INSTALL_PYTEST["8.0"]["install"] = "pip install -e .[testing]"
 
 MAP_VERSION_TO_INSTALL_MATPLOTLIB = {
     k: {
