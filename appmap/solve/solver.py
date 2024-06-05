@@ -66,7 +66,7 @@ class Solver:
 
             self.updated_file_content = self.load_file_content()
             for file in self.updated_file_content:
-                if self.updated_file_content[file] != self.base_file_content[file]:
+                if file not in self.base_file_content or self.updated_file_content[file] != self.base_file_content[file]:
                     self.files_changed.append(file)
 
         if self.lint_command:
@@ -214,4 +214,6 @@ if __name__ == "__main__":
             if attempt_number == args.retries:
                 print("Giving up after {attempt_number} attempts")
             else:
-                print(f"Retrying (attempt number {attempt_number + 1} of {args.retries})")
+                print(
+                    f"Retrying (attempt number {attempt_number + 1} of {args.retries})"
+                )
