@@ -8,10 +8,34 @@ import os
 import re
 import subprocess
 
+def install_flake8_if_needed(lint_command):
+    if "flake8" not in lint_command:
+        print("WARN: flake8 is not in lint_command. Skipping flake8 installation.")
+        return
+    
+    # Run system command flake8 --help to see if it's already present
+    flake8_check = subprocess.run(
+        ["flake8", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    if flake8_check.returncode == 0:
+        return
+    
+    print("flake8 is not installed. Installing...")
+
+    flake8_install = subprocess.run(
+        ["pip", "install", "flake8"],
+        check=True,
+    )
+    if flake8_install.returncode != 0:
+        print("WARN: Failed to install flake8")
 
 def step_lint_repair(log_dir, args, work_dir, appmap_command, base_file_content):
     lint_command = args.lint_command
     lint_error_pattern = args.lint_error_pattern
+
+    install_flake8_if_needed(lint_command)
 
     print("Linting source files")
 
