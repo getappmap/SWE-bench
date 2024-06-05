@@ -66,7 +66,10 @@ class Solver:
 
             self.updated_file_content = self.load_file_content()
             for file in self.updated_file_content:
-                if file not in self.base_file_content or self.updated_file_content[file] != self.base_file_content[file]:
+                if (
+                    file not in self.base_file_content
+                    or self.updated_file_content[file] != self.base_file_content[file]
+                ):
                     self.files_changed.append(file)
 
         if self.lint_command:
