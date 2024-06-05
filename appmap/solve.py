@@ -122,21 +122,23 @@ def worker_init(data: dict):
                             testbed,
                             data_dict.appmap_command,
                             data_dict.lint_command,
-                            data_dict.retries
+                            data_dict.retries,
                         )
                         output_results(instance, output_file, patch)
                 except Exception:
                     print(f"Error processing {instance['instance_id']}")
                     import traceback
+
                     traceback.print_exc()
     except Exception:
         print("Error instantiating testbed")
         import traceback
+
         traceback.print_exc()
 
 
 def solve_instances(instances, args):
-    if args.filter is not None:
+    if args.filter and args.filter != "*":
         instances = [
             instance for instance in instances if args.filter in instance["instance_id"]
         ]

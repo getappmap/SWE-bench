@@ -351,6 +351,7 @@ class TestbedContextManager:
         with FileLock(f"/tmp/conda-env-setup-{env_name}.lock"):
             if env_name in get_conda_env_names(exec_cmd):
                 self.log.write(f"Environment {env_name} already exists; skipping")
+                return
 
             # Get setup reference instance
             setup_ref_instance = version_to_setup_ref[version]
@@ -422,14 +423,18 @@ class TestbedContextManager:
                 )
                 self.exec(["bash", "-c", cmd])
 
-            # Install additional packages if specified
-            if "pip_packages" in install:
-                pip_packages = " ".join(install["pip_packages"])
-                cmd = f". {path_activate} {env_name} && pip install {pip_packages}"
-                self.log.write(
-                    f"Installing pip packages for {env_name}; Command: {cmd}"
-                )
-                self.exec(["bash", "-c", cmd])
+            # All conda environments should have flake8 installed
+            if "pip_packages" not in install:
+                install["pip_packages"] = []
+            install["pip_packages"].append("flake8")
+
+            # Install additional packages
+            pip_packages = " ".join(install["pip_packages"])
+            cmd = f". {path_activate} {env_name} && pip install {pip_packages}"
+            self.log.write(
+                f"Installing pip packages for {env_name}; Command: {cmd}"
+            )
+            self.exec(["bash", "-c", cmd])
 
     def get_distributed_tasks(self) -> list:
         """

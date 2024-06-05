@@ -66,7 +66,10 @@ class Solver:
 
             self.updated_file_content = self.load_file_content()
             for file in self.updated_file_content:
-                if self.updated_file_content[file] != self.base_file_content[file]:
+                if (
+                    file not in self.base_file_content
+                    or self.updated_file_content[file] != self.base_file_content[file]
+                ):
                     self.files_changed.append(file)
 
         if self.lint_command:
@@ -112,6 +115,8 @@ class Solver:
         return result
 
     def apply_changes(self):
+        base_file_content = self.load_file_content()
+
         step_apply(
             self.log_dir,
             self.work_dir,
@@ -119,6 +124,23 @@ class Solver:
             self.solution_file,
             self.apply_file,
         )
+
+        # Test file is any ".py" file whose basename starts with "test_" or ends with "_test.py"
+        is_test_file = (
+            lambda file: file.endswith(".py")
+            and os.path.basename(file).startswith("test_")
+            or file.endswith("_test.py")
+        )
+
+        # Revert changes to test cases
+        for file in self.load_file_content():
+            if is_test_file(file):
+                print(f"Reverting changes to test file {file}")
+                if file in base_file_content:    
+                    with open(file, "w") as f:
+                        f.write(base_file_content[file])
+                else:
+                    os.remove(file)
 
     def lint_repair(self):
         step_lint_repair(
@@ -194,9 +216,15 @@ if __name__ == "__main__":
     if args.log_dir:
         os.makedirs(args.log_dir, exist_ok=True)
 
+    issue_name = os.path.basename(os.path.dirname(args.issue_file))
+    retries = args.retries or 1
     attempt_number = 0
-    files_changed = []
-    while len(files_changed) == 0:
+
+    print(f"Solver will make {retries} attempts to solve issue {issue_name}")
+    while attempt_number < retries:
+        print(
+            f"Solving issue {issue_name} (attempt number {attempt_number + 1} of {args.retries})"
+        )
         solver = Solver(
             issue_file=args.issue_file,
             log_dir=args.log_dir,
@@ -208,10 +236,13 @@ if __name__ == "__main__":
         )
         solver.solve()
         files_changed = solver.files_changed
-        if len(files_changed) == 0:
-            print("No files were changed.")
+        if len(files_changed) > 0:
+            print(f"Solver changed {len(files_changed)} files in {issue_name}:")
+            for file in files_changed:
+                print(f"  {file}")
+            break
+        else:
+            print(f"Solver did not change any files in {issue_name}.")
             attempt_number += 1
-            if attempt_number == args.retries:
-                print("Giving up after {attempt_number} attempts")
-            else:
-                print(f"Retrying (attempt number {attempt_number + 1} of {args.retries})")
+            if attempt_number >= retries:
+                print(f"Giving up after {attempt_number} attempts")
