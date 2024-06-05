@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 from pathlib import Path
 from multiprocessing import Pool, current_process, cpu_count
 from swebench.harness.context_manager import (
@@ -138,9 +139,10 @@ def worker_init(data: dict):
 
 
 def solve_instances(instances, args):
-    if args.filter and args.filter != "*":
+    if args.filter:
+        pattern = re.compile(args.filter)
         instances = [
-            instance for instance in instances if args.filter in instance["instance_id"]
+            instance for instance in instances if pattern.search(instance["instance_id"])
         ]
 
     instance_groups = split_instances(list(instances), args.num_workers)

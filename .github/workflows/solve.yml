@@ -2,7 +2,7 @@ on:
   workflow_dispatch:
     inputs:
       filter:
-        description: "Instance filter"
+        description: "Instance filter regex"
         required: true
         default: marshmallow
       dataset:
@@ -19,7 +19,7 @@ on:
         default: "3"
 
   pull_request:
-    types: [opened, synchronize, labeled, reopened]
+    types: [opened, synchronize, labeled]
 
 jobs:
   solve:
