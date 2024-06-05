@@ -138,7 +138,7 @@ def worker_init(data: dict):
 
 
 def solve_instances(instances, args):
-    if args.filter is not None:
+    if args.filter and args.filter != "*":
         instances = [
             instance for instance in instances if args.filter in instance["instance_id"]
         ]

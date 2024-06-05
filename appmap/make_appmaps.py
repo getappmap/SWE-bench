@@ -160,7 +160,7 @@ def main(args):
     task_instances = list(get_eval_refs(args.instances_path).values())
 
     # filter by optional filter
-    if args.filter is not None:
+    if args.filter and args.filter != "*":
         task_instances = [
             task_instance
             for task_instance in task_instances
