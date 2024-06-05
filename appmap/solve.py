@@ -24,7 +24,9 @@ def output_results(instance, output_file, patch):
             f.write(json.dumps(instance) + "\n")
 
 
-def solve_instance(instance, log_dir, testbed, appmap_command, lint_command, retries):
+def solve_instance(
+    instance, log_dir, testbed, path_conda, appmap_command, lint_command, retries
+):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"]
     issue_dir.mkdir(parents=True, exist_ok=True)
     issue_file = issue_dir / "issue.txt"
@@ -36,6 +38,8 @@ def solve_instance(instance, log_dir, testbed, appmap_command, lint_command, ret
         "python",
         str(solver_path),
         str(issue_file),
+        "--path-conda",
+        path_conda,
         "--retries",
         str(retries),
         "--log-dir",
@@ -121,6 +125,7 @@ def worker_init(data: dict):
                             instance,
                             log_dir,
                             testbed,
+                            data_dict.path_conda,
                             data_dict.appmap_command,
                             data_dict.lint_command,
                             data_dict.retries,

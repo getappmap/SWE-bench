@@ -20,6 +20,7 @@ class Solver:
         self,
         issue_file,
         log_dir,
+        path_conda,
         format_command=None,
         lint_command=None,
         lint_error_pattern=None,
@@ -28,6 +29,7 @@ class Solver:
     ):
         self.issue_file = issue_file
         self.log_dir = log_dir
+        self.path_conda = path_conda
         self.format_command = format_command
         self.lint_command = lint_command
         self.lint_error_pattern = lint_error_pattern
@@ -136,7 +138,7 @@ class Solver:
         for file in self.load_file_content():
             if is_test_file(file):
                 print(f"Reverting changes to test file {file}")
-                if file in base_file_content:    
+                if file in base_file_content:
                     with open(file, "w") as f:
                         f.write(base_file_content[file])
                 else:
@@ -147,6 +149,7 @@ class Solver:
             self.log_dir,
             self,
             self.work_dir,
+            self.path_conda,
             self.appmap_command,
             self.base_file_content,
         )
@@ -175,6 +178,12 @@ def parse_arguments():
     )
     parser.add_argument(
         "--log-dir", type=str, help="Directory to store logs", default="logs"
+    )
+    parser.add_argument(
+        "--path-conda",
+        type=str,
+        help="Path to the conda installation",
+        default="conda",
     )
     parser.add_argument(
         "--format-command", type=str, help="Format command to use", default=None
@@ -226,6 +235,7 @@ if __name__ == "__main__":
             f"Solving issue {issue_name} (attempt number {attempt_number + 1} of {args.retries})"
         )
         solver = Solver(
+            path_conda=args.path_conda,
             issue_file=args.issue_file,
             log_dir=args.log_dir,
             format_command=args.format_command,
