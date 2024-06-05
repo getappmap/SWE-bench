@@ -174,3 +174,9 @@ analysis/evaluation/*.csv
 analysis/evaluation/*.pdf
 data/repos/copies
 notebooks/
+*.csv
+appmap.sh
+work
+appmap/datasets
+logs
+

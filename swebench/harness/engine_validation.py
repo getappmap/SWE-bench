@@ -95,7 +95,7 @@ def setup_testbed(data: dict):
         testbed=data_dict.testbed,
         temp_dir=data_dict.temp_dir,
         timeout=data_dict.timeout,
-        verbose=data_dict.verbose,
+        verbose=data_dict.verbose
     ) as tcm:
         distributed_task_list = tcm.get_distributed_tasks()
         for task_list in distributed_task_list:

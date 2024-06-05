@@ -1,0 +1,141 @@
+on:
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: "Instance filter"
+        required: true
+        default: marshmallow
+      dataset:
+        description: "Dataset name"
+        required: true
+        default: princeton-nlp/SWE-bench_Lite
+      split:
+        description: "Dataset split"
+        required: true
+        default: dev
+      retries:
+        description: "Number of retries to perform on each instance until a patch is found"
+        required: false
+        default: "3"
+
+  pull_request:
+    types: [opened, synchronize, labeled, reopened]
+
+jobs:
+  solve:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
+    runs-on: swe-bench-ubuntu-latest
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+
+      # Cache the conda environment
+      - name: Cache conda environment
+        id: cache-conda
+        uses: actions/cache@v3
+        with:
+          path: /usr/share/miniconda/envs/swe-bench
+          key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
+
+      # Create conda env if cache miss happens
+      - name: Create conda env
+        if: steps.cache-conda.outputs.cache-hit != 'true'
+        run: |
+          conda init bash
+          conda env create -f environment.yml
+          pip install flake8 black
+
+      # Cache the appmap-js build
+      - name: Cache appmap-js build
+        uses: actions/cache@v3
+        id: cache-appmap-js
+        with:
+          path: |
+            submodules/appmap-js/node_modules
+            submodules/appmap-js/packages/*/built
+            submodules/appmap-js/packages/*/node_modules
+          key: appmap-js-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/refs/heads') }}
+
+      - name: Build submodules
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
+        run: |
+          cd submodules/appmap-js
+          git checkout -- .
+          yarn
+          yarn build
+          chmod +x packages/cli/built/cli.js
+
+      - name: Run benchmark
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SWE_DATASET: ${{ inputs.dataset }}
+          SWE_SPLIT: ${{ inputs.split }}
+          SWE_FILTER: ${{ inputs.filter }}
+          SWE_RETRIES: ${{ inputs.retries }}
+        run: |
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate swe-bench
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          python appmap/solve.py \
+            --instances ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite} \
+            --split ${SWE_SPLIT:-dev} \
+            --filter ${SWE_FILTER:-marshmallow} \
+            --retries ${SWE_RETRIES:-3} \
+            --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
+            --lint_command "flake8 --extend-ignore=BLK100,W293,E201,E202,E303,E501,E128,E231,C408,F401,C402,E402,C416,E261,E302,D" \
+            --temp_dir ${{ runner.temp }} \
+            --num_workers 6 \
+            --path_conda $(conda info --base) \
+            --verbose
+
+      - name: Run evaluation
+        env:
+          SWE_DATASET: ${{ inputs.dataset }}
+        run: |
+          mkdir -p logs
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate swe-bench
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          python swebench/harness/run_evaluation.py \
+            --predictions_path predictions.jsonl \
+            --swe_bench_tasks ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite} \
+            --log_dir logs \
+            --testbed ${{ runner.temp }} \
+            --skip_existing \
+            --timeout 900 \
+            --verbose \
+            --num_processes 8 \
+            --path_conda $(conda info --base)
+
+      - name: Generate AppMap report
+        if: always()
+        env:
+          SWE_DATASET: ${{ inputs.dataset }}
+          SWE_SPLIT: ${{ inputs.split }}
+        run: |
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate swe-bench
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          conda info
+          python appmap/report.py \
+            --instances ${SWE_DATASET:-princeton-nlp/SWE-bench_Lite} \
+            --split ${SWE_SPLIT:-dev}
+
+      - name: Archive predictions and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: |
+            logs/
+            predictions.jsonl
+            results.csv
