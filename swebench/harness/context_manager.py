@@ -795,7 +795,7 @@ class TaskEnvContextManager:
             f.write(f"{APPLY_PATCH_PASS} ({patch_type})\n")
         return True
 
-    def run_tests_task(self, instance: dict, test_cmd: str):
+    def run_tests_task(self, instance: dict, test_cmd_override: str = None):
         """
         Run tests for task instance
 
@@ -806,7 +806,7 @@ class TaskEnvContextManager:
         """
         try:
             # Run test command for task instance
-            test_cmd = f"{self.cmd_activate} && {test_cmd}"
+            test_cmd = f"{self.cmd_activate} && {test_cmd_override or instance['test_cmd']}"
             with open(self.log_file, "a") as f:
                 f.write(f"Test Script: {test_cmd};\n")
 
