@@ -62,6 +62,10 @@ class GithubArchive:
             with FileLock(self.path + ".lock"):
                 self._download_archive()
         os.system(f"tar -xf {self.path} -C {workdir}")
+        appmaps = glob.glob(
+            os.path.join(workdir, "tmp/appmap/**/*.appmap.json"), recursive=True
+        )
+        print(f"Extracted {len(appmaps)} appmaps")
 
     def _download_archive(self) -> None:
         if os.path.exists(self.path):
