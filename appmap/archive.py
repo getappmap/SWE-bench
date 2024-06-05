@@ -1,3 +1,4 @@
+from filelock import FileLock
 import glob
 import os
 from typing import Optional, Protocol
@@ -47,19 +48,30 @@ class FileArchive:
         return f"FileArchive({self.path})"
 
 
+ARCHIVE_DIR = "/tmp/appmap-archives"
+os.makedirs(ARCHIVE_DIR, exist_ok=True)
+
 class GithubArchive:
     def __init__(self, artifact: Artifact) -> None:
         self.artifact = artifact
+        self.name = artifact.name
+        self.path = os.path.join(ARCHIVE_DIR, self.name)
 
     def extract(self, workdir: str) -> None:
-        url = self.artifact.download()
-        assert os.system(f"wget -q '{url}' -O /tmp/archive.zip") == 0
-        assert os.system(f"unzip -p /tmp/archive.zip | tar xJC {workdir}") == 0
-        os.remove("/tmp/archive.zip")
+        if not os.path.exists(self.path):
+            with FileLock(self.path + ".lock"):
+                self._download_archive()
+        os.system(f"tar -xf {self.path} -C {workdir}")
 
-    @property
-    def name(self) -> str:
-        return self.artifact.name
+    def _download_archive(self) -> None:
+        if os.path.exists(self.path):
+            return
+        zip_path = self.path + ".zip"
+        url = self.artifact.download()
+        assert os.system(f"wget -q '{url}' -O {zip_path}") == 0
+        assert os.system(f"unzip {zip_path} -d {ARCHIVE_DIR}") == 0
+        os.remove(zip_path)
+        assert os.path.exists(self.path)
 
     def __str__(self) -> str:
         return f"GithubArchive({self.artifact.name})"
