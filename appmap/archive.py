@@ -1,4 +1,5 @@
 from filelock import FileLock
+from functools import cache
 import glob
 import os
 from typing import Optional, Protocol
@@ -81,6 +82,17 @@ class GithubArchive:
         return f"GithubArchive({self.artifact.name})"
 
 
+@cache
+def get_artifacts(repo_id: str, run_id: str) -> Optional[list[Artifact]]:
+    try:
+        repo = github_client.get_repo(repo_id)
+    except UnknownObjectException:
+        print(f"Repository {repo_id} is unavailable")
+        return None
+    run = repo.get_workflow_run(run_id)
+    return run.get_artifacts()
+
+
 class ArchiveFinder:
 
     def __init__(self, base_path: Optional[str]) -> None:
@@ -102,17 +114,7 @@ class ArchiveFinder:
 
     def _find_github(self, repo_version: str) -> Archive:
         for repo_id, runs in RUNS.items():
-            if repo_id in unavailable_repos:
-                continue
-            try:
-                repo = github_client.get_repo(repo_id)
-            except UnknownObjectException:
-                unavailable_repos.append(repo_id)
-                print(f"Repository {repo_id} is unavailable")
-                continue
             for run_id in runs:
-                run = repo.get_workflow_run(run_id)
-                artifacts = run.get_artifacts()
-                for artifact in artifacts:
+                for artifact in get_artifacts(repo_id, run_id):
                     if artifact.name.startswith(repo_version):
                         return GithubArchive(artifact)
