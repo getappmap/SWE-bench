@@ -118,6 +118,7 @@ jobs:
             --path_conda $(conda info --base)
 
       - name: Generate AppMap report
+        if: always()
         env:
           SWE_DATASET: ${{ inputs.dataset }}
           SWE_SPLIT: ${{ inputs.split }}
@@ -131,6 +132,7 @@ jobs:
             --split ${SWE_SPLIT:-dev}
 
       - name: Archive predictions and logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: results
