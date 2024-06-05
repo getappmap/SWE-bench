@@ -70,7 +70,10 @@ def step_lint_repair(log_dir, args, work_dir, appmap_command, base_file_content)
         for error in lint_errors:
             if error:
                 line_number = error.split(":")[1]
-                lint_errors_by_line_number[int(line_number)] = error
+                if line_number:
+                    lint_errors_by_line_number[int(line_number)] = error
+                else:
+                    print(f"WARN: No line number in lint error {error}")
 
         # The file diff contains chunks like:
         # @@ -147,15 +147,21 @@
