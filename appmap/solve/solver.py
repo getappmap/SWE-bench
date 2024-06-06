@@ -128,10 +128,17 @@ class Solver:
         )
 
         # Test file is any ".py" file whose basename starts with "test_" or ends with "_test.py"
-        is_test_file = (
-            lambda file: file.endswith(".py")
-            and os.path.basename(file).startswith("test_")
-            or file.endswith("_test.py")
+        is_test_file = lambda file: (
+            file.endswith(".py")
+            # file name path tokens contains 'tests' or 'test' directory
+            and (
+                any(
+                    token in file.split(os.path.sep)
+                    for token in ["tests", "test", "testcases"]
+                )
+                or os.path.basename(file).startswith("test_")
+                or file.endswith("_test.py")
+            )
         )
 
         # Revert changes to test cases
