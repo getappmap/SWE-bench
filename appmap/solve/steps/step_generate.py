@@ -37,7 +37,7 @@ def step_generate(
                     context_f.write(file_content)
             else:
                 print(
-                    f"Notice: File '{file}' does not exist. It will probably be created in the code generation step.",
+                    f"WARN: Planned file '{file}' does not exist.",
                     file=sys.stderr,
                 )
             context_f.write("</content>\n")
