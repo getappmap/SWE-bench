@@ -448,6 +448,7 @@ MAP_VERSION_TO_INSTALL_XARRAY = {
             "python-dateutil==2.8.2",
             "pytz==2023.3",
             "six==1.16.0",
+            "cupy==11.6.0",
         ],
         "no_use_env": True,
     }
