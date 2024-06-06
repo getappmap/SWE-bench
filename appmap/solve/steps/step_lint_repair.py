@@ -122,6 +122,10 @@ def step_lint_repair(
     print("Linting source files")
 
     for file in base_file_content.keys():
+        if not file.endswith(".py"):
+            print(f"Skipping {file} because it is not a Python file")
+            continue
+
         print(f"Linting {file}")
 
         lint_errors_by_line_number = lint_file(context, file)
