@@ -57,6 +57,11 @@ jobs:
         conda init bash
         conda env create -f environment.yml
 
+    - name: Setup upterm session
+      uses: owenthereal/action-upterm@v1
+      with:
+        wait-timeout-minutes: 5
+
     - name: Make Appmaps
       run: |
           source /home/runner/.bashrc
