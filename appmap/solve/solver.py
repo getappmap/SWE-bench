@@ -23,7 +23,6 @@ class Solver:
         path_conda,
         format_command=None,
         lint_command=None,
-        lint_error_pattern=None,
         appmap_command="appmap",
         steps=None,
     ):
@@ -32,7 +31,6 @@ class Solver:
         self.path_conda = path_conda
         self.format_command = format_command
         self.lint_command = lint_command
-        self.lint_error_pattern = lint_error_pattern
         self.appmap_command = appmap_command
         self.steps = steps or DEFAULT_STEPS
 
@@ -192,9 +190,6 @@ def parse_arguments():
         "--lint-command", type=str, help="Lint command to use", default=None
     )
     parser.add_argument(
-        "--lint-error-pattern", type=str, help="Lint error pattern to use", default=None
-    )
-    parser.add_argument(
         "--appmap-command", type=str, help="AppMap command to use", default="appmap"
     )
 
@@ -235,7 +230,6 @@ if __name__ == "__main__":
         log_dir=args.log_dir,
         format_command=args.format_command,
         lint_command=args.lint_command,
-        lint_error_pattern=args.lint_error_pattern,
         appmap_command=args.appmap_command,
         steps=steps,
     )
