@@ -91,7 +91,6 @@ jobs:
         run: |
           conda init bash
           conda env create -f environment.yml
-          pip install flake8 black
 
       # Restore the appmap-js build
       - name: Restore appmap-js build

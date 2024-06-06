@@ -489,6 +489,7 @@ class TestbedContextManager:
             if "pip_packages" not in install:
                 install["pip_packages"] = []
             install["pip_packages"].append("flake8")
+            install["pip_packages"].append("appmap")
 
             # Install additional packages
             pip_packages = " ".join(install["pip_packages"])
