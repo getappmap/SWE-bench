@@ -393,6 +393,21 @@ MAP_VERSION_TO_INSTALL_ASTROPY = {
             "cython==3.0.10",
             "extension_helpers==1.1.1",
         ],
+        "appmap" : """
+appmap_dir: tmp/appmap
+language: python
+name: astropy
+packages:
+- path: astropy
+  exclude:
+  - conftest
+  - extern
+  - units
+  - utils
+  - coordinates
+  - time.formats
+
+""",
     }
     for k in ["0.1", "0.2", "0.3", "0.4", "1.1", "1.2", "1.3", "3.0", "3.1", "3.2"]
     + ["4.1", "4.2", "4.3", "5.0", "5.1", "5.2"]
@@ -578,7 +593,7 @@ MAP_REPO_TO_INSTALL = {}
 # Constants - Task Instance Test Frameworks
 TEST_PYTEST = "pytest --no-header -rA --tb=no -p no:cacheprovider -v"
 MAP_REPO_TO_TEST_FRAMEWORK = {
-    "astropy/astropy": TEST_PYTEST,
+    "astropy/astropy": f"{TEST_PYTEST} -Wi",
     "django/django": "./tests/runtests.py --verbosity 2",
     "marshmallow-code/marshmallow": TEST_PYTEST,
     "matplotlib/matplotlib": TEST_PYTEST,
