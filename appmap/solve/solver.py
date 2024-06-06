@@ -21,6 +21,7 @@ class Solver:
         issue_file,
         log_dir,
         path_conda,
+        repo,
         format_command=None,
         lint_command=None,
         appmap_command="appmap",
@@ -29,6 +30,7 @@ class Solver:
         self.issue_file = issue_file
         self.log_dir = log_dir
         self.path_conda = path_conda
+        self.repo = repo
         self.format_command = format_command
         self.lint_command = lint_command
         self.appmap_command = appmap_command
@@ -73,6 +75,7 @@ class Solver:
             self.work_dir,
             self.appmap_command,
             self.plan_file,
+            self.repo,
         )
 
     def list_files(self):
@@ -127,7 +130,6 @@ class Solver:
                     os.remove(file)
 
         self.load_file_changes()
-
 
     def lint_repair(self):
         step_lint_repair(
@@ -200,6 +202,7 @@ def parse_arguments():
         "--nogenerate", action="store_true", help="Do not generate code"
     )
     parser.add_argument("--noapply", action="store_true", help="Do not apply changes")
+    parser.add_argument("--repo", type=str, help="Repository name")
 
     return parser.parse_args()
 
@@ -231,6 +234,7 @@ if __name__ == "__main__":
         lint_command=args.lint_command,
         appmap_command=args.appmap_command,
         steps=steps,
+        repo=args.repo,
     )
     solver.solve()
     files_changed = solver.files_changed
