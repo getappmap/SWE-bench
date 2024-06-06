@@ -35,6 +35,7 @@ class Solver:
         log_dir,
         conda_path,
         conda_env,
+        repo,
         format_command=None,
         lint_command=None,
         appmap_command="appmap",
@@ -46,6 +47,7 @@ class Solver:
         self.log_dir = log_dir
         self.conda_path = conda_path
         self.conda_env = conda_env
+        self.repo = repo
         self.format_command = format_command
         self.lint_command = lint_command
         self.appmap_command = appmap_command
@@ -114,6 +116,7 @@ class Solver:
             self.instance_id,
             self.appmap_command,
             self.plan_file,
+            self.repo,
         )
 
     def list_files(self):
@@ -292,6 +295,7 @@ def parse_arguments():
         help="Comma-separated list of steps to execute",
         default=None,
     )
+    parser.add_argument("--repo", type=str, help="Repository name")
 
     return parser.parse_args()
 
@@ -330,6 +334,7 @@ if __name__ == "__main__":
         lint_command=args.lint_command,
         appmap_command=args.appmap_command,
         steps=steps,
+        repo=args.repo,
     )
     solver.solve()
     files_changed = solver.files_changed
