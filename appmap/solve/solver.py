@@ -3,51 +3,74 @@ import json
 import os
 import sys
 
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
+from appmap.solve.steps.step_posttest import step_posttest
+from appmap.solve.steps.step_pretest import step_pretest
 from appmap.solve.steps.step_lint_repair import step_lint_repair
 from appmap.solve.steps.step_apply import step_apply
 from appmap.solve.steps.step_generate import step_generate
 from appmap.solve.steps.step_list import step_list
 from appmap.solve.steps.step_plan import step_plan
 
-DEFAULT_STEPS = {"plan": True, "list": True, "generate": True, "apply": True}
+DEFAULT_STEPS = {
+    "pretest": True,
+    "plan": True,
+    "list": True,
+    "generate": True,
+    "apply": True,
+    "posttest": True,
+}
 
 
 class Solver:
     def __init__(
         self,
+        instances_path,
+        instance_id,
         issue_file,
         log_dir,
-        path_conda,
+        conda_path,
+        conda_env,
         format_command=None,
         lint_command=None,
         appmap_command="appmap",
         steps=None,
     ):
+        self.instances_path = instances_path
+        self.instance_id = instance_id
         self.issue_file = issue_file
         self.log_dir = log_dir
-        self.path_conda = path_conda
+        self.conda_path = conda_path
+        self.conda_env = conda_env
         self.format_command = format_command
         self.lint_command = lint_command
         self.appmap_command = appmap_command
         self.steps = steps or DEFAULT_STEPS
 
         if self.lint_command and not self.steps["apply"]:
-            print("WARN: Lint command will not be executed without apply step.")
+            print(
+                f"[solver] ({self.instance_id}) WARN: Lint command will not be executed without apply step."
+            )
 
         if not os.path.isfile(self.issue_file):
             raise FileNotFoundError(f"File '{self.issue_file}' not found.")
 
         self.work_dir = os.path.dirname(os.path.abspath(self.issue_file))
-
         self.plan_file = os.path.join(self.work_dir, "plan.md")
         self.solution_file = os.path.join(self.work_dir, "solution.md")
         self.apply_file = os.path.join(self.work_dir, "apply.md")
         self.files = []
+        self.files_changed = []
+        self.test_succeeded_files = []
+        self.test_files_failed = []
 
     def solve(self):
+        if self.steps["pretest"]:
+            self.pretest()
+
         if self.steps["plan"]:
             self.plan()
 
@@ -64,6 +87,21 @@ class Solver:
 
         if self.lint_command:
             self.lint_repair()
+
+        if self.steps["posttest"]:
+            self.posttest()
+
+    def pretest(self):
+        self.test_succeeded_files = step_pretest(
+            self.log_dir,
+            self.work_dir,
+            self.instances_path,
+            self.instance_id,
+            self.conda_path,
+            self.conda_env,
+            self.appmap_command,
+            self.issue_file,
+        )
 
     def plan(self):
         step_plan(
@@ -85,6 +123,7 @@ class Solver:
             self.log_dir,
             self,
             self.work_dir,
+            self.instance_id,
             self.appmap_command,
             self.plan_file,
             self.solution_file,
@@ -97,6 +136,7 @@ class Solver:
         step_apply(
             self.log_dir,
             self.work_dir,
+            self.instance_id,
             self.appmap_command,
             self.solution_file,
             self.apply_file,
@@ -119,7 +159,9 @@ class Solver:
         # Revert changes to test cases
         for file in self.load_file_content():
             if is_test_file(file):
-                print(f"Reverting changes to test file {file}")
+                print(
+                    f"[solver] ({self.instance_id}) Reverting changes to test file {file}"
+                )
                 if file in base_file_content:
                     with open(file, "w") as f:
                         f.write(base_file_content[file])
@@ -128,19 +170,44 @@ class Solver:
 
         self.load_file_changes()
 
-
     def lint_repair(self):
         step_lint_repair(
             self.log_dir,
             self.work_dir,
-            self.path_conda,
+            self.instance_id,
+            self.conda_path,
+            self.conda_env,
             self.lint_command,
             self.appmap_command,
             self.base_file_content,
         )
         self.load_file_changes()
 
+    def posttest(self):
+        if not self.test_succeeded_files or len(self.test_succeeded_files) == 0:
+            print(
+                f"[solver] ({self.instance_id}) WARN: No test succeeded files found. Skipping posttest step."
+            )
+            return
+
+        if not self.files_changed or len(self.files_changed) == 0:
+            print(
+                f"[solver] ({self.instance_id}) No files changed. Skipping posttest step."
+            )
+            return
+
+        step_posttest(
+            self.log_dir,
+            self.work_dir,
+            self.instances_path,
+            self.instance_id,
+            self.conda_path,
+            self.conda_env,
+            self.test_succeeded_files,
+        )
+
     def load_file_changes(self):
+        print(f"[solver] ({self.instance_id}) Loading file changes")
         self.files_changed = []
         updated_file_content = self.load_file_content()
         for file in updated_file_content:
@@ -168,6 +235,18 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        "--instances-path",
+        type=str,
+        help="Path to candidate task instances file",
+    )
+
+    parser.add_argument(
+        "--instance-id",
+        type=str,
+        help="Instance ID",
+    )
+
+    parser.add_argument(
         "--directory",
         type=str,
         help="Working directory of the project to modify",
@@ -192,26 +271,25 @@ def parse_arguments():
         "--appmap-command", type=str, help="AppMap command to use", default="appmap"
     )
 
-    parser.add_argument("--noplan", action="store_true", help="Do not generate a plan")
     parser.add_argument(
-        "--nolist", action="store_true", help="Do not list files to be modified"
+        "--steps",
+        type=str,
+        help="Comma-separated list of steps to execute",
+        default=None,
     )
-    parser.add_argument(
-        "--nogenerate", action="store_true", help="Do not generate code"
-    )
-    parser.add_argument("--noapply", action="store_true", help="Do not apply changes")
 
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_arguments()
-    steps = {
-        "plan": not args.noplan,
-        "list": not args.nolist,
-        "generate": not args.nogenerate,
-        "apply": not args.noapply,
-    }
+
+    steps = None
+    if args.steps:
+        steps = {step: False for step in DEFAULT_STEPS}
+        for step in args.steps.split(","):
+            if step in steps:
+                steps[step] = True
 
     if args.directory:
         os.chdir(args.directory)
@@ -220,11 +298,15 @@ if __name__ == "__main__":
         os.makedirs(args.log_dir, exist_ok=True)
 
     iteration = os.path.basename(os.path.dirname(args.issue_file))
+    conda_env = os.path.basename(os.getcwd())
     instance_name = os.path.basename(os.path.dirname(os.path.dirname(args.issue_file)))
     issue_name = os.path.join(instance_name, iteration)
 
     solver = Solver(
-        path_conda=args.path_conda,
+        instances_path=args.instances_path,
+        instance_id=args.instance_id,
+        conda_path=args.path_conda,
+        conda_env=conda_env,
         issue_file=args.issue_file,
         log_dir=args.log_dir,
         format_command=args.format_command,

@@ -13,14 +13,16 @@ class LintRepairContext:
         self,
         log_dir,
         work_dir,
-        path_conda,
+        conda_path,
+        conda_env,
         lint_command,
         appmap_command,
         base_file_content,
     ):
         self.log_dir = log_dir
         self.work_dir = work_dir
-        self.path_conda = path_conda
+        self.conda_path = conda_path
+        self.conda_env = conda_env
         self.lint_command = lint_command
         self.appmap_command = appmap_command
         self.base_file_content = base_file_content
@@ -58,7 +60,7 @@ def lint_file(context, file):
     lint_args = [
         "bash",
         "-c",
-        f". {context.path_conda}/bin/activate {context.instance_name} && {context.lint_command} {file}",
+        f". {context.conda_path}/bin/activate {context.instance_name} && {context.lint_command} {file}",
     ]
     log_command(context.log_dir, " ".join(lint_args))
 
@@ -113,10 +115,22 @@ def lint_error_line_numbers_within_diff_sections(
 
 
 def step_lint_repair(
-    log_dir, work_dir, path_conda, lint_command, appmap_command, base_file_content
+    log_dir,
+    work_dir,
+    conda_path,
+    conda_env,
+    lint_command,
+    appmap_command,
+    base_file_content,
 ):
     context = LintRepairContext(
-        log_dir, work_dir, path_conda, lint_command, appmap_command, base_file_content
+        log_dir,
+        work_dir,
+        conda_path,
+        conda_env,
+        lint_command,
+        appmap_command,
+        base_file_content,
     )
 
     print("Linting source files")
@@ -233,7 +247,8 @@ only present in the file/content to help you identify which line has the lint er
             f.write(
                 """
 </lint-errors>
-<diff>""")
+<diff>"""
+            )
             f.write(file_diff)
             f.write(
                 """

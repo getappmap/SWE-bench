@@ -90,12 +90,14 @@ def make_appmaps(data: dict):
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
         tcm.log.write("Installing pytest-test-groups")
-        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install pytest-test-groups"])
+        tcm.exec(
+            ["bash", "-c", f"{tcm.cmd_activate} && pip install pytest-test-groups"]
+        )
         task_instance["test_cmd"] = MAP_REPO_TO_TEST_FRAMEWORK[
             task_instance["repo"]
         ]  # run all tests
         tcm.log.write("Running tests with appmap")
-        for i in range(1,100):
+        for i in range(1, 100):
             test_cmd = f"APPMAP_DISPLAY_PARAMS=false PYTHONUNBUFFERED=1 appmap-python {task_instance['test_cmd']}  --test-group-count 100 --test-group {i}"
             tcm.run_tests_task(task_instance, test_cmd)
         tcm.log.write("Uninstalling appmap")
@@ -178,14 +180,16 @@ def main(args):
             for task_instance in task_instances
             if args.filter in task_instance["instance_id"]
         ]
-        if (args.show_instances):
+        if args.show_instances:
+
             def filter_keys(dicts):
-                keys_to_keep=["instance_id", "version", "environment_setup_commit"]
-                return [{k: v for k, v in d.items() if k in keys_to_keep} for d in dicts]
+                keys_to_keep = ["instance_id", "version", "environment_setup_commit"]
+                return [
+                    {k: v for k, v in d.items() if k in keys_to_keep} for d in dicts
+                ]
 
             json.dump(filter_keys(task_instances), indent=2, fp=sys.stdout)
             sys.exit(0)
-
 
     # group by repo-version
     rv_groups = itertools.groupby(task_instances, lambda x: (x["repo"], x["version"]))

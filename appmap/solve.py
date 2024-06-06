@@ -26,7 +26,15 @@ def output_results(instance, output_file, patch):
 
 
 def solve_instance(
-    instance, log_dir, testbed, path_conda, appmap_command, lint_command, iteration
+    instances_path,
+    instance,
+    log_dir,
+    testbed,
+    path_conda,
+    appmap_command,
+    lint_command,
+    iteration,
+    steps=None,
 ):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
     issue_dir.mkdir(parents=True, exist_ok=True)
@@ -39,6 +47,10 @@ def solve_instance(
         "python",
         str(solver_path),
         str(issue_file),
+        "--instances-path",
+        instances_path,
+        "--instance-id",
+        instance["instance_id"],
         "--path-conda",
         path_conda,
         "--log-dir",
@@ -46,8 +58,11 @@ def solve_instance(
         "--appmap-command",
         appmap_command,
     ]
+
     if lint_command is not None:
         solve_args.extend(["--lint-command", lint_command])
+    if steps is not None:
+        solve_args.extend(["--steps", steps])
 
     # Run this as a separate process so that it can change the working directory.
     solve_result = run(solve_args, cwd=testbed)
@@ -115,6 +130,8 @@ def worker_init(data: dict):
                     verbose=data_dict.verbose,
                     log_suffix=data_dict.log_suffix,
                 ) as task_manager:
+                    task_manager.run_install_task(instance)
+
                     try:
                         retries = data_dict.retries
                         issue_name = env_name
@@ -137,6 +154,7 @@ def worker_init(data: dict):
                             extract_appmaps(instance, testbed)
 
                             patch = solve_instance(
+                                data_dict.instances_path,
                                 instance,
                                 log_dir,
                                 testbed,
@@ -144,6 +162,7 @@ def worker_init(data: dict):
                                 data_dict.appmap_command,
                                 data_dict.lint_command,
                                 attempt_number,
+                                steps=data_dict.steps,
                             )
                             if patch:
                                 print(
@@ -312,6 +331,11 @@ if __name__ == "__main__":
         nargs="?",
         const=True,
         help="Use AppMaps (with optional path to local AppMap archive directory)",
+    )
+    parser.add_argument(
+        "--steps",
+        type=str,
+        help="Comma-separated list of solve steps to execute",
     )
     args = parser.parse_args()
     if args.appmaps:
