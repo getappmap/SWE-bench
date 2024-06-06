@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 from multiprocessing import Pool, current_process, cpu_count
@@ -12,6 +13,8 @@ from subprocess import run
 from os.path import abspath
 from filelock import FileLock
 from data import load_data
+
+from appmap.archive import ArchiveFinder
 
 
 def output_results(instance, output_file, patch):
@@ -62,6 +65,7 @@ def solve_instance(
         text=True,
     )
     return patch_result.stdout
+
 
 def worker_init(data: dict):
     """
@@ -132,6 +136,8 @@ def worker_init(data: dict):
                                 )
                                 return
 
+                            extract_appmaps(instance, testbed)
+
                             patch = solve_instance(
                                 instance,
                                 log_dir,
@@ -168,6 +174,17 @@ def worker_init(data: dict):
         traceback.print_exc()
 
 
+def extract_appmaps(instance, testbed):
+    if not appmap_finder:
+        return
+    appmap_archive = appmap_finder.find_archive(
+        instance["repo"].split("/")[-1] + "-" + instance["version"]
+    )
+    if appmap_archive is not None:
+        print(f"AppMap archive: {appmap_archive}", flush=True)
+        appmap_archive.extract(testbed)
+
+
 def solve_instances(instances, args):
     if args.filter:
         pattern = re.compile(args.filter)
@@ -201,6 +218,8 @@ def main(args):
     dataset = load_data(args.instances_path, args.split)
     solve_instances(dataset, args)
 
+
+appmap_finder = None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -288,5 +307,22 @@ if __name__ == "__main__":
         action="store_true",
         help="(Optional) Keep temporary directories after running",
     )
+    parser.add_argument(
+        "--appmaps",
+        type=str,
+        nargs="?",
+        const=True,
+        help="Use AppMaps (with optional path to local AppMap archive directory)",
+    )
     args = parser.parse_args()
+    if args.appmaps:
+        if type(args.appmaps) is bool:
+            appmap_path = None
+            print(f"Using only online AppMaps")
+        else:
+            appmap_path = os.path.abspath(args.appmaps)
+            print(f"Using AppMaps from {appmap_path} (and online)")
+        appmap_finder = ArchiveFinder(appmap_path)
+    else:
+        print("Not using AppMaps")
     main(args)

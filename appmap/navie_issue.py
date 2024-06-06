@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 from datasets import DatasetDict, load_dataset, load_from_disk
 
+from appmap.archive import Archive, ArchiveFinder
 from swebench.harness.utils import clone_to
 from subprocess import PIPE, Popen
 import json
@@ -25,7 +26,7 @@ def repo_version(task):
     return f"{task['repo'].split('/')[-1]}-{task['version']}"
 
 
-def rewrite_issues(tasks, archive):
+def rewrite_issues(tasks, archive: Optional[Archive]):
     # get repo and version from first task
     repo, version = tasks[0]["repo"].split("/")[-1], tasks[0]["version"]
 
@@ -36,12 +37,10 @@ def rewrite_issues(tasks, archive):
     # clone base repository
     print("Cloning repository")
     clone_to(tasks[0]["repo"], work)
-    # extract archive
-    if os.path.exists(archive):
-        print(f"Extracting {archive}")
-        os.system(f"tar -xf {archive} -C {work}")
+    if archive:
+        print(f"Extracting {archive.name}")
+        archive.extract(work)
     else:
-        archive = None
         print("Working without appmaps")
 
     os.chdir(work)
@@ -83,7 +82,7 @@ def rewrite_issues(tasks, archive):
 
         task["problem_statement"] = stdout
         task["has_appmaps"] = archive is not None
-        task["appmap_archive"] = os.path.basename(archive)
+        task["appmap_archive"] = archive.name if archive else None
         yield task
 
     # cleanup work directory
@@ -156,6 +155,8 @@ def main(
     dataset, dataset_name = load_data(instances)
     output_path = output / (dataset_name + ".navie.jsonl")
 
+    archive_finder = ArchiveFinder(appmaps)
+
     with FileLock(output_path.as_posix() + ".lock"):
         processed = load_existing(output_path)
         existing_ids = [i["instance_id"] for i in processed]
@@ -177,13 +178,13 @@ def main(
 
         archives = {}
         for rv in list(task_groups.keys()):
-            archive = next(Path(appmaps).glob(f"{rv}*.tar.xz"), None)
+            archive = archive_finder.find_archive(rv)
             if archive is None:
                 if not all:
                     del task_groups[rv]
             else:
                 print(f"Found archive for {rv}: {archive}")
-                archives[rv] = archive.as_posix()
+                archives[rv] = archive
 
         # print statistics
         print(f"Found {len(task_groups)} task groups")
