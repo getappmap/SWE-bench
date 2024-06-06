@@ -7,7 +7,13 @@ import os
 def step_apply(log_dir, work_dir, appmap_command, solution_file, apply_file):
     apply_prompt = os.path.join(work_dir, "apply.txt")
     with open(apply_prompt, "w") as apply_f:
-        apply_f.write("@apply /all\n\n")
+        apply_f.write(
+            """@apply /all
+
+## Guidelines
+
+Do not modify the original code in any way. It is critical that it matches the original code exactly.
+""")
         with open(solution_file, "r") as sol_f:
             apply_f.write(sol_f.read())
 
