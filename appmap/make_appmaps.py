@@ -90,7 +90,9 @@ def make_appmaps(data: dict):
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
         tcm.log.write("Installing pytest-test-groups")
-        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install pytest-test-groups"])
+        # pytest-test-groups isn't currently maintained, and the last release on PyPI is broken.
+        # Install a working commit for now, but maybe switch to pytest-shard at some point?
+        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install git+https://github.com/mark-adams/pytest-test-groups.git@946d59a99193c3ed2362ae80ba59588b60312611"])
         task_instance["test_cmd"] = MAP_REPO_TO_TEST_FRAMEWORK[
             task_instance["repo"]
         ]  # run all tests
