@@ -19,6 +19,9 @@ def step_plan(log_dir, args, issue_file, work_dir, appmap_command, plan_file):
 * Try to solve the problem with a minimal set of code changes.
 * Do not output code blocks or fenced code. Output only a text description of the suggested
     changes, along with the file names.
+* Solve the problem as if you were a contributor to the project, responding to an end-user
+    bug report.
+* Do not consider changing any code snippets that appear to be downstream of the problem.
 """
         )
 
