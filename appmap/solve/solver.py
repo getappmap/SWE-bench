@@ -203,7 +203,10 @@ class Solver:
             )
             return
 
-        step_posttest(
+        # At this point, some files have changed, and some tests succeeded.
+        # Re-run the tests to ensure that the changes did not break anything.
+
+        self.test_files_failed = step_posttest(
             self.log_dir,
             self.work_dir,
             self.instances_path,
@@ -323,9 +326,16 @@ if __name__ == "__main__":
     )
     solver.solve()
     files_changed = solver.files_changed
+    test_files_failed = solver.test_files_failed
 
     if len(files_changed) == 0:
         print(f"WARN: Solver did not change any files in {issue_name}.")
+        sys.exit(1)
+
+    if len(test_files_failed) > 0:
+        print(f"Solver changed {len(files_changed)} files in {issue_name}, but tests failed for:")
+        for file in test_files_failed:
+            print(f"  {file}")
         sys.exit(1)
 
     if len(files_changed) > 0:
