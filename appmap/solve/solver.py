@@ -152,9 +152,9 @@ class Solver:
     def lint_repair(self):
         step_lint_repair(
             self.log_dir,
-            self,
             self.work_dir,
             self.path_conda,
+            self.lint_command,
             self.appmap_command,
             self.base_file_content,
         )

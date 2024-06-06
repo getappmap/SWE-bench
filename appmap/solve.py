@@ -51,7 +51,7 @@ def solve_instance(
     # Run this as a separate process so that it can change the working directory.
     solve_result = run(solve_args, cwd=testbed)
     if solve_result.returncode != 0:
-        print(f"Solver did not succeed for {instance['instance_id']}/{iteration + 1}. Maybe it will be retried.")
+        print(f"Solver did not succeed for {instance['instance_id']}/{iteration + 1}.")
         return
 
     patch_result = run(
