@@ -12,16 +12,14 @@ def step_plan(log_dir, args, issue_file, work_dir, appmap_command, plan_file):
     plan_prompt = os.path.join(work_dir, "plan.txt")
     with open(plan_prompt, "w") as plan_f:
         plan_f.write(
-            textwrap.dedent(
-                """@plan
+            """@plan
 
-            ## Guidelines
+## Guidelines
 
-            * Try to solve the problem with a minimal set of code changes.
-            * Do not output code blocks or fenced code. Output only a text description of the suggested
-                changes, along with the file names.
-            """
-            )
+* Try to solve the problem with a minimal set of code changes.
+* Do not output code blocks or fenced code. Output only a text description of the suggested
+    changes, along with the file names.
+"""
         )
 
     run_navie_command(

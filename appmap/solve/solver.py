@@ -20,17 +20,17 @@ class Solver:
         self,
         issue_file,
         log_dir,
+        path_conda,
         format_command=None,
         lint_command=None,
-        lint_error_pattern=None,
         appmap_command="appmap",
         steps=None,
     ):
         self.issue_file = issue_file
         self.log_dir = log_dir
+        self.path_conda = path_conda
         self.format_command = format_command
         self.lint_command = lint_command
-        self.lint_error_pattern = lint_error_pattern
         self.appmap_command = appmap_command
         self.steps = steps or DEFAULT_STEPS
 
@@ -126,17 +126,24 @@ class Solver:
         )
 
         # Test file is any ".py" file whose basename starts with "test_" or ends with "_test.py"
-        is_test_file = (
-            lambda file: file.endswith(".py")
-            and os.path.basename(file).startswith("test_")
-            or file.endswith("_test.py")
+        is_test_file = lambda file: (
+            file.endswith(".py")
+            # file name path tokens contains 'tests' or 'test' directory
+            and (
+                any(
+                    token in file.split(os.path.sep)
+                    for token in ["tests", "test", "testcases"]
+                )
+                or os.path.basename(file).startswith("test_")
+                or file.endswith("_test.py")
+            )
         )
 
         # Revert changes to test cases
         for file in self.load_file_content():
             if is_test_file(file):
                 print(f"Reverting changes to test file {file}")
-                if file in base_file_content:    
+                if file in base_file_content:
                     with open(file, "w") as f:
                         f.write(base_file_content[file])
                 else:
@@ -145,8 +152,9 @@ class Solver:
     def lint_repair(self):
         step_lint_repair(
             self.log_dir,
-            self,
             self.work_dir,
+            self.path_conda,
+            self.lint_command,
             self.appmap_command,
             self.base_file_content,
         )
@@ -161,13 +169,6 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--retries",
-        type=int,
-        default=3,
-        help="Number of times to try and create a code update for each test instance",
-    )
-
-    parser.add_argument(
         "--directory",
         type=str,
         help="Working directory of the project to modify",
@@ -177,13 +178,16 @@ def parse_arguments():
         "--log-dir", type=str, help="Directory to store logs", default="logs"
     )
     parser.add_argument(
+        "--path-conda",
+        type=str,
+        help="Path to the conda installation",
+        default="conda",
+    )
+    parser.add_argument(
         "--format-command", type=str, help="Format command to use", default=None
     )
     parser.add_argument(
         "--lint-command", type=str, help="Lint command to use", default=None
-    )
-    parser.add_argument(
-        "--lint-error-pattern", type=str, help="Lint error pattern to use", default=None
     )
     parser.add_argument(
         "--appmap-command", type=str, help="AppMap command to use", default="appmap"
@@ -216,33 +220,27 @@ if __name__ == "__main__":
     if args.log_dir:
         os.makedirs(args.log_dir, exist_ok=True)
 
-    issue_name = os.path.basename(os.path.dirname(args.issue_file))
-    retries = args.retries or 1
-    attempt_number = 0
+    iteration = os.path.basename(os.path.dirname(args.issue_file))
+    instance_name = os.path.basename(os.path.dirname(os.path.dirname(args.issue_file)))
+    issue_name = os.path.join(instance_name, iteration)
 
-    print(f"Solver will make {retries} attempts to solve issue {issue_name}")
-    while attempt_number < retries:
-        print(
-            f"Solving issue {issue_name} (attempt number {attempt_number + 1} of {args.retries})"
-        )
-        solver = Solver(
-            issue_file=args.issue_file,
-            log_dir=args.log_dir,
-            format_command=args.format_command,
-            lint_command=args.lint_command,
-            lint_error_pattern=args.lint_error_pattern,
-            appmap_command=args.appmap_command,
-            steps=steps,
-        )
-        solver.solve()
-        files_changed = solver.files_changed
-        if len(files_changed) > 0:
-            print(f"Solver changed {len(files_changed)} files in {issue_name}:")
-            for file in files_changed:
-                print(f"  {file}")
-            break
-        else:
-            print(f"Solver did not change any files in {issue_name}.")
-            attempt_number += 1
-            if attempt_number >= retries:
-                print(f"Giving up after {attempt_number} attempts")
+    solver = Solver(
+        path_conda=args.path_conda,
+        issue_file=args.issue_file,
+        log_dir=args.log_dir,
+        format_command=args.format_command,
+        lint_command=args.lint_command,
+        appmap_command=args.appmap_command,
+        steps=steps,
+    )
+    solver.solve()
+    files_changed = solver.files_changed
+
+    if len(files_changed) == 0:
+        print(f"WARN: Solver did not change any files in {issue_name}.")
+        sys.exit(1)
+
+    if len(files_changed) > 0:
+        print(f"Solver changed {len(files_changed)} files in {issue_name}:")
+        for file in files_changed:
+            print(f"  {file}")
