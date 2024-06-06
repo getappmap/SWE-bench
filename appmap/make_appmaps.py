@@ -114,9 +114,9 @@ def make_appmaps(data: dict):
         if len(appmaps) == 0:
             tcm.log.write("No appmaps created")
             return
-        # index appmaps
-        tcm.log.write(f"Indexing {len(appmaps)} appmaps")
-        subprocess.run([appmap_bin, "index", "-d", data_dict.testbed], check=True)
+        # # index appmaps
+        # tcm.log.write(f"Indexing {len(appmaps)} appmaps")
+        # subprocess.run([appmap_bin, "index", "-d", data_dict.testbed], check=True)
         # archive appmaps
         tcm.log.write(f"Archiving {len(appmaps)} appmaps to {archive_name}")
         with tarfile.open(archive_name, "w:xz") as tar:
