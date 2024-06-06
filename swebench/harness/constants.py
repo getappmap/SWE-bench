@@ -427,6 +427,11 @@ MAP_VERSION_TO_INSTALL_PYLINT = {
 }
 MAP_VERSION_TO_INSTALL_PYLINT.update({
     k: {**MAP_VERSION_TO_INSTALL_PYLINT[k], "pip_packages": [
+        "gitpython==3.1.43",
+    ]} for k in ['2.14', '2.13']})
+
+MAP_VERSION_TO_INSTALL_PYLINT.update({
+    k: {**MAP_VERSION_TO_INSTALL_PYLINT[k], "pip_packages": [
         "astroid==3.0.0a9",
     ]} for k in ['3.0']})
 
