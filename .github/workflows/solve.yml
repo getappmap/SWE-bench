@@ -1,3 +1,5 @@
+name: Run the benchmark
+
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +19,9 @@ on:
         description: "Number of retries to perform on each instance until a patch is found"
         required: false
         default: "3"
+      appmaps:
+        description: "Set to true to use AppMaps"
+        required: false
 
   pull_request:
     types: [opened, synchronize, labeled]
@@ -27,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -68,17 +73,14 @@ jobs:
         shell: bash -leo pipefail {0}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
 
       # Cache the conda environment
       - name: Cache conda environment
         id: cache-conda
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /usr/share/miniconda/envs/swe-bench
           key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
@@ -126,7 +128,8 @@ jobs:
             --temp_dir "${{ runner.temp }}" \
             --num_workers 6 \
             --path_conda $(conda info --base) \
-            --verbose
+            --verbose \
+            $(test -n "${{ inputs.appmaps }}" && echo --appmaps)
 
       - name: Run evaluation
         env:
