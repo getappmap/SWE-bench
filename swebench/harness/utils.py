@@ -139,7 +139,7 @@ def get_instances(instance_path: str) -> list:
 
 def get_requirements(instance: dict, save_path: str = None):
     """
-    Get requirements.txt for given task instance
+    Get requirements.txt for a given task instance
 
     Args:
         instance (dict): task instance
@@ -148,43 +148,34 @@ def get_requirements(instance: dict, save_path: str = None):
         requirements.txt (str): If save_path given, returns path to saved requirements.txt.
             Otherwise, returns requirements.txt as string
     """
-    # Attempt to find requirements.txt at each path based on task instance's repo
-    path_worked = False
+    # Attempt to find all listed requirements.txt at each path based on task instance's repo
+    
     commit = 'environment_setup_commit' if 'environment_setup_commit' in instance else 'base_commit'
+    successful_reqs = False
+    all_req_lines = []
 
-    for req_path in MAP_REPO_TO_REQS_PATHS[instance["repo"]]:
-        reqs_url = os.path.join(
-            SWE_BENCH_URL_RAW, instance["repo"], instance[commit], req_path
-        )
+    for req_path in MAP_REPO_TO_REQS_PATHS.get(instance["repo"], []):
+        reqs_url = os.path.join(SWE_BENCH_URL_RAW, instance["repo"], instance[commit], req_path)
         reqs = requests.get(reqs_url)
         if reqs.status_code == 200:
-            path_worked = True
-            break
-    if not path_worked:
-        print(
-            f"Could not find requirements.txt at paths {MAP_REPO_TO_REQS_PATHS[instance['repo']]}"
-        )
+            lines = reqs.text.split("\n")
+            all_req_lines.extend(lines)
+            successful_reqs = True
+
+    if not successful_reqs:
+        print(f"Could not find requirements.txt at paths {MAP_REPO_TO_REQS_PATHS[instance['repo']]}")
         return None
 
-    lines = reqs.text
     original_req = []
     additional_reqs = []
-    req_dir = "/".join(req_path.split("/")[:-1])
-    exclude_line = lambda line: any(
-        [line.strip().startswith(x) for x in ["-e .", "#", ".[test"]]
-    )
+    exclude_line = lambda line: any([line.strip().startswith(x) for x in ["-e .", "#", ".[test]"]])
 
-    for line in lines.split("\n"):
+    for line in all_req_lines:
         if line.strip().startswith("-r"):
             # Handle recursive requirements
-            file_name = line[len("-r") :].strip()
-            reqs_url = os.path.join(
-                SWE_BENCH_URL_RAW,
-                instance["repo"],
-                instance[commit],
-                req_dir,
-                file_name,
-            )
+            file_name = line[len("-r"):].strip()
+            req_dir = os.path.dirname(req_path)
+            reqs_url = os.path.join(SWE_BENCH_URL_RAW, instance["repo"], instance[commit], req_dir, file_name)
             reqs = requests.get(reqs_url)
             if reqs.status_code == 200:
                 for line_extra in reqs.text.split("\n"):
