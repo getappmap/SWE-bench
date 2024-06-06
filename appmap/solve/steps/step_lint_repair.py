@@ -195,6 +195,28 @@ def step_lint_repair(
 
 Fix the linter errors indicated by the <lint-errors> tag.
 
+The <diff> section contains the current diff between the work-in-progress file and the
+current committed version. You can use this to understand the context of the lint errors,
+and possibly to restore or repair code that was improperly removed or changed.
+
+The <file> section contains the current content of the file. It contains line numbers
+to help you identify the lines that have the lint errors. Do not emit the line numbers
+in your solution.
+
+## Instructions
+
+Fix the lint errors by:
+
+* Modifying the line. Example: Fixing syntax.
+* Adding other lines that make the line valid. Example: Adding required imports.
+* Adjusting leading whitespace. Example: Fixing indentation in Python. 
+
+Don't fix the lint errors by removing the line that has the error. The line that
+has the error is important, but it needs to be fixed.
+
+If the lint error is related to an undefined symbol, do your best to import 
+the symbol from the correct module.
+
 ## Output format
 
 {format_instructions()}
@@ -211,6 +233,11 @@ only present in the file/content to help you identify which line has the lint er
             f.write(
                 """
 </lint-errors>
+<diff>""")
+            f.write(file_diff)
+            f.write(
+                """
+</diff>
 <file>
 <path>"""
             )

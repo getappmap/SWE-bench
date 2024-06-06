@@ -118,7 +118,7 @@ def worker_init(data: dict):
                         issue_name = env_name
 
                         print(
-                            f"Solver will make {retries} attempts to solve issue {env_name}"
+                            f"Solver will make {retries} attempts to solve issue {issue_name}"
                         )
                         attempt_number = 0
                         while attempt_number < retries:

@@ -54,31 +54,16 @@ class Solver:
         if self.steps["list"]:
             self.list_files()
 
+        self.base_file_content = self.load_file_content()
+
         if self.steps["generate"]:
             self.generate_code()
 
-        self.base_file_content = {}
-        self.files_changed = []
         if self.steps["apply"]:
-            self.base_file_content = self.load_file_content()
-
             self.apply_changes()
 
-            self.updated_file_content = self.load_file_content()
-            for file in self.updated_file_content:
-                if (
-                    file not in self.base_file_content
-                    or self.updated_file_content[file] != self.base_file_content[file]
-                ):
-                    self.files_changed.append(file)
-
         if self.lint_command:
-            if len(self.files_changed) > 0:
-                self.lint_repair()
-            else:
-                print(
-                    "WARN: No changes were applied. Lint repair step will be skipped."
-                )
+            self.lint_repair()
 
     def plan(self):
         step_plan(
@@ -106,14 +91,6 @@ class Solver:
             self.files,
         )
 
-    def load_file_content(self):
-        result = {}
-        for file in self.files:
-            if os.path.isfile(file):
-                with open(file, "r") as f:
-                    result[file] = f.read()
-        return result
-
     def apply_changes(self):
         base_file_content = self.load_file_content()
 
@@ -126,9 +103,9 @@ class Solver:
         )
 
         # Test file is any ".py" file whose basename starts with "test_" or ends with "_test.py"
+        # or is contained with a directory named "test", "tests" or "testcases"
         is_test_file = lambda file: (
             file.endswith(".py")
-            # file name path tokens contains 'tests' or 'test' directory
             and (
                 any(
                     token in file.split(os.path.sep)
@@ -149,6 +126,9 @@ class Solver:
                 else:
                     os.remove(file)
 
+        self.load_file_changes()
+
+
     def lint_repair(self):
         step_lint_repair(
             self.log_dir,
@@ -158,6 +138,25 @@ class Solver:
             self.appmap_command,
             self.base_file_content,
         )
+        self.load_file_changes()
+
+    def load_file_changes(self):
+        self.files_changed = []
+        updated_file_content = self.load_file_content()
+        for file in updated_file_content:
+            if (
+                file not in self.base_file_content
+                or updated_file_content[file] != self.base_file_content[file]
+            ):
+                self.files_changed.append(file)
+
+    def load_file_content(self):
+        result = {}
+        for file in self.files:
+            if os.path.isfile(file):
+                with open(file, "r") as f:
+                    result[file] = f.read()
+        return result
 
 
 def parse_arguments():
