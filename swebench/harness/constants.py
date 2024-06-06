@@ -198,7 +198,7 @@ MAP_VERSION_TO_INSTALL_SEABORN.update(
 MAP_VERSION_TO_INSTALL_PYTEST = {
     k: {
         "python": "3.9",
-        "install": "pip install -e . && pip install -e .[testing]"
+        "install": "pip install -e .[testing]"
     } for k in [
         '4.4','4.5','4.6','5.0','5.1','5.2','5.3','5.4',
         '6.0','6.2','6.3','7.0','7.1','7.2','7.4','8.0'
