@@ -62,7 +62,7 @@ def step_pretest(
     issue_file,
 ):
     print(
-        f"[pretest] ({instance_id}) Running tests for {instance_id} using {conda_env} in {conda_path}"
+        f"[pretest] ({instance_id}) Running tests for {instance_id} using {conda_env}"
     )
 
     tcm = build_task_manager(

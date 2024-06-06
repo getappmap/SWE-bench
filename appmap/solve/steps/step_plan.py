@@ -6,8 +6,8 @@ import os
 import re
 
 
-def step_plan(log_dir, args, issue_file, work_dir, appmap_command, plan_file):
-    print(f"Generating a plan for {args.issue_file}")
+def step_plan(log_dir, args, issue_file, work_dir, instance_id, appmap_command, plan_file):
+    print(f"[plan] ({instance_id}) Generating a plan for {args.issue_file}")
 
     plan_prompt = os.path.join(work_dir, "plan.txt")
     with open(plan_prompt, "w") as plan_f:
@@ -34,7 +34,7 @@ def step_plan(log_dir, args, issue_file, work_dir, appmap_command, plan_file):
         log_path=os.path.join(work_dir, "plan.log"),
     )
 
-    print(f"Plan stored in {plan_file}")
+    print(f"[plan] ({instance_id}) Plan stored in {plan_file}")
 
     # Load the plan file and strip code blocks that are delimited by ```
     with open(plan_file, "r") as f:

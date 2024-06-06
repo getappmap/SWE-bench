@@ -130,6 +130,9 @@ def worker_init(data: dict):
                     verbose=data_dict.verbose,
                     log_suffix=data_dict.log_suffix,
                 ) as task_manager:
+                    instance_id = instance["instance_id"]
+
+                    print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
                     task_manager.run_install_task(instance)
 
                     try:
@@ -137,17 +140,17 @@ def worker_init(data: dict):
                         issue_name = env_name
 
                         print(
-                            f"Solver will make {retries} attempts to solve issue {issue_name}"
+                            f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
                         )
                         attempt_number = 0
                         while attempt_number < retries:
                             print(
-                                f"Solving issue {issue_name} (attempt number {attempt_number + 1} of {retries})"
+                                f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
                             )
 
                             if not task_manager.reset_task_env(instance):
                                 print(
-                                    f"Error resetting task environment for {instance['instance_id']}"
+                                    f"[solve] ({instance_id}) Error resetting task environment"
                                 )
                                 return
 
@@ -166,22 +169,22 @@ def worker_init(data: dict):
                             )
                             if patch:
                                 print(
-                                    f"Patch generated for {instance['instance_id']} on iteration {attempt_number +1}"
+                                    f"[solve] ({instance_id}) Patch generated on iteration {attempt_number +1}"
                                 )
                                 print(patch)
                                 output_results(instance, output_file, patch)
                                 break
                             else:
                                 print(
-                                    f"No patch generated for {instance['instance_id']}"
+                                    f"[solve] ({instance_id}) No patch generated"
                                 )
                                 attempt_number += 1
                                 if attempt_number >= retries:
-                                    print(f"Giving up after {attempt_number} attempts")
+                                    print(f"[solve] ({instance_id}) Giving up after {attempt_number} attempts")
                                     output_results(instance, output_file, None)
 
                     except Exception:
-                        print(f"Error processing {instance['instance_id']}")
+                        print(f"[solve] ({instance_id}) Error:")
                         import traceback
 
                         traceback.print_exc()

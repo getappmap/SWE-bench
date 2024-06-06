@@ -109,12 +109,19 @@ class Solver:
             self,
             self.issue_file,
             self.work_dir,
+            self.instance_id,
             self.appmap_command,
             self.plan_file,
         )
 
     def list_files(self):
-        step_list(self.log_dir, self.work_dir, self.appmap_command, self.plan_file)
+        step_list(
+            self.log_dir,
+            self.work_dir,
+            self.instance_id,
+            self.appmap_command,
+            self.plan_file,
+        )
         with open(os.path.join(self.work_dir, "files.json")) as f:
             self.files = json.load(f)
 

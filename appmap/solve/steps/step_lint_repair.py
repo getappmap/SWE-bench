@@ -13,6 +13,7 @@ class LintRepairContext:
         self,
         log_dir,
         work_dir,
+        instance_id,
         conda_path,
         conda_env,
         lint_command,
@@ -21,13 +22,13 @@ class LintRepairContext:
     ):
         self.log_dir = log_dir
         self.work_dir = work_dir
+        self.instance_id = instance_id
         self.conda_path = conda_path
         self.conda_env = conda_env
         self.lint_command = lint_command
         self.appmap_command = appmap_command
         self.base_file_content = base_file_content
         self.work_dir_base_name = os.path.basename(work_dir)
-        self.instance_name = os.path.basename(os.path.abspath(os.getcwd()))
 
 
 def norm_file_name(file):
@@ -60,7 +61,7 @@ def lint_file(context, file):
     lint_args = [
         "bash",
         "-c",
-        f". {context.conda_path}/bin/activate {context.instance_name} && {context.lint_command} {file}",
+        f". {context.conda_path}/bin/activate {context.instance_id} && {context.lint_command} {file}",
     ]
     log_command(context.log_dir, " ".join(lint_args))
 
@@ -80,11 +81,11 @@ def lint_file(context, file):
     lint_errors_by_line_number = {}
     for error in lint_errors:
         if error:
-            line_number = error.split(":")[1]
-            if line_number:
-                lint_errors_by_line_number[int(line_number)] = error
-            else:
-                print(f"WARN: No line number in lint error {error}")
+            tokens = error.split(":")
+            if len(tokens) > 1:
+                line_number = tokens[1]
+                if line_number and line_number.isdigit():
+                    lint_errors_by_line_number[int(line_number)] = error
     return lint_errors_by_line_number
 
 
@@ -101,11 +102,6 @@ def lint_error_line_numbers_within_diff_sections(
         if chunk.startswith("@@")
     ]
 
-    for diff_range in diff_ranges:
-        print(
-            f"{file} has changes between lines {diff_range[0]} and {diff_range[0] + diff_range[1]}"
-        )
-
     return [
         line_number
         for line_number in lint_errors_by_line_number.keys()
@@ -117,6 +113,7 @@ def lint_error_line_numbers_within_diff_sections(
 def step_lint_repair(
     log_dir,
     work_dir,
+    instance_id,
     conda_path,
     conda_env,
     lint_command,
@@ -126,6 +123,7 @@ def step_lint_repair(
     context = LintRepairContext(
         log_dir,
         work_dir,
+        instance_id,
         conda_path,
         conda_env,
         lint_command,
@@ -133,14 +131,16 @@ def step_lint_repair(
         base_file_content,
     )
 
-    print("Linting source files")
+    print(f"[lint-repair] ({instance_id}) Linting source files")
 
     for file in base_file_content.keys():
         if not file.endswith(".py"):
-            print(f"Skipping {file} because it is not a Python file")
+            print(
+                f"[lint-repair] ({instance_id}) Skipping {file} because it is not a Python file"
+            )
             continue
 
-        print(f"Linting {file}")
+        print(f"[lint-repair] ({instance_id}) Linting {file}")
 
         lint_errors_by_line_number = lint_file(context, file)
         lint_errors = "\n".join(lint_errors_by_line_number.values())
@@ -163,14 +163,15 @@ def step_lint_repair(
                 ]
             )
 
-            print(lint_error_message)
             log_diff(
                 log_dir,
                 os.path.join(context.work_dir_base_name, file),
                 lint_error_message,
             )
         else:
-            print("There are no lint errors within diff sections")
+            print(
+                f"[lint-repair] ({instance_id}) There are no lint errors within diff sections"
+            )
             log_diff(
                 log_dir,
                 os.path.join(context.work_dir_base_name, file),
@@ -272,7 +273,7 @@ only present in the file/content to help you identify which line has the lint er
             )
 
         # Plan the repair
-        print(f"Generating code to repair {file}")
+        print(f"[lint-repair] ({instance_id}) Generating code to repair {file}")
         run_navie_command(
             log_dir,
             command=appmap_command,
@@ -281,14 +282,16 @@ only present in the file/content to help you identify which line has the lint er
             log_path=repair_log,
         )
 
-        print(f"Code generated to repair source file in {repair_output}")
+        print(
+            f"[lint-repair] ({instance_id}) Code generated to repair source file in {repair_output}"
+        )
 
         with open(repair_apply_prompt, "w") as f:
             f.write("@apply /all\n\n")
             with open(repair_output, "r") as plan_fp:
                 f.write(plan_fp.read())
 
-        print("Applying changes to source files")
+        print(f"[lint-repair] ({instance_id}) Applying changes to source files")
         run_navie_command(
             log_dir,
             command=appmap_command,

@@ -8,8 +8,17 @@ import sys
 
 
 def step_generate(
-    log_dir, args, work_dir, appmap_command, plan_file, solution_file, files
+    log_dir,
+    args,
+    work_dir,
+    instance_id,
+    appmap_command,
+    plan_file,
+    solution_file,
+    files,
 ):
+    print(f"[generate] ({instance_id}) Generating code")
+
     context_file = os.path.join(work_dir, "context.txt")
     with open(context_file, "w") as context_f:
         for file in files:
@@ -18,7 +27,7 @@ def step_generate(
             context_f.write("<content>\n")
             if os.path.isfile(file):
                 if args.format_command:
-                    print(f"Auto-formatting file {file}")
+                    print(f"[generate] ({instance_id}) Auto-formatting file {file}")
                     format_command = args.format_command.split() + [file]
                     run_command(" ".join(format_command))
 
@@ -30,15 +39,14 @@ def step_generate(
                     )
                     if any_line_starts_with_tabs:
                         print(
-                            f"Warning: File '{file}' starts with tabs. Code generation is not likely to be reliable. Please replace identation with spaces, or specify the --format-command option to have it done automatically.",
+                            f"[generate] ({instance_id}) WARN: File '{file}' starts with tabs. Code generation is not likely to be reliable. Please replace identation with spaces, or specify the --format-command option to have it done automatically.",
                             file=sys.stderr,
                         )
 
                     context_f.write(file_content)
             else:
                 print(
-                    f"WARN: Planned file '{file}' does not exist.",
-                    file=sys.stderr,
+                    f"[generate] ({instance_id}) WARN: Planned file '{file}' does not exist."
                 )
             context_f.write("</content>\n")
             context_f.write("</file>\n")
@@ -73,7 +81,9 @@ Avoid refactorings that will affect multiple parts of the codebase.
         with open(context_file, "r") as context_content:
             generate_f.write(context_content.read())
 
-    print("Solving plan", plan_file, "using", generate_prompt)
+    print(
+        f"[generate] ({instance_id}) Solving plan {plan_file} using {generate_prompt}"
+    )
 
     run_navie_command(
         log_dir,
@@ -83,4 +93,4 @@ Avoid refactorings that will affect multiple parts of the codebase.
         log_path=os.path.join(work_dir, "generate.log"),
     )
 
-    print(f"Code generated in {solution_file}")
+    print(f"[generate] ({instance_id}) Code generated in {solution_file}")
