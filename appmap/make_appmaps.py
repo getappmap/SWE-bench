@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tarfile
 from multiprocessing import Pool, cpu_count
-from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
+from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK, MAP_VERSION_TO_INSTALL
 from swebench.harness.context_manager import (
     TaskEnvContextManager,
     TestbedContextManager,
@@ -89,6 +89,10 @@ def make_appmaps(data: dict):
         tcm.run_install_task(task_instance)
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
+        spec = MAP_VERSION_TO_INSTALL[task_instance["repo"]][task_instance["version"]]
+        if "appmap" in spec:
+            with open("appmap.yml", "w") as f:
+                f.write(spec["appmap"])
         tcm.log.write("Installing pytest-test-groups")
         # pytest-test-groups isn't currently maintained, and the last release on PyPI is broken.
         # Install a working commit for now, but maybe switch to pytest-shard at some point?
