@@ -15,13 +15,14 @@ from appmap.solve.steps.step_generate import step_generate
 from appmap.solve.steps.step_list import step_list
 from appmap.solve.steps.step_plan import step_plan
 
+# Add pretest ... posttest to include those in the run.
 DEFAULT_STEPS = {
-    "pretest": True,
+    "pretest": False,
     "plan": True,
     "list": True,
     "generate": True,
     "apply": True,
-    "posttest": True,
+    "posttest": False,
 }
 
 

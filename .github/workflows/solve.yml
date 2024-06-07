@@ -22,6 +22,9 @@ on:
       appmaps:
         description: "Set to true to use AppMaps"
         required: false
+      steps:
+        description: "List of solver steps to perform"
+        required: false
 
   pull_request:
     types: [opened, synchronize, labeled]
@@ -128,7 +131,8 @@ jobs:
             --num_workers 6 \
             --path_conda $(conda info --base) \
             --verbose \
-            $(test -n "${{ inputs.appmaps }}" && echo --appmaps)
+            $(test -n "${{ inputs.appmaps }}" && echo --appmaps) \
+            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
 
       - name: Run evaluation
         env:
