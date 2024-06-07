@@ -73,23 +73,44 @@ MAP_VERSION_TO_INSTALL_FLASK.update(
     }
 )
 
+DJANGO_DEFAULTS = {
+    "use_pytest": False,
+    "appmap":"""
+appmap_dir: tmp/appmap
+language: python
+name: django
+packages:
+- path: django
+  exclude:
+  - template.base
+  - test
+  - urls.resolvers
+  - utils.datastructures
+  - utils.regex_helper
+  - utils.translation
+""",
+}
+
 MAP_VERSION_TO_INSTALL_DJANGO = {
-    k: {
+    k: {**DJANGO_DEFAULTS,
         "python": "3.5",
         "packages": "requirements.txt",
         "install": "python setup.py install",
     }
     for k in ["1.7", "1.8", "1.9", "1.10", "1.11", "2.0", "2.1", "2.2"]
 }
+
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
-        k: {"python": "3.5", "install": "python setup.py install"}
+        k: {**DJANGO_DEFAULTS,
+            "python": "3.5", "install": "python setup.py install"}
         for k in ["1.4", "1.5", "1.6"]
     }
 )
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
+            **DJANGO_DEFAULTS,
             "python": "3.6",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
@@ -100,6 +121,7 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
+            **DJANGO_DEFAULTS,
             "python": "3.8",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
@@ -110,6 +132,7 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
+            **DJANGO_DEFAULTS,
             "python": "3.9",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
@@ -120,6 +143,7 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
+            **DJANGO_DEFAULTS,
             "python": "3.11",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
