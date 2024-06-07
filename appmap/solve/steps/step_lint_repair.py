@@ -61,14 +61,13 @@ def lint_file(context, file):
     lint_args = [
         "bash",
         "-c",
-        f". {context.conda_path}/bin/activate {context.instance_id} && {context.lint_command} {file}",
+        f". {context.conda_path}/bin/activate {context.conda_env} && {context.lint_command} {file}",
     ]
     log_command(context.log_dir, " ".join(lint_args))
 
     lint_result = subprocess.run(lint_args, capture_output=True, shell=False, text=True)
 
-    lint_output = lint_result.stdout + lint_result.stderr
-    print(lint_output)
+    lint_output = lint_result.stdout
 
     log_lint(
         context.log_dir, os.path.join(context.work_dir_base_name, file), lint_output
@@ -132,8 +131,6 @@ def step_lint_repair(
         base_file_content,
     )
 
-    print(f"[lint-repair] ({instance_id}) Linting source files")
-
     for file in base_file_content.keys():
         if not file.endswith(".py"):
             print(
@@ -166,6 +163,10 @@ def step_lint_repair(
                     *lint_errors,
                 ]
             )
+            print(f"[lint-repair] ({instance_id}) Diff:")
+            print(file_diff)
+            print(f"[lint-repair] ({instance_id}) Lint errors within diff sections:")
+            print(lint_errors)
 
             log_diff(
                 log_dir,
