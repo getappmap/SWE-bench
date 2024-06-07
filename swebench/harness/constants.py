@@ -338,7 +338,7 @@ MAP_VERSION_TO_INSTALL_SPHINX = {
         "python": "3.9",
         "pip_packages": ["tox"],
         "install": "pip install -e .[test]",
-        "pre_install": ["sed -i 's/pytest/pytest -rA/' tox.ini"],
+        "pre_install": ["sed 's/pytest/appmap-python pytest -rA/' tox.ini > tox.ini.tmp && mv tox.ini.tmp tox.ini"],
         "arch_specific_packages": {
             "aarch64": "gxx_linux-aarch64 gcc_linux-aarch64 make",
             "x86_64": "gxx_linux-64 gcc_linux-64 make",
@@ -349,6 +349,13 @@ MAP_VERSION_TO_INSTALL_SPHINX = {
         ["3.1", "3.2", "3.3", "3.4", "3.5", "4.0", "4.1", "4.2", "4.3", "4.4"] + \
         ["4.5", "5.0", "5.1", "5.2", "5.3", "6.0", "6.2", "7.0", "7.1", "7.2"]
 }
+
+for k in ["7.2"]:
+    MAP_VERSION_TO_INSTALL_SPHINX[k]["pre_install"].extend([
+        """sed -i '' -e '/dependencies = \\[/a \\
+        "appmap",' pyproject.toml"""
+    ])
+
 for k in ["3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "4.0", "4.1", "4.2", "4.3", "4.4"]:
     MAP_VERSION_TO_INSTALL_SPHINX[k][
         "pre_install"

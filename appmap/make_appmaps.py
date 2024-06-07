@@ -108,7 +108,12 @@ def make_appmaps(data: dict):
         envvars = " ".join([f"{k}={v}" for k,v in envvars.items()])
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && conda env config vars set {envvars}"])
         tcm.log.write(f"Running tests with appmap with {envvars}")
-        test_cmd = f"appmap-python {task_instance['test_cmd']}"
+        if "tox" not in task_instance['test_cmd']:
+            test_cmd = f"appmap-python {task_instance['test_cmd']}"
+        else:
+            test_cmd = task_instance['test_cmd']
+        tcm.log.write(f"Running tests with appmap with {test_cmd}")
+
         if spec.get("use_pytest", True):
             tcm.run_pytest_tests(task_instance, test_cmd)
         else:
