@@ -224,11 +224,12 @@ Search exclusively for test cases.
                 f"[pretest] ({instance_id}) Review {tcm.log_file} for more information"
             )
 
-        new_appmap_count = count_appmaps()
-        print(
-            f"[pretest] ({instance_id}) Generated {new_appmap_count - appmap_count} good AppMap data files"
-        )
-        appmap_count = new_appmap_count
+        if appmap_available:
+            new_appmap_count = count_appmaps()
+            print(
+                f"[pretest] ({instance_id}) Generated {new_appmap_count - appmap_count} good AppMap data files"
+            )
+            appmap_count = new_appmap_count
 
         if appmap_count >= 100:
             print(
@@ -255,7 +256,7 @@ Search exclusively for test cases.
     else:
         test_succeeded_files_str = ", ".join(test_succeeded_files)
         print(
-            f"[pretest] ({instance_id}) {len(test_failed_files)} tests succeeded in pretest: {test_succeeded_files_str}"
+            f"[pretest] ({instance_id}) {len(test_succeeded_files)} tests succeeded in pretest: {test_succeeded_files_str}"
         )
 
     return test_succeeded_files

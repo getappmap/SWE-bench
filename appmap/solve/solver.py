@@ -64,8 +64,8 @@ class Solver:
         self.apply_file = os.path.join(self.work_dir, "apply.md")
         self.files = []
         self.files_changed = []
-        self.test_succeeded_files = []
-        self.test_files_failed = []
+        self.test_succeeded_files = None
+        self.posttest_succeeded = True
 
     def solve(self):
         if self.steps["pretest"]:
@@ -92,6 +92,7 @@ class Solver:
             self.posttest()
 
     def pretest(self):
+        self.posttest_succeeded = False
         self.test_succeeded_files = step_pretest(
             self.log_dir,
             self.work_dir,
@@ -191,10 +192,13 @@ class Solver:
         self.load_file_changes()
 
     def posttest(self):
-        if not self.test_succeeded_files or len(self.test_succeeded_files) == 0:
+        assert(self.test_succeeded_files is not None)
+        
+        if len(self.test_succeeded_files) == 0:
             print(
                 f"[solver] ({self.instance_id}) WARN: No test succeeded files found. Skipping posttest step."
             )
+            self.posttest_succeeded = True
             return
 
         if not self.files_changed or len(self.files_changed) == 0:
@@ -206,7 +210,7 @@ class Solver:
         # At this point, some files have changed, and some tests succeeded.
         # Re-run the tests to ensure that the changes did not break anything.
 
-        self.test_files_failed = step_posttest(
+        self.posttest_succeeded = step_posttest(
             self.log_dir,
             self.work_dir,
             self.instances_path,
@@ -326,16 +330,16 @@ if __name__ == "__main__":
     )
     solver.solve()
     files_changed = solver.files_changed
-    test_files_failed = solver.test_files_failed
+    posttest_succeeded = solver.posttest_succeeded
 
     if len(files_changed) == 0:
         print(f"WARN: Solver did not change any files in {issue_name}.")
         sys.exit(1)
 
-    if len(test_files_failed) > 0:
-        print(f"Solver changed {len(files_changed)} files in {issue_name}, but tests failed for:")
-        for file in test_files_failed:
-            print(f"  {file}")
+    if not posttest_succeeded:
+        print(
+            f"Solver changed {len(files_changed)} files in {issue_name}, but posttest failed."
+        )
         sys.exit(1)
 
     if len(files_changed) > 0:
