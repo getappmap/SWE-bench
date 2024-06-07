@@ -76,11 +76,13 @@ def step_pretest(
         verbose=True,
     )
 
-    try:
-        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
-        appmap_available = True
-    except RuntimeError:
-        appmap_available = False
+    appmap_available = False
+    # TODO: Think about re-enabling this.``
+    # try:
+    #     tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
+    #     appmap_available = True
+    # except RuntimeError:
+    #     appmap_available = False
 
     try:
         tcm.exec(
