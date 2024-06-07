@@ -11,7 +11,8 @@ def step_apply(
     with open(apply_prompt, "w") as apply_f:
         apply_f.write(
             """@apply /all
-""")
+"""
+        )
         with open(solution_file, "r") as sol_f:
             apply_f.write(sol_f.read())
 

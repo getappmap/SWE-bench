@@ -6,7 +6,9 @@ import os
 import re
 
 
-def step_plan(log_dir, args, issue_file, work_dir, instance_id, appmap_command, plan_file):
+def step_plan(
+    log_dir, args, issue_file, work_dir, instance_id, appmap_command, plan_file
+):
     print(f"[plan] ({instance_id}) Generating a plan for {args.issue_file}")
 
     plan_prompt = os.path.join(work_dir, "plan.txt")
