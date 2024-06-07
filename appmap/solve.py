@@ -14,9 +14,6 @@ from os.path import abspath
 from filelock import FileLock
 from data import load_data
 
-from appmap.archive import ArchiveFinder
-
-
 def output_results(instance, output_file, patch):
     instance["model_patch"] = patch
     instance["model_name_or_path"] = "navie"
@@ -26,7 +23,15 @@ def output_results(instance, output_file, patch):
 
 
 def solve_instance(
-    instance, log_dir, testbed, path_conda, appmap_command, lint_command, iteration
+    instances_path,
+    instance,
+    log_dir,
+    testbed,
+    path_conda,
+    appmap_command,
+    lint_command,
+    iteration,
+    steps=None,
 ):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
     issue_dir.mkdir(parents=True, exist_ok=True)
@@ -39,6 +44,10 @@ def solve_instance(
         "python",
         str(solver_path),
         str(issue_file),
+        "--instances-path",
+        instances_path,
+        "--instance-id",
+        instance["instance_id"],
         "--path-conda",
         path_conda,
         "--log-dir",
@@ -46,8 +55,11 @@ def solve_instance(
         "--appmap-command",
         appmap_command,
     ]
+
     if lint_command is not None:
         solve_args.extend(["--lint-command", lint_command])
+    if steps is not None:
+        solve_args.extend(["--steps", steps])
 
     # Run this as a separate process so that it can change the working directory.
     solve_result = run(solve_args, cwd=testbed)
@@ -115,28 +127,34 @@ def worker_init(data: dict):
                     verbose=data_dict.verbose,
                     log_suffix=data_dict.log_suffix,
                 ) as task_manager:
+                    instance_id = instance["instance_id"]
+
+                    print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
+                    task_manager.run_install_task(instance)
+
                     try:
                         retries = data_dict.retries
                         issue_name = env_name
 
                         print(
-                            f"Solver will make {retries} attempts to solve issue {issue_name}"
+                            f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
                         )
                         attempt_number = 0
                         while attempt_number < retries:
                             print(
-                                f"Solving issue {issue_name} (attempt number {attempt_number + 1} of {retries})"
+                                f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
                             )
 
                             if not task_manager.reset_task_env(instance):
                                 print(
-                                    f"Error resetting task environment for {instance['instance_id']}"
+                                    f"[solve] ({instance_id}) Error resetting task environment"
                                 )
                                 return
 
                             extract_appmaps(instance, testbed)
 
                             patch = solve_instance(
+                                data_dict.instances_path,
                                 instance,
                                 log_dir,
                                 testbed,
@@ -144,25 +162,26 @@ def worker_init(data: dict):
                                 data_dict.appmap_command,
                                 data_dict.lint_command,
                                 attempt_number,
+                                steps=data_dict.steps,
                             )
                             if patch:
                                 print(
-                                    f"Patch generated for {instance['instance_id']} on iteration {attempt_number +1}"
+                                    f"[solve] ({instance_id}) Patch generated on iteration {attempt_number +1}"
                                 )
                                 print(patch)
                                 output_results(instance, output_file, patch)
                                 break
                             else:
                                 print(
-                                    f"No patch generated for {instance['instance_id']}"
+                                    f"[solve] ({instance_id}) No patch generated"
                                 )
                                 attempt_number += 1
                                 if attempt_number >= retries:
-                                    print(f"Giving up after {attempt_number} attempts")
+                                    print(f"[solve] ({instance_id}) Giving up after {attempt_number} attempts")
                                     output_results(instance, output_file, None)
 
                     except Exception:
-                        print(f"Error processing {instance['instance_id']}")
+                        print(f"[solve] ({instance_id}) Error:")
                         import traceback
 
                         traceback.print_exc()
@@ -313,15 +332,25 @@ if __name__ == "__main__":
         const=True,
         help="Use AppMaps (with optional path to local AppMap archive directory)",
     )
+    parser.add_argument(
+        "--steps",
+        type=str,
+        help="Comma-separated list of solve steps to execute",
+    )
     args = parser.parse_args()
     if args.appmaps:
         if type(args.appmaps) is bool:
             appmap_path = None
-            print(f"Using only online AppMaps")
+            print(f"Using only online AppMap data archives")
         else:
             appmap_path = os.path.abspath(args.appmaps)
-            print(f"Using AppMaps from {appmap_path} (and online)")
+            print(f"Using AppMap data archives from {appmap_path} (and online)")
+
+        # Don't load the ArchiveFinder unless appmap support is activated, because the 
+        # 'github' dependency is hard to install on some systems.
+        from appmap.archive import ArchiveFinder
+
         appmap_finder = ArchiveFinder(appmap_path)
     else:
-        print("Not using AppMaps")
+        print("Not using AppMap data archives")
     main(args)

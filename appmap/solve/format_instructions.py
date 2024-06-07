@@ -11,6 +11,9 @@ def format_instructions():
     The <original> tag should contain the original code that you want to change. Do not abbreviate
     existing code using ellipses or similar.
 
+    The code in the <original> tag must match the original code exactly. Any changes from the original
+    code belong in the <modified> tag.
+
     Always include an attribute "no-ellipsis" with the value "true" in the <original> tag.
     This should be a true statement about the tag.
 

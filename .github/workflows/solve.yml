@@ -6,7 +6,7 @@ on:
       filter:
         description: "Instance filter regex"
         required: true
-        default: marshmallow
+        default: "django-1[67]"
       dataset:
         description: "Dataset name"
         required: true
@@ -14,13 +14,16 @@ on:
       split:
         description: "Dataset split"
         required: true
-        default: dev
+        default: test
       retries:
         description: "Number of retries to perform on each instance until a patch is found"
         required: false
         default: "3"
       appmaps:
         description: "Set to true to use AppMaps"
+        required: false
+      steps:
+        description: "List of solver steps to perform"
         required: false
 
   pull_request:
@@ -29,7 +32,7 @@ on:
 jobs:
   build-appmap-js:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
+    runs-on: SWE-Bench_Larger
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,7 +50,7 @@ jobs:
             submodules/appmap-js/packages/*/built
             submodules/appmap-js/packages/*/dist
             submodules/appmap-js/packages/*/node_modules
-          key: appmap-js-dist-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/refs/heads') }}
+          key: appmap-js-dist-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/HEAD') }}
 
       - name: Set up Node.js
         if: steps.cache-appmap-js.outputs.cache-hit != 'true'
@@ -67,7 +70,7 @@ jobs:
   solve:
     needs: build-appmap-js
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
-    runs-on: swe-bench-ubuntu-latest
+    runs-on: SWE-Bench_Larger
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -91,7 +94,6 @@ jobs:
         run: |
           conda init bash
           conda env create -f environment.yml
-          pip install flake8 black
 
       # Restore the appmap-js build
       - name: Restore appmap-js build
@@ -104,7 +106,7 @@ jobs:
             submodules/appmap-js/packages/*/built
             submodules/appmap-js/packages/*/dist
             submodules/appmap-js/packages/*/node_modules
-          key: appmap-js-dist-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/refs/heads') }}
+          key: appmap-js-dist-${{ runner.os }}-${{ hashFiles('.git/modules/submodules/appmap-js/HEAD') }}
 
       - name: Run benchmark
         env:
@@ -120,8 +122,8 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           python appmap/solve.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
-            --split ${SWE_SPLIT:-dev} \
-            --filter "${SWE_FILTER:-sqlfluff}" \
+            --split ${SWE_SPLIT:-test} \
+            --filter "${SWE_FILTER:-django-1[67]}" \
             --retries "${SWE_RETRIES:-3}" \
             --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,C402,C408,C416,D,E122,E124,E127,E128,E201,E202,E221,E225,E231,E251,E261,E265,E266,E302,E303,E305,E402,E501,E502,E713,E731,F401,F841,W293" \
@@ -129,7 +131,8 @@ jobs:
             --num_workers 6 \
             --path_conda $(conda info --base) \
             --verbose \
-            $(test -n "${{ inputs.appmaps }}" && echo --appmaps)
+            $(test -n "${{ inputs.appmaps }}" && echo --appmaps) \
+            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
 
       - name: Run evaluation
         env:
@@ -162,7 +165,7 @@ jobs:
           conda info
           python appmap/report.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
-            --split ${SWE_SPLIT:-dev}
+            --split ${SWE_SPLIT:-test}
 
       - name: Archive predictions and logs
         if: always()

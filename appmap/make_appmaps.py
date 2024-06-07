@@ -1,15 +1,17 @@
 import argparse
 import faulthandler
+import fnmatch
 import glob
 import itertools
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
 import tarfile
 from multiprocessing import Pool, cpu_count
-from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
+from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK, MAP_VERSION_TO_INSTALL
 from swebench.harness.context_manager import (
     TaskEnvContextManager,
     TestbedContextManager,
@@ -89,14 +91,27 @@ def make_appmaps(data: dict):
         tcm.run_install_task(task_instance)
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
-        tcm.log.write("Installing pytest-test-groups")
-        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install pytest-test-groups"])
+        spec = MAP_VERSION_TO_INSTALL[task_instance["repo"]][task_instance["version"]]
+        if "appmap" in spec:
+            with open("appmap.yml", "w") as f:
+                f.write(spec["appmap"])
         task_instance["test_cmd"] = MAP_REPO_TO_TEST_FRAMEWORK[
             task_instance["repo"]
         ]  # run all tests
-        tcm.log.write("Running tests with appmap")
-        for i in range(1,100):
-            test_cmd = f"APPMAP_DISPLAY_PARAMS=false PYTHONUNBUFFERED=1 appmap-python {task_instance['test_cmd']}  --test-group-count 100 --test-group {i}"
+
+        envvars = {k: v for k, v in os.environ.items() if k.startswith("APPMAP_")}
+        envvars = {
+            "APPMAP_DISPLAY_PARAMS": "false",
+            "PYTHONUNBUFFERED": "1",
+            **envvars,
+        }
+        envvars = " ".join([f"{k}={v}" for k,v in envvars.items()])
+        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && conda env config vars set {envvars}"])
+        tcm.log.write(f"Running tests with appmap with {envvars}")
+        test_cmd = f"appmap-python {task_instance['test_cmd']}"
+        if spec.get("use_pytest", True):
+            tcm.run_pytest_tests(task_instance, test_cmd)
+        else:
             tcm.run_tests_task(task_instance, test_cmd)
         tcm.log.write("Uninstalling appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip uninstall -y appmap"])
@@ -178,14 +193,19 @@ def main(args):
             for task_instance in task_instances
             if args.filter in task_instance["instance_id"]
         ]
-        if (args.show_instances):
+        if args.show_instances:
+
             def filter_keys(dicts):
-                keys_to_keep=["instance_id", "version", "environment_setup_commit"]
-                return [{k: v for k, v in d.items() if k in keys_to_keep} for d in dicts]
+                keys_to_keep = ["instance_id", "version", "environment_setup_commit"]
+                ret = filter(
+                    lambda d: fnmatch.fnmatchcase(d["version"], args.show_instances),
+                    [{k: v for k, v in d.items() if k in keys_to_keep} for d in dicts],
+                )
+                return sorted(ret, key=lambda d: d["instance_id"])
 
             json.dump(filter_keys(task_instances), indent=2, fp=sys.stdout)
+            print()
             sys.exit(0)
-
 
     # group by repo-version
     rv_groups = itertools.groupby(task_instances, lambda x: (x["repo"], x["version"]))
@@ -289,8 +309,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--show-instances",
-        action="store_true",
-        help="Only show instance info",
+        nargs="?",
+        const="*",
+        help="(Optional) Show instances that match version",
     )
 
     args = parser.parse_args()
