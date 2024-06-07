@@ -151,7 +151,6 @@ def get_requirements(instance: dict, save_path: str = None):
     # Attempt to find all listed requirements.txt at each path based on task instance's repo
     
     commit = 'environment_setup_commit' if 'environment_setup_commit' in instance else 'base_commit'
-    successful_reqs = False
     all_req_lines = []
 
     for req_path in MAP_REPO_TO_REQS_PATHS.get(instance["repo"], []):
@@ -160,13 +159,8 @@ def get_requirements(instance: dict, save_path: str = None):
         if reqs.status_code != 200:
             print(f"Could not find requirements.txt at paths {MAP_REPO_TO_REQS_PATHS[instance['repo']]}")
             return None
-            lines = reqs.text.split("\n")
-            all_req_lines.extend(lines)
-            successful_reqs = True
-
-    if not successful_reqs:
-        print(f"Could not find requirements.txt at paths {MAP_REPO_TO_REQS_PATHS[instance['repo']]}")
-        return None
+        lines = reqs.text.split("\n")
+        all_req_lines.extend(lines)
 
     original_req = []
     additional_reqs = []
