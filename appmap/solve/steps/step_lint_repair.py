@@ -141,16 +141,17 @@ def step_lint_repair(
         print(f"[lint-repair] ({instance_id}) Linting {file}")
 
         lint_errors_by_line_number = lint_file(context, file)
+        if not len(lint_errors_by_line_number):
+            continue
+
         lint_errors = "\n".join(lint_errors_by_line_number.values())
+        print(lint_errors)
 
         file_diff = diff_file(context, file, "pre")
 
         line_numbers = lint_error_line_numbers_within_diff_sections(
             file, lint_errors_by_line_number, file_diff
         )
-
-        print(f"[lint-repair] ({instance_id}) Lint errors in {file}:")
-        print(lint_errors)
 
         if line_numbers:
             lint_errors = [
