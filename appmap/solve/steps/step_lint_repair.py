@@ -68,6 +68,7 @@ def lint_file(context, file):
     lint_result = subprocess.run(lint_args, capture_output=True, shell=False, text=True)
 
     lint_output = lint_result.stdout + lint_result.stderr
+    print(lint_output)
 
     log_lint(
         context.log_dir, os.path.join(context.work_dir_base_name, file), lint_output
@@ -150,6 +151,9 @@ def step_lint_repair(
         line_numbers = lint_error_line_numbers_within_diff_sections(
             file, lint_errors_by_line_number, file_diff
         )
+
+        print(f"[lint-repair] ({instance_id}) Lint errors in {file}:")
+        print(lint_errors)
 
         if line_numbers:
             lint_errors = [
