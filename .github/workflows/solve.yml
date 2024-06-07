@@ -6,7 +6,7 @@ on:
       filter:
         description: "Instance filter regex"
         required: true
-        default: ".*"
+        default: .
       dataset:
         description: "Dataset name"
         required: true
