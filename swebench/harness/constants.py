@@ -198,7 +198,7 @@ MAP_VERSION_TO_INSTALL_SEABORN.update(
 MAP_VERSION_TO_INSTALL_PYTEST = {
     k: {
         "python": "3.9",
-        "install": "pip install -e . && pip install -e .[testing]"
+        "install": "pip install -e .[testing]"
     } for k in [
         '4.4','4.5','4.6','5.0','5.1','5.2','5.3','5.4',
         '6.0','6.2','6.3','7.0','7.1','7.2','7.4','8.0'
@@ -427,7 +427,12 @@ MAP_VERSION_TO_INSTALL_PYLINT = {
 }
 MAP_VERSION_TO_INSTALL_PYLINT.update({
     k: {**MAP_VERSION_TO_INSTALL_PYLINT[k], "pip_packages": [
-        "astroid==3.0.0a6"
+        "gitpython==3.1.43",
+    ]} for k in ['2.14', '2.13']})
+
+MAP_VERSION_TO_INSTALL_PYLINT.update({
+    k: {**MAP_VERSION_TO_INSTALL_PYLINT[k], "pip_packages": [
+        "astroid==3.0.0a9",
     ]} for k in ['3.0']})
 
 MAP_VERSION_TO_INSTALL_XARRAY = {
@@ -599,7 +604,7 @@ MAP_REPO_TO_REQS_PATHS = {
     "django/django": ["tests/requirements/py3.txt"],
     "matplotlib/matplotlib": ["requirements/dev/dev-requirements.txt", "requirements/testing/travis_all.txt"],
     "pallets/flask": ["requirements/dev.txt"],
-    "pylint-dev/pylint": ["requirements_test.txt"],
+    "pylint-dev/pylint": ["requirements_test_min.txt", "requirements_test.txt"],
     "pyvista/pyvista": ["requirements_test.txt", 'requirements.txt'],
     "sqlfluff/sqlfluff": ["requirements_dev.txt"],
     "sympy/sympy": ["requirements-dev.txt"],
