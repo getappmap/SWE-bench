@@ -6,7 +6,7 @@ on:
       filter:
         description: "Instance filter regex"
         required: true
-        default: django
+        default: "django-1[67]"
       dataset:
         description: "Dataset name"
         required: true
@@ -119,8 +119,8 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           python appmap/solve.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
-            --split ${SWE_SPLIT:-dev} \
-            --filter "${SWE_FILTER:-sqlfluff}" \
+            --split ${SWE_SPLIT:-test} \
+            --filter "${SWE_FILTER:-django-1[67]}" \
             --retries "${SWE_RETRIES:-3}" \
             --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,C402,C408,C416,D,E122,E124,E127,E128,E201,E202,E221,E225,E231,E251,E261,E265,E266,E302,E303,E305,E402,E501,E502,E713,E731,F401,F841,W293" \
@@ -161,7 +161,7 @@ jobs:
           conda info
           python appmap/report.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
-            --split ${SWE_SPLIT:-dev}
+            --split ${SWE_SPLIT:-test}
 
       - name: Archive predictions and logs
         if: always()
