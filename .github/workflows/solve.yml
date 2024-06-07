@@ -27,6 +27,10 @@ on:
         description: "Set to true to use AppMaps"
         type: boolean
         required: false
+      num_runners:
+        description: "Number of runners to split the workload across"
+        required: true
+        default: "1"
       name:
         description: "Assign a name to the workflow run"
         type: string
@@ -78,10 +82,31 @@ jobs:
           yarn build
           chmod +x packages/cli/built/cli.js
 
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    env:
+      NUM_RUNNERS: ${{ inputs.num_runners }}
+    outputs:
+      matrix: ${{ steps.prepare-matrix.outputs.matrix }}
+    steps:
+      - name: Prepare matrix
+        id: prepare-matrix
+        run: |
+          num_runners=${NUM_RUNNERS:-1}
+          echo "Number of runners: $num_runners"
+          indices=$(seq 0 $(($num_runners - 1)) | jq -R 'tonumber' | jq -s -c)
+          echo "Matrix: $indices"
+          echo "matrix=$indices" >> $GITHUB_OUTPUT
+
   solve:
-    needs: build-appmap-js
+    needs:
+      - build-appmap-js
+      - prepare-matrix
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
     runs-on: SWE-Bench_Larger
+    strategy:
+      matrix:
+        index: ${{ fromJson(needs['prepare-matrix'].outputs.matrix) }}
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -127,6 +152,7 @@ jobs:
           SWE_SPLIT: ${{ inputs.split }}
           SWE_FILTER: ${{ inputs.filter }}
           SWE_RETRIES: ${{ inputs.retries }}
+          NUM_RUNNERS: ${{ inputs.num_runners }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
@@ -141,6 +167,8 @@ jobs:
             --temp_dir "${{ runner.temp }}" \
             --num_workers 6 \
             --path_conda $(conda info --base) \
+            --num_runners "${NUM_RUNNERS:-1}" \
+            --runner_index "${{ matrix.index }}" \
             --verbose \
             $(test -n "${{ inputs.appmaps }}" && echo --appmaps) \
             $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
@@ -163,6 +191,53 @@ jobs:
             --verbose \
             --num_processes 8 \
             --path_conda $(conda info --base)
+
+      - name: Compress evaluation results
+        run: |
+          tar -cJf output_${{ matrix.index }}.tar.xz logs predictions.jsonl
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v3
+        with:
+          name: output_${{ matrix.index }}
+          path: output_${{ matrix.index }}.tar.xz
+
+  report:
+    needs:
+      - solve
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download evaluation results
+        uses: actions/download-artifact@v3
+        with:
+          path: ./eval-results
+
+      - name: Unpack evaluation results
+        run: |
+          mkdir -p logs
+          for file in eval-results/**/*.tar.xz; do
+            tar --to-stdout -xJf "$file" predictions.jsonl >> predictions.jsonl
+            tar -xJf "$file" logs
+          done
+
+      # Cache the conda environment
+      - name: Cache conda environment
+        id: cache-conda
+        uses: actions/cache@v4
+        with:
+          path: /usr/share/miniconda/envs/swe-bench
+          key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
+
+      # Create conda env if cache miss happens
+      - name: Create conda env
+        if: steps.cache-conda.outputs.cache-hit != 'true'
+        run: |
+          conda init bash
+          conda env create -f environment.yml
 
       - name: Generate AppMap report
         if: always()
