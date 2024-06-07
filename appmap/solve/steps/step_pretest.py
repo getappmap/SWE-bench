@@ -147,6 +147,21 @@ Search exclusively for test cases.
     test_file_str = ", ".join(test_files)
     print(f"[pretest] ({instance_id}) Selected test files: {test_file_str}")
 
+    if "django" in instance_id:
+        print(
+            f"[pretest] ({instance_id}) Converting Django test files to module format"
+        )
+        # The test file path will be something like: tests/template_tests/syntax_tests/test_autoescape.py
+        # The Django test runner wanst to see it as: template_tests.syntax_tests.test_autoescape
+        test_files = [
+            test_file.replace("/", ".").replace(".py", "") for test_file in test_files
+        ]
+        # Strip the leading 'tests.' from the path
+        test_files = [test_file.replace("tests.", "", 1) for test_file in test_files]
+        print(
+            f"[pretest] ({instance_id}) Converted test files to modules: {test_files}"
+        )
+
     instance = tcm.instance
     test_cmd = MAP_REPO_TO_TEST_FRAMEWORK[instance["repo"]]
 
