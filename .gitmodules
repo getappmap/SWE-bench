@@ -1,4 +1,4 @@
 [submodule "submodules/appmap-js"]
 	path = submodules/appmap-js
 	url = https://github.com/getappmap/appmap-js
-	branch = fix/change-trim-trailing-whitespace
+	branch = fix/change-application
