@@ -11,6 +11,19 @@ on:
         description: "Dataset name"
         required: true
         default: princeton-nlp/SWE-bench_Lite
+      runner:
+        description: "Runner type"
+        required: true
+        default: swe-bench-ubuntu-latest
+        type: choice
+        options:
+          - swe-bench-ubuntu-latest
+          - SWE-Bench_Larger
+          - ubuntu-latest
+      num_processes:
+        description: "Number of processes to parallelize per runner"
+        required: true
+        default: "6"
       split:
         description: "Dataset split"
         required: true
@@ -103,7 +116,7 @@ jobs:
       - build-appmap-js
       - prepare-matrix
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
-    runs-on: SWE-Bench_Larger
+    runs-on: ${{ inputs.runner || 'swe-bench-ubuntu-latest' }}
     strategy:
       matrix:
         index: ${{ fromJson(needs['prepare-matrix'].outputs.matrix) }}
@@ -153,6 +166,7 @@ jobs:
           SWE_FILTER: ${{ inputs.filter }}
           SWE_RETRIES: ${{ inputs.retries }}
           NUM_RUNNERS: ${{ inputs.num_runners }}
+          NUM_PROCESSES: ${{ inputs.num_processes }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
@@ -165,7 +179,7 @@ jobs:
             --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,C402,C408,C416,D,E122,E124,E127,E128,E201,E202,E221,E225,E231,E251,E261,E265,E266,E302,E303,E305,E402,E501,E502,E713,E731,F401,F841,W293" \
             --temp_dir "${{ runner.temp }}" \
-            --num_workers 6 \
+            --num_workers "${NUM_PROCESSES:-6}" \
             --path_conda $(conda info --base) \
             --num_runners "${NUM_RUNNERS:-1}" \
             --runner_index "${{ matrix.index }}" \
