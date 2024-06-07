@@ -32,7 +32,7 @@ on:
 jobs:
   build-appmap-js:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
+    runs-on: SWE-Bench_Larger
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,7 +70,7 @@ jobs:
   solve:
     needs: build-appmap-js
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
-    runs-on: swe-bench-ubuntu-latest
+    runs-on: SWE-Bench_Larger
     defaults:
       run:
         shell: bash -leo pipefail {0}
