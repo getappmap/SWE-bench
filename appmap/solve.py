@@ -14,9 +14,6 @@ from os.path import abspath
 from filelock import FileLock
 from data import load_data
 
-from appmap.archive import ArchiveFinder
-
-
 def output_results(instance, output_file, patch):
     instance["model_patch"] = patch
     instance["model_name_or_path"] = "navie"
@@ -344,11 +341,16 @@ if __name__ == "__main__":
     if args.appmaps:
         if type(args.appmaps) is bool:
             appmap_path = None
-            print(f"Using only online AppMaps")
+            print(f"Using only online AppMap data archives")
         else:
             appmap_path = os.path.abspath(args.appmaps)
-            print(f"Using AppMaps from {appmap_path} (and online)")
+            print(f"Using AppMap data archives from {appmap_path} (and online)")
+
+        # Don't load the ArchiveFinder unless appmap support is activated, because the 
+        # 'github' dependency is hard to install on some systems.
+        from appmap.archive import ArchiveFinder
+
         appmap_finder = ArchiveFinder(appmap_path)
     else:
-        print("Not using AppMaps")
+        print("Not using AppMap data archives")
     main(args)
