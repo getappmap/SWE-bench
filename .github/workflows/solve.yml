@@ -6,7 +6,7 @@ on:
       filter:
         description: "Instance filter regex"
         required: true
-        default: marshmallow
+        default: ".*"
       dataset:
         description: "Dataset name"
         required: true
@@ -14,11 +14,11 @@ on:
       split:
         description: "Dataset split"
         required: true
-        default: dev
+        default: test
       retries:
         description: "Number of retries to perform on each instance until a patch is found"
         required: false
-        default: "3"
+        default: "6"
       appmaps:
         description: "Set to true to use AppMaps"
         required: false
