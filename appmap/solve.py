@@ -18,8 +18,6 @@ from appmap.archive import ArchiveFinder
 
 
 def output_results(instance, output_file, patch):
-    if patch is None:
-        return
     instance["model_patch"] = patch
     instance["model_name_or_path"] = "navie"
     with FileLock(f"{output_file}.lock"):
@@ -161,6 +159,7 @@ def worker_init(data: dict):
                                 attempt_number += 1
                                 if attempt_number >= retries:
                                     print(f"Giving up after {attempt_number} attempts")
+                                    output_results(instance, output_file, None)
 
                     except Exception:
                         print(f"Error processing {instance['instance_id']}")
