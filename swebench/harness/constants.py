@@ -318,7 +318,8 @@ MAP_VERSION_TO_INSTALL_SPHINX = {
         "arch_specific_packages": {
             "aarch64": "gxx_linux-aarch64 gcc_linux-aarch64 make",
             "x86_64": "gxx_linux-64 gcc_linux-64 make",
-        }
+        },
+        "use_pytest": False
     } for k in
         ["1.5", "1.6", "1.7", "1.8", "2.0", "2.1", "2.2", "2.3", "2.4", "3.0"] + \
         ["3.1", "3.2", "3.3", "3.4", "3.5", "4.0", "4.1", "4.2", "4.3", "4.4"] + \
@@ -419,6 +420,7 @@ MAP_VERSION_TO_INSTALL_SYMPY = {
         "packages": "mpmath flake8",
         "pip_packages": ["mpmath==1.3.0", "flake8-comprehensions"],
         "install": "pip install -e .",
+        "use_pytest": False
     }
     for k in
         ["0.7", "1.0", "1.1", "1.10", "1.11", "1.12", "1.2", "1.4", "1.5", "1.6"] + \
@@ -431,6 +433,7 @@ MAP_VERSION_TO_INSTALL_SYMPY.update(
             "packages": "requirements.txt",
             "install": "pip install -e .",
             "pip_packages": ["mpmath==1.3.0"],
+            "use_pytest": False
         }
         for k in ["1.13"]
     }
@@ -594,7 +597,8 @@ MAP_REPO_TO_INSTALL = {}
 TEST_PYTEST = "pytest --no-header -rA --tb=no -p no:cacheprovider -v"
 MAP_REPO_TO_TEST_FRAMEWORK = {
     "astropy/astropy": f"{TEST_PYTEST} -Wi",
-    "django/django": "./tests/runtests.py --verbosity 2",
+    # Run with --parallel 1 to avoid pickling errors collecting failed test results
+    "django/django": "./tests/runtests.py --verbosity 2 --parallel 1",
     "marshmallow-code/marshmallow": TEST_PYTEST,
     "matplotlib/matplotlib": TEST_PYTEST,
     "mwaskom/seaborn": "pytest --no-header -rA",

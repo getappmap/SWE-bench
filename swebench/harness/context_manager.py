@@ -489,7 +489,6 @@ class TestbedContextManager:
             if "pip_packages" not in install:
                 install["pip_packages"] = []
             install["pip_packages"].append("flake8")
-            install["pip_packages"].append("appmap")
 
             # Install additional packages
             pip_packages = " ".join(install["pip_packages"])
@@ -846,6 +845,15 @@ class TaskEnvContextManager:
             with open(self.log_file, "a") as f:
                 f.write(f"{TESTS_ERROR}: {e}")
             return False
+
+    def run_pytest_tests(self, task_instance, test_cmd):
+        self.log.write("Installing pytest-test-groups")
+        self.exec(
+            ["bash", "-c", f"{self.cmd_activate} && pip install pytest-test-groups"]
+        )
+        for i in range(1, 100):
+            test_cmd = f"{test_cmd}  --test-group-count 100 --test-group {i}"
+            self.run_tests_task(task_instance, test_cmd)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         os.chdir(self.cwd)
