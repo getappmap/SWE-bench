@@ -1,9 +1,11 @@
 import argparse
 import faulthandler
+import fnmatch
 import glob
 import itertools
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -195,11 +197,14 @@ def main(args):
 
             def filter_keys(dicts):
                 keys_to_keep = ["instance_id", "version", "environment_setup_commit"]
-                return [
-                    {k: v for k, v in d.items() if k in keys_to_keep} for d in dicts
-                ]
+                ret = filter(
+                    lambda d: fnmatch.fnmatchcase(d["version"], args.show_instances),
+                    [{k: v for k, v in d.items() if k in keys_to_keep} for d in dicts],
+                )
+                return sorted(ret, key=lambda d: d["instance_id"])
 
             json.dump(filter_keys(task_instances), indent=2, fp=sys.stdout)
+            print()
             sys.exit(0)
 
     # group by repo-version
@@ -304,8 +309,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--show-instances",
-        action="store_true",
-        help="Only show instance info",
+        nargs="?",
+        const="*",
+        help="(Optional) Show instances that match version",
     )
 
     args = parser.parse_args()
