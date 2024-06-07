@@ -47,6 +47,8 @@ def solve_instance(
         log_dir,
         "--appmap-command",
         appmap_command,
+        "--repo",
+        instance["repo"],
     ]
     if lint_command is not None:
         solve_args.extend(["--lint-command", lint_command])
