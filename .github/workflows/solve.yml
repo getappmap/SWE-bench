@@ -15,12 +15,21 @@ on:
         description: "Dataset split"
         required: true
         default: test
+        type: choice
+        options:
+          - dev
+          - test
       retries:
         description: "Number of retries to perform on each instance until a patch is found"
         required: false
         default: "3"
       appmaps:
         description: "Set to true to use AppMaps"
+        type: boolean
+        required: false
+      name:
+        description: "Assign a name to the workflow run"
+        type: string
         required: false
       steps:
         description: "List of solver steps to perform"
@@ -28,6 +37,8 @@ on:
 
   pull_request:
     types: [opened, synchronize, labeled]
+
+run-name: ${{ inputs.name || github.event.pull_request.title || github.event.workflow.name }}
 
 jobs:
   build-appmap-js:
