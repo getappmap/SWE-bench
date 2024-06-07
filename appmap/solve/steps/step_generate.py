@@ -65,6 +65,7 @@ Do not treat the XML tags as part of the source code. They are only there to hel
 ## Guidelines
 
 Try to solve the problem with a minimal set of code changes.
+
 Avoid refactorings that will affect multiple parts of the codebase.
 
 ## Output format
