@@ -157,7 +157,9 @@ def get_requirements(instance: dict, save_path: str = None):
     for req_path in MAP_REPO_TO_REQS_PATHS.get(instance["repo"], []):
         reqs_url = os.path.join(SWE_BENCH_URL_RAW, instance["repo"], instance[commit], req_path)
         reqs = requests.get(reqs_url)
-        if reqs.status_code == 200:
+        if reqs.status_code != 200:
+            print(f"Could not find requirements.txt at paths {MAP_REPO_TO_REQS_PATHS[instance['repo']]}")
+            return None
             lines = reqs.text.split("\n")
             all_req_lines.extend(lines)
             successful_reqs = True
