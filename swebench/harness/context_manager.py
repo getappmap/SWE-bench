@@ -806,7 +806,7 @@ class TaskEnvContextManager:
         """
         try:
             # Run test command for task instance
-            test_cmd = f"{self.cmd_activate} && {test_cmd_override or instance['test_cmd']}"
+            test_cmd = f"{self.cmd_activate} && printenv && {test_cmd_override or instance['test_cmd']}"
             with open(self.log_file, "a") as f:
                 f.write(f"Test Script: {test_cmd};\n")
 
