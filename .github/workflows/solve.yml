@@ -225,7 +225,7 @@ jobs:
   report:
     needs:
       - solve
-    if: ${{ always() }}
+    if: needs.solve.result == 'success' || needs.solve.result == 'failure'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
