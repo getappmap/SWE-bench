@@ -61,8 +61,8 @@ def verify_task_instances(data: dict):
             ):
                 continue
             if (
-                not tcm.reset_task_env(task_instance)
-                or not tcm.run_install_task(task_instance)
+                not tcm.reset_task_env(task_instance, "to verify task instances")
+                or not tcm.run_install_task(task_instance, "to verify task instances")
                 or not tcm.apply_patch(task_instance["test_patch"], patch_type=PatchType.PATCH_TEST.value)
                 or not tcm.run_tests_task(task_instance)
                 or not tcm.apply_patch(task_instance["patch"], patch_type=PatchType.PATCH_GOLD.value)

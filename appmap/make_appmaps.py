@@ -87,8 +87,8 @@ def make_appmaps(data: dict):
         timeout=data_dict.timeout,
         log_suffix=data_dict.log_suffix,
     ) as tcm:
-        tcm.reset_task_env(task_instance)
-        tcm.run_install_task(task_instance)
+        tcm.reset_task_env(task_instance, "to prepare to make AppMap data using appmap-python")
+        tcm.run_install_task(task_instance, "to prepare to make AppMap data using appmap-python")
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
         spec = MAP_VERSION_TO_INSTALL[task_instance["repo"]][task_instance["version"]]

@@ -645,7 +645,7 @@ class TaskEnvContextManager:
         self.log.write(enter_msg, mode="w")
         return self
 
-    def reset_task_env(self, instance: dict):
+    def reset_task_env(self, instance: dict, reason = None):
         """
         Reset task environment + testbed and checkout base commit of given task instance
 
@@ -654,6 +654,9 @@ class TaskEnvContextManager:
         Returns:
             bool: True if reset successful, False otherwise
         """
+        if reason is not None:
+            self.log.write(f"Resetting task environment {os.getcwd()} to {instance['base_commit']} {reason}")
+
         try:
             # Remove all paths in .gitignore
             if os.path.exists(".gitignore"):
@@ -678,7 +681,7 @@ class TaskEnvContextManager:
                 f.write(err_msg)
             return False
 
-    def run_install_task(self, instance: dict) -> bool:
+    def run_install_task(self, instance: dict, reason = None) -> bool:
         """
         Run installation for task instance
 
@@ -687,6 +690,9 @@ class TaskEnvContextManager:
         Returns:
             bool: True if installation successful, False otherwise
         """
+        if reason is not None:
+            self.log.write(f"Installing task environment {os.getcwd()} {reason}")
+
         # Get installation instructions by repo/version
         specifications = MAP_VERSION_TO_INSTALL[instance["repo"]][instance["version"]]
 

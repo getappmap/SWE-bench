@@ -40,13 +40,13 @@ def overwrite_ablation(tcm: TaskEnvContextManager, task_instance: dict):
         return
 
     # Attempt to set up environment with task + apply test patch
-    if not tcm.reset_task_env(task_instance):
+    if not tcm.reset_task_env(task_instance, "to test ablation"):
         return
     
     filename_pat = re.compile(r'\[start of ([\w\.\-\/]+)\]\n(.+?)\n\[end of \1\]', re.DOTALL)
     # Run installation
     if (
-        not tcm.run_install_task(task_instance)
+        not tcm.run_install_task(task_instance, "to test ablation")
         or not tcm.apply_patch(task_instance["test_patch"], patch_type=PatchType.PATCH_TEST.value)
     ):
         return
@@ -104,7 +104,7 @@ def evaluate_predictions(data: dict):
             log_suffix=data_dict.log_suffix,
         ) as tcm:
             # Attempt to set up environment with task instance
-            if not tcm.reset_task_env(task_instance):
+            if not tcm.reset_task_env(task_instance, "to evaluate predictions"):
                 continue
 
             # Attempt to apply prediction
@@ -129,7 +129,7 @@ def evaluate_predictions(data: dict):
 
             # Run installation + testing script
             if (
-                not tcm.run_install_task(task_instance)
+                not tcm.run_install_task(task_instance, "to evaluate predictions")
                 or not tcm.apply_patch(task_instance[KEY_PREDICTION], patch_type=patch_type)
                 or not tcm.apply_patch(task_instance["test_patch"], patch_type=PatchType.PATCH_TEST.value)
                 or not tcm.run_tests_task(task_instance)
