@@ -115,7 +115,7 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
         }
-        for k in ["3.0", "3.1", "3.2"]
+        for k in ["3.0"]
     }
 )
 MAP_VERSION_TO_INSTALL_DJANGO.update(
@@ -126,7 +126,7 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
         }
-        for k in ["4.0"]
+        for k in ["3.1", "3.2", "4.0"]
     }
 )
 MAP_VERSION_TO_INSTALL_DJANGO.update(

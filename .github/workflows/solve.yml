@@ -62,6 +62,21 @@ on:
 run-name: ${{ inputs.name || github.event.pull_request.title || github.event.workflow.name }}
 
 jobs:
+  show-inputs:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Display Input Values
+      run: |
+        echo "filter: ${{ github.event.inputs.filter }}"
+        echo "dataset: ${{ github.event.inputs.dataset }}"
+        echo "runner: ${{ github.event.inputs.runner }}"
+        echo "num_processes: ${{ github.event.inputs.num_processes }}"
+        echo "split: ${{ github.event.inputs.split }}"
+        echo "retries: ${{ github.event.inputs.retries }}"
+        echo "appmaps: ${{ github.event.inputs.appmaps }}"
+        echo "num_runners: ${{ github.event.inputs.num_runners }}"
+        echo "name: ${{ github.event.inputs.name }}"
+        echo "steps: ${{ github.event.inputs.steps }}"
   build-appmap-js:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
     runs-on: SWE-Bench_Larger
