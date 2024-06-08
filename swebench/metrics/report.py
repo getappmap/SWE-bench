@@ -319,7 +319,7 @@ def get_model_report(
         "test_timeout": [],
         "resolved": [],
     }
-    if 'has_appmaps' in predictions[0]:
+    if "appmap_archive" in predictions[0]:
         report_map['has_appmaps'] = []
     for p in tqdm(predictions, desc="Processing predictions", disable=not verbose):
         # Check if the model patch exists
@@ -328,7 +328,7 @@ def get_model_report(
             continue
         report_map["generated"].append(p[KEY_INSTANCE_ID])
 
-        if p.get("has_appmaps", False):
+        if p.get("appmap_archive", None):
             report_map["has_appmaps"].append(p[KEY_INSTANCE_ID])
 
         # Get log file
