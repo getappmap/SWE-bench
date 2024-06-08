@@ -129,9 +129,6 @@ def worker_init(data: dict):
                 ) as task_manager:
                     instance_id = instance["instance_id"]
 
-                    print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
-                    task_manager.run_install_task(instance)
-
                     try:
                         retries = data_dict.retries
                         issue_name = env_name
@@ -150,6 +147,9 @@ def worker_init(data: dict):
                                     f"[solve] ({instance_id}) Error resetting task environment"
                                 )
                                 return
+                            
+                            print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
+                            task_manager.run_install_task(instance)
 
                             extract_appmaps(instance, testbed)
 
