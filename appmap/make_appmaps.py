@@ -188,10 +188,11 @@ def main(args):
 
     # filter by optional filter
     if args.filter and args.filter != "*":
+        pattern = re.compile(args.filter)
         task_instances = [
             task_instance
             for task_instance in task_instances
-            if args.filter in task_instance["instance_id"]
+            if pattern.search(task_instance["instance_id"])
         ]
         if args.show_instances:
 
