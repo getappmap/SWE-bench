@@ -11,16 +11,46 @@ on:
         description: "Dataset name"
         required: true
         default: princeton-nlp/SWE-bench_Lite
+        type: choice
+        options:
+          - princeton-nlp/SWE-bench_Lite
+          - princeton-nlp/SWE-bench
+      runner:
+        description: "Runner type"
+        required: true
+        default: swe-bench-ubuntu-latest
+        type: choice
+        options:
+          - swe-bench-ubuntu-latest
+          - SWE-Bench_Larger
+          - ubuntu-latest
+      num_processes:
+        description: "Number of processes to parallelize per runner"
+        required: true
+        default: "6"
       split:
         description: "Dataset split"
         required: true
         default: test
+        type: choice
+        options:
+          - dev
+          - test
       retries:
         description: "Number of retries to perform on each instance until a patch is found"
         required: false
         default: "3"
       appmaps:
         description: "Set to true to use AppMaps"
+        type: boolean
+        required: false
+      num_runners:
+        description: "Number of runners to split the workload across"
+        required: true
+        default: "1"
+      name:
+        description: "Assign a name to the workflow run"
+        type: string
         required: false
       steps:
         description: "List of solver steps to perform"
@@ -28,6 +58,8 @@ on:
 
   pull_request:
     types: [opened, synchronize, labeled]
+
+run-name: ${{ inputs.name || github.event.pull_request.title || github.event.workflow.name }}
 
 jobs:
   build-appmap-js:
@@ -67,10 +99,31 @@ jobs:
           yarn build
           chmod +x packages/cli/built/cli.js
 
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    env:
+      NUM_RUNNERS: ${{ inputs.num_runners }}
+    outputs:
+      matrix: ${{ steps.prepare-matrix.outputs.matrix }}
+    steps:
+      - name: Prepare matrix
+        id: prepare-matrix
+        run: |
+          num_runners=${NUM_RUNNERS:-1}
+          echo "Number of runners: $num_runners"
+          indices=$(seq 0 $(($num_runners - 1)) | jq -R 'tonumber' | jq -s -c)
+          echo "Matrix: $indices"
+          echo "matrix=$indices" >> $GITHUB_OUTPUT
+
   solve:
-    needs: build-appmap-js
+    needs:
+      - build-appmap-js
+      - prepare-matrix
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
-    runs-on: SWE-Bench_Larger
+    runs-on: ${{ inputs.runner || 'swe-bench-ubuntu-latest' }}
+    strategy:
+      matrix:
+        index: ${{ fromJson(needs['prepare-matrix'].outputs.matrix) }}
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -116,6 +169,8 @@ jobs:
           SWE_SPLIT: ${{ inputs.split }}
           SWE_FILTER: ${{ inputs.filter }}
           SWE_RETRIES: ${{ inputs.retries }}
+          NUM_RUNNERS: ${{ inputs.num_runners }}
+          NUM_PROCESSES: ${{ inputs.num_processes }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
@@ -128,8 +183,10 @@ jobs:
             --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,C402,C408,C416,D,E122,E124,E127,E128,E201,E202,E203,E221,E225,E231,E251,E261,E265,E266,E302,E303,E305,E402,E501,E502,E713,E731,F401,F841,W293" \
             --temp_dir "${{ runner.temp }}" \
-            --num_workers 6 \
+            --num_workers "${NUM_PROCESSES:-6}" \
             --path_conda $(conda info --base) \
+            --num_runners "${NUM_RUNNERS:-1}" \
+            --runner_index "${{ matrix.index }}" \
             --verbose \
             $(test -n "${{ inputs.appmaps }}" && echo --appmaps) \
             $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
@@ -152,6 +209,55 @@ jobs:
             --verbose \
             --num_processes 8 \
             --path_conda $(conda info --base)
+
+      - name: Compress evaluation results
+        if: ${{ always() }}
+        run: |
+          tar -cJf output_${{ matrix.index }}.tar.xz logs predictions.jsonl
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: output_${{ matrix.index }}
+          path: output_${{ matrix.index }}.tar.xz
+
+  report:
+    needs:
+      - solve
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download evaluation results
+        uses: actions/download-artifact@v3
+        with:
+          path: ./eval-results
+
+      - name: Unpack evaluation results
+        run: |
+          mkdir -p logs
+          for file in eval-results/**/*.tar.xz; do
+            tar --to-stdout -xJf "$file" predictions.jsonl >> predictions.jsonl
+            tar -xJf "$file" logs
+          done
+
+      # Cache the conda environment
+      - name: Cache conda environment
+        id: cache-conda
+        uses: actions/cache@v4
+        with:
+          path: /usr/share/miniconda/envs/swe-bench
+          key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
+
+      # Create conda env if cache miss happens
+      - name: Create conda env
+        if: steps.cache-conda.outputs.cache-hit != 'true'
+        run: |
+          conda init bash
+          conda env create -f environment.yml
 
       - name: Generate AppMap report
         if: always()

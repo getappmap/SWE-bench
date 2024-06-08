@@ -202,15 +202,48 @@ def extract_appmaps(instance, testbed):
         print(f"AppMap archive: {appmap_archive}", flush=True)
         appmap_archive.extract(testbed)
 
+def split_runner_instances(instances: list, num_runners: int, runner_index: int) -> list:
+    """
+    Split a list of instances into multiple groups based on the number of runners and the index of the runner.
+
+    Args:
+        instances (list): List of instances
+        num_runners (int): Number of runners
+        runner_index (int): Index of the runner
+    Returns:
+        list: List of instances for the given runner index
+    """
+    instances_per_runner = len(instances) // num_runners
+    remainder = len(instances) % num_runners
+    if runner_index == 0:
+        # Lucky index 0 gets all the remainder instances
+        return instances[:instances_per_runner + remainder]
+    else:
+        start_index = instances_per_runner * runner_index + remainder
+        end_index = start_index + instances_per_runner
+        return instances[start_index:end_index]
+
 
 def solve_instances(instances, args):
     if args.filter:
+        print(f"Filtering instances by regex: {args.filter}")
         pattern = re.compile(args.filter)
         instances = [
             instance
             for instance in instances
             if pattern.search(instance["instance_id"])
         ]
+
+    # Sorting by instance ID allows us to easily split the workload across multiple runners with
+    # minimal overlap between repositories and versions.
+    instances = sorted(instances, key=lambda x: x['instance_id'], reverse=False)
+
+    if args.num_runners > 1:
+        print(f"Splitting {len(instances)} instances across {args.num_runners} runners")
+        instances = split_runner_instances(instances, args.num_runners, args.runner_index)
+        print(f"{len(instances)} instances scheduled for this runner:") 
+        for instance in instances:
+            print(f"- {instance['instance_id']}")
 
     instance_groups = split_instances(list(instances), args.num_workers)
     data_groups = [
@@ -336,6 +369,18 @@ if __name__ == "__main__":
         "--steps",
         type=str,
         help="Comma-separated list of solve steps to execute",
+    )
+    parser.add_argument(
+        "--num_runners",
+        type=int,
+        default=1,
+        help="Number of runners to split the workload across",
+    )
+    parser.add_argument(
+        "--runner_index",
+        type=int,
+        default=0,
+        help="Index of the runner to use",
     )
     args = parser.parse_args()
     if args.appmaps:
