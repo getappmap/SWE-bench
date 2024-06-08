@@ -82,12 +82,34 @@ name: django
 packages:
 - path: django
   exclude:
-  - template.base
+  - db
   - test
+  - contrib.auth.base_user.AbstractBaseUser.get_username
+  - http.request.HttpRequest
+  - template.base
+  - template.defaulttags
+  - urls.converters
   - urls.resolvers
   - utils.datastructures
+  - utils.encoding
+  - utils.formats.localize
+  - utils.html.conditional_escape
+  - utils.html.escape
   - utils.regex_helper
+  - utils.safestring
+  - utils.timezone.template_localtime
+  - utils.topological_sort
   - utils.translation
+  - dispatch.dispatcher.Signal.send
+  - apps.registry.Apps.check_models_ready
+  - apps.registry.Apps.check_apps_ready
+  - apps.registry.Apps.get_app_config
+  - contrib.auth.get_permission_codename
+  - contrib.auth.models.PermissionsMixin.has_perm
+  - template.context.BaseContext.pop
+  - template.context.BaseContext.push
+  - contrib.auth.models.PermissionsMixin.has_perm
+
 """,
 }
 
