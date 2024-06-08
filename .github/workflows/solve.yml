@@ -211,11 +211,13 @@ jobs:
             --path_conda $(conda info --base)
 
       - name: Compress evaluation results
+        if: ${{ always() }}
         run: |
           tar -cJf output_${{ matrix.index }}.tar.xz logs predictions.jsonl
 
       - name: Upload evaluation results
         uses: actions/upload-artifact@v3
+        if: ${{ always() }}
         with:
           name: output_${{ matrix.index }}
           path: output_${{ matrix.index }}.tar.xz
