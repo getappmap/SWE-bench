@@ -188,7 +188,7 @@ jobs:
             --num_runners "${NUM_RUNNERS:-1}" \
             --runner_index "${{ matrix.index }}" \
             --verbose \
-            $(test -n "${{ inputs.appmaps }}" && echo --appmaps) \
+            $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
             $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
 
       - name: Run evaluation
