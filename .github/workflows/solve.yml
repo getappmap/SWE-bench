@@ -11,6 +11,10 @@ on:
         description: "Dataset name"
         required: true
         default: princeton-nlp/SWE-bench_Lite
+        type: choice
+        options:
+          - princeton-nlp/SWE-bench_Lite
+          - princeton-nlp/SWE-bench
       runner:
         description: "Runner type"
         required: true
