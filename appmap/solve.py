@@ -147,11 +147,13 @@ def worker_init(data: dict):
                                     f"[solve] ({instance_id}) Error resetting task environment"
                                 )
                                 return
-                            
+
                             print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
                             task_manager.run_install_task(instance)
 
-                            extract_appmaps(instance, testbed)
+                            instance["appmap_archive"] = extract_appmaps(
+                                instance, testbed
+                            )
 
                             patch = solve_instance(
                                 data_dict.instances_path,
@@ -201,6 +203,7 @@ def extract_appmaps(instance, testbed):
     if appmap_archive is not None:
         print(f"AppMap archive: {appmap_archive}", flush=True)
         appmap_archive.extract(testbed)
+        return appmap_archive.name
 
 def split_runner_instances(instances: list, num_runners: int, runner_index: int) -> list:
     """

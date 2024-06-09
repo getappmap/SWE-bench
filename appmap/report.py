@@ -1,9 +1,9 @@
 import argparse
 import csv
+import json
 import os
 
 from swebench import get_model_report
-from appmap.data import load_data
 
 
 def main(predictions, instances, log_dir, model, split, save_results, verbose, output):
@@ -19,38 +19,42 @@ def main(predictions, instances, log_dir, model, split, save_results, verbose, o
         print(f"{k}: {len(v)}")
 
     if save_results:
-        dataset = load_data(instances, split)
         write_csv_report(
             report,
-            dataset,
+            read_predictions(predictions),
             split,
             output,
         )
 
 
-def write_csv_report(report_map, dataset, split, output_csv_path):
-    # Prepare CSV headers
-    headers = ["instance_id", "split"] + [
-        key for key in report_map.keys() if key != "no_generation"
-    ]
+def read_predictions(predictions_path: str) -> list[dict]:
+    predictions = []
+    with open(predictions_path, "r") as f:
+        for line in f:
+            predictions.append(json.loads(line))
+    return predictions
 
-    all_preds = set()
-    for ids in report_map.values():
-        all_preds.update(ids)
+
+def write_csv_report(report_map, predictions: list[dict], split, output_csv_path):
+    categories = [key for key in report_map.keys() if key != "no_generation"]
+    # Prepare CSV headers
+    headers = ["instance_id", "split", *categories, "appmap_archive"]
 
     # Write to CSV
     with open(output_csv_path, "w", newline="") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=headers)
         writer.writeheader()
-        for instance in dataset.to_list():
-            if instance["instance_id"] not in all_preds:
-                continue
-            row = {"instance_id": instance["instance_id"], "split": split}
-            for category in headers[len(row) :]:
+        for instance in predictions:
+            row = {
+                "instance_id": instance["instance_id"],
+                "split": split,
+                "appmap_archive": instance["appmap_archive"],
+            }
+            for category in categories:
                 row[category] = instance["instance_id"] in report_map.get(category, [])
             writer.writerow(row)
 
-        print(f"Wrote {len(all_preds)} predictions to {output_csv_path}")
+        print(f"Wrote {len(predictions)} predictions to {output_csv_path}")
 
 
 if __name__ == "__main__":
