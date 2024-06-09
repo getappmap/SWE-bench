@@ -147,9 +147,11 @@ def worker_init(data: dict):
                                     f"[solve] ({instance_id}) Error resetting task environment"
                                 )
                                 return
-                            
+
                             print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
-                            task_manager.run_install_task(instance)
+
+                            with FileLock(f"/tmp/conda-env-create.lock"):
+                                task_manager.run_install_task(instance)
 
                             extract_appmaps(instance, testbed)
 
