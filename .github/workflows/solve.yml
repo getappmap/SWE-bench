@@ -5,7 +5,7 @@ on:
     inputs:
       filter:
         description: "Instance filter regex"
-        required: true
+        required: false
         default: "django-1[67]"
       dataset:
         description: "Dataset name"
@@ -24,10 +24,6 @@ on:
           - swe-bench-ubuntu-latest
           - SWE-Bench_Larger
           - ubuntu-latest
-      num_processes:
-        description: "Number of processes to parallelize per runner"
-        required: true
-        default: "6"
       split:
         description: "Dataset split"
         required: true
@@ -57,7 +53,8 @@ on:
         required: false
       instance_set:
         description: "Instance set to select a subset of instances"
-        requred: false
+        type: string
+        required: false
 
   pull_request:
     types: [opened, synchronize, labeled]
@@ -73,7 +70,6 @@ jobs:
         echo "filter: ${{ github.event.inputs.filter }}"
         echo "dataset: ${{ github.event.inputs.dataset }}"
         echo "runner: ${{ github.event.inputs.runner }}"
-        echo "num_processes: ${{ github.event.inputs.num_processes }}"
         echo "split: ${{ github.event.inputs.split }}"
         echo "retries: ${{ github.event.inputs.retries }}"
         echo "appmaps: ${{ github.event.inputs.appmaps }}"
@@ -189,7 +185,6 @@ jobs:
           SWE_FILTER: ${{ inputs.filter }}
           SWE_RETRIES: ${{ inputs.retries }}
           NUM_RUNNERS: ${{ inputs.num_runners }}
-          NUM_PROCESSES: ${{ inputs.num_processes }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
@@ -208,7 +203,7 @@ jobs:
             --runner_index "${{ matrix.index }}" \
             --verbose \
             $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
-            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
+            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}") \
             $(test -n "${{ inputs.instance_set }}" && echo --instance_set "${{ inputs.instance_set }}")
 
       - name: Run evaluation
