@@ -149,22 +149,24 @@ def worker_init(data: dict):
                                 f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
                             )
 
-                            if not task_manager.reset_task_env(instance, f"to prepare {instance_id} for solve attempt {attempt_number + 1}"):
-                                print(
-                                    f"[solve] ({instance_id}) Error resetting task environment"
-                                )
+                            if not task_manager.reset_task_env(
+                                instance,
+                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
+                            ):
+                                print(f"[solve] ({instance_id}) Error resetting task environment")
                                 return
 
-                            print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
-                            if not task_manager.run_install_task(instance, f"to prepare {instance_id} for solve attempt {attempt_number + 1}"):
-                                print(
-                                    f"[solve] ({instance_id}) Error installing environment"
-                                )
-                                return
-
-                            instance["appmap_archive"] = extract_appmaps(
-                                instance, testbed
+                            print(
+                                f"[solve] ({instance_id}) Installing environment for {instance_id}"
                             )
+                            if not task_manager.run_install_task(
+                                instance,
+                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
+                            ):
+                                print(f"[solve] ({instance_id}) Error installing environment")
+                                return
+
+                            instance["appmap_archive"] = extract_appmaps(instance, testbed)
 
                             patch = solve_instance(
                                 data_dict.instances_path,
@@ -185,12 +187,12 @@ def worker_init(data: dict):
                                 output_results(instance, output_file, patch)
                                 break
                             else:
-                                print(
-                                    f"[solve] ({instance_id}) No patch generated"
-                                )
+                                print(f"[solve] ({instance_id}) No patch generated")
                                 attempt_number += 1
                                 if attempt_number >= retries:
-                                    print(f"[solve] ({instance_id}) Giving up after {attempt_number} attempts")
+                                    print(
+                                        f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
+                                    )
                                     output_results(instance, output_file, None)
 
                     except Exception:
@@ -216,6 +218,7 @@ def extract_appmaps(instance, testbed):
         appmap_archive.extract(testbed)
         return appmap_archive.name
 
+
 def split_runner_instances(instances: list, num_runners: int, runner_index: int) -> list:
     """
     Split a list of instances into multiple groups based on the number of runners and the index of the runner.
@@ -231,7 +234,7 @@ def split_runner_instances(instances: list, num_runners: int, runner_index: int)
     remainder = len(instances) % num_runners
     if runner_index == 0:
         # Lucky index 0 gets all the remainder instances
-        return instances[:instances_per_runner + remainder]
+        return instances[: instances_per_runner + remainder]
     else:
         start_index = instances_per_runner * runner_index + remainder
         end_index = start_index + instances_per_runner
@@ -249,11 +252,7 @@ def solve_instances(instances, args):
     if args.filter:
         print(f"Filtering instances by regex: {args.filter}")
         pattern = re.compile(args.filter)
-        instances = [
-            instance
-            for instance in instances
-            if pattern.search(instance["instance_id"])
-        ]
+        instances = [instance for instance in instances if pattern.search(instance["instance_id"])]
     if len(instances) == 0:
         print(f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})")
         sys.exit(1)
@@ -264,7 +263,7 @@ def solve_instances(instances, args):
         random.Random(args.seed).shuffle(instances)
         print(f"Splitting {len(instances)} instances across {args.num_runners} runners")
         instances = split_runner_instances(instances, args.num_runners, args.runner_index)
-        print(f"{len(instances)} instances scheduled for this runner:") 
+        print(f"{len(instances)} instances scheduled for this runner:")
         for instance in instances:
             print(f"- {instance['instance_id']}")
 
@@ -276,7 +275,7 @@ def solve_instances(instances, args):
             "func": solve_instance,
             **vars(args),
         }
-        for i,g in enumerate(instance_groups)
+        for i, g in enumerate(instance_groups)
     ]
 
     if args.num_workers == 1:
@@ -312,12 +311,8 @@ if __name__ == "__main__":
         help="path or huggingface name of task instances dataset",
         default="princeton-nlp/SWE-bench_Lite",
     )
-    parser.add_argument(
-        "--split", type=str, default="test", help="Dataset split to use"
-    )
-    parser.add_argument(
-        "--log_dir", type=str, help="Path to log directory", default="logs"
-    )
+    parser.add_argument("--split", type=str, default="test", help="Dataset split to use")
+    parser.add_argument("--log_dir", type=str, help="Path to log directory", default="logs")
     parser.add_argument(
         "--conda_link",
         type=str,
@@ -335,9 +330,7 @@ if __name__ == "__main__":
         type=str,
         help="(Optional) Path to miniconda3 or anaconda installation",
     )
-    parser.add_argument(
-        "--testbed", type=str, help="(Optional) Path to testbed directory"
-    )
+    parser.add_argument("--testbed", type=str, help="(Optional) Path to testbed directory")
     parser.add_argument(
         "--temp_dir",
         type=str,
@@ -355,9 +348,7 @@ if __name__ == "__main__":
         default=3,
         help="Number of times to try and create a code update for each test instance",
     )
-    parser.add_argument(
-        "--verbose", action="store_true", help="(Optional) Verbose mode"
-    )
+    parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
     parser.add_argument(
         "--num_workers",
         type=int,
@@ -429,7 +420,7 @@ if __name__ == "__main__":
             appmap_path = os.path.abspath(args.appmaps)
             print(f"Using AppMap data archives from {appmap_path} (and online)")
 
-        # Don't load the ArchiveFinder unless appmap support is activated, because the 
+        # Don't load the ArchiveFinder unless appmap support is activated, because the
         # 'github' dependency is hard to install on some systems.
         from appmap.archive import ArchiveFinder
 
