@@ -7,6 +7,13 @@ import shutil
 import sys
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
+from multiprocessing import Pool, cpu_count
+from swebench.harness.context_manager import (
+    TestbedContextManager,
+    TaskEnvContextManager,
+)
+from swebench.harness.utils import DotDict, split_instances
+from subprocess import run
 from os.path import abspath
 from pathlib import Path
 from subprocess import run
@@ -108,57 +115,39 @@ def print_disk_spaces(testbed):
 def worker_init(data: dict):
     """
     Args:
-        data: Dict containing task instances and other data
-        conda_link: URL to conda installation to use
-        task_instances: List of task instances
-        log_dir: Path to log directory
-        path_conda: Path to miniconda3 or anaconda installation
-        testbed: Path to testbed directory
-        temp_dir: Path to temporary directory for storing virtual envs
-        timeout: Timeout (seconds) for testing script execution
-        verbose: Verbose mode
-        output_file: Path to output file
+        tasks (list): List of tasks
     """
-    data_dict = DotDict(data)
+    args = DotDict(data)
 
-    assert data_dict.output is not None
-    assert data_dict.appmap_command is not None
-    assert data_dict.path_conda is not None
-    assert data_dict.retries is not None
+    assert args.output is not None
+    assert args.appmap_command is not None
+    assert args.path_conda is not None
+    assert args.retries is not None
 
-    output_file = abspath(data_dict.output)
-
-    try:
-        with TestbedContextManager(
-            data_dict.task_instances,
-            data_dict.log_dir,
-            conda_link=data_dict.conda_link,
-            path_conda=data_dict.path_conda,
-            testbed=data_dict.testbed,
-            temp_dir=data_dict.temp_dir,
-            timeout=data_dict.timeout,
-            verbose=data_dict.verbose,
-            keep=data_dict.keep,
-            suffix=data_dict.suffix,
-        ) as tcm:
-            for instance in data_dict.task_instances:
-                repo_prefix = instance["repo"].replace("/", "__")
-                env_name = f"{repo_prefix}__{instance['version']}{data_dict.suffix}"
-                testbed = Path(tcm.testbed) / env_name
-                log_dir = abspath(data_dict.log_dir)
-                with TaskEnvContextManager(
-                    instance,
-                    testbed.as_posix(),
-                    env_name,
-                    log_dir,
-                    data_dict.path_conda,
-                    timeout=data_dict.timeout,
-                    verbose=data_dict.verbose,
-                    log_suffix=data_dict.log_suffix,
-                ) as task_manager:
+    output_file = abspath(args.output)
+    for env_data in args.task_instances:
+        env = DotDict(env_data)
+        for instance in env.task_instances:
+            with TaskEnvContextManager(
+                        instance,
+                        env.testbed,
+                        env.venv,
+                        env.log_dir,
+                        env.conda_path,
+                        timeout=env.timeout,
+                        verbose=env.verbose,
+                        log_suffix=args.log_suffix,
+                    ) as task_manager:
+                try:
+                    repo_prefix = instance["repo"].replace("/", "__")
+                    env_name = f"{repo_prefix}__{instance['version']}"
+                    testbed = Path(env.testbed)
+                    log_dir = abspath(env.log_dir)
                     instance_id = instance["instance_id"]
+                    retries = args.retries
+                    issue_name = env_name
 
-                    retries = data_dict.retries
+                    retries = args.retries
                     issue_name = env_name
 
                     print(
@@ -195,124 +184,121 @@ def worker_init(data: dict):
                     try:
                         while attempt_number < retries:
                             print(
-                                f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
+                                f"[solve] ({instance_id}) Error resetting task environment"
                             )
+                            return
+                        
+                        print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
+                        task_manager.run_install_task(instance)
 
-                            if not task_manager.reset_task_env(
-                                instance,
-                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
-                            ):
-                                print(f"[solve] ({instance_id}) Error resetting task environment")
-                                return
+                        if not task_manager.reset_task_env(
+                            instance,
+                            f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
+                        ):
+                            print(f"[solve] ({instance_id}) Error resetting task environment")
+                            return
 
-                            print(
-                                f"[solve] ({instance_id}) Installing environment for {instance_id}"
-                            )
-                            if not task_manager.run_install_task(
-                                instance,
-                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
-                            ):
-                                print(f"[solve] ({instance_id}) Error installing environment")
-                                return
+                        print(
+                            f"[solve] ({instance_id}) Installing environment for {instance_id}"
+                        )
+                        if not task_manager.run_install_task(
+                            instance,
+                            f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
+                        ):
+                            print(f"[solve] ({instance_id}) Error installing environment")
+                            return
 
-                            instance["appmap_archive"] = extract_appmaps(instance, testbed)
+                        instance["appmap_archive"] = extract_appmaps(instance, testbed)
 
-                            # In case this is a re-run, delete any existing patch files
-                            issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(attempt_number + 1)
-                            for result_name in result_priority:
-                                patch_file = issue_dir / f"{result_name}.patch"
-                                if patch_file.exists():
-                                    patch_file.unlink()
-
-                            solve_instance(
-                                data_dict.instances_path,
-                                instance,
-                                log_dir,
-                                testbed,
-                                data_dict.path_conda,
-                                data_dict.appmap_command,
-                                data_dict.lint_command,
-                                attempt_number,
-                                data_dict.steps,
-                            )
-
-                            patches_obtained = []
-                            for result_name in result_priority:
-                                patch_file = Path(issue_dir) / f"{result_name}.patch"
-                                if patch_file.exists():
-                                    patches_obtained.append(result_name)
-                            # Place patches in the order they were attained.
-                            patches_obtained.reverse()
-                            patches_by_attempt.append(patches_obtained)
-
-                            # Find the first existing patch file in the issue_dir for the iteration.
-                            # This code is relying on the patches being written by the solver as it proceeds through its steps.
-                            # Iterate from higest to lowest quality level.
-                            for result_name in result_priority:
-                                patch_file = Path(issue_dir) / f"{result_name}.patch"
-                                # If there is a patch available at this quality level that we haven't seen before, store it and
-                                # exit the loop.
-                                if patch_file.exists() and not patches.get(result_name):
-                                    patch = patch_file.read_text()
-                                    if not patch:
-                                        continue
-                                    iteration = attempt_number + 1
-                                    print(
-                                        f"[solve] ({instance_id}) Patch generated for '{result_name}' on iteration {iteration}"
-                                    )
-                                    patches[result_name] = { "name": result_name, "patch": patch, "iteration": iteration }
-                                    break
-
-                            # If we have a patch at the highest quality level, we can break out of the loop.
-                            if len(result_priority) and result_priority[0] in patches:
-                                print(
-                                    f"[solve] ({instance_id}) This is the highest solution level attainable. Exiting solve loop."
-                                )
-                                break
-
-                            # Otherwise, we need to try again; or give up if we've reached the maximum number of attempts.
-                            attempt_number += 1
-                            if attempt_number >= retries:
-                                print(
-                                    f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
-                                )
-
-                        # Output the highest quality patch that was found.
-                        patch_data = None
+                        # In case this is a re-run, delete any existing patch files
+                        issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(attempt_number + 1)
                         for result_name in result_priority:
-                            if patches.get(result_name):
-                                patch_data = patches[result_name]
-                                iteration = patch_data["iteration"]
+                            patch_file = issue_dir / f"{result_name}.patch"
+                            if patch_file.exists():
+                                patch_file.unlink()
+
+                        solve_instance(
+                            args.instances_path,
+                            instance,
+                            log_dir,
+                            testbed,
+                            args.path_conda,
+                            args.appmap_command,
+                            args.lint_command,
+                            attempt_number,
+                            args.steps,
+                        )
+
+                        patches_obtained = []
+                        for result_name in result_priority:
+                            patch_file = Path(issue_dir) / f"{result_name}.patch"
+                            if patch_file.exists():
+                                patches_obtained.append(result_name)
+                        # Place patches in the order they were attained.
+                        patches_obtained.reverse()
+                        patches_by_attempt.append(patches_obtained)
+
+                        # Find the first existing patch file in the issue_dir for the iteration.
+                        # This code is relying on the patches being written by the solver as it proceeds through its steps.
+                        # Iterate from higest to lowest quality level.
+                        for result_name in result_priority:
+                            patch_file = Path(issue_dir) / f"{result_name}.patch"
+                            # If there is a patch available at this quality level that we haven't seen before, store it and
+                            # exit the loop.
+                            if patch_file.exists() and not patches.get(result_name):
+                                patch = patch_file.read_text()
+                                if not patch:
+                                    continue
+                                iteration = attempt_number + 1
                                 print(
-                                    f"[solve] ({instance_id}) Submitting {result_name} patch from attempt {iteration}"
+                                    f"[solve] ({instance_id}) Patch generated for '{result_name}' on iteration {iteration}"
                                 )
+                                patches[result_name] = { "name": result_name, "patch": patch, "iteration": iteration }
                                 break
 
-                        if patch_data:
-                            # Lint repair occurred if the work directory exists
-                            lint_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "lint_repair"
-                            patch_data["lint_repair"] = True if lint_repair_dir.exists() else False
+                        # If we have a patch at the highest quality level, we can break out of the loop.
+                        if len(result_priority) and result_priority[0] in patches:
+                            print(
+                                f"[solve] ({instance_id}) This is the highest solution level attainable. Exiting solve loop."
+                            )
+                            break
 
-                            # Same with test repair
-                            test_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "test_repair"
-                            patch_data["test_repair"] = True if test_repair_dir.exists() else False
+                        # Otherwise, we need to try again; or give up if we've reached the maximum number of attempts.
+                        attempt_number += 1
+                        if attempt_number >= retries:
+                            print(
+                                f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
+                            )
 
-                            output_results(instance, output_file, patch_data)
-                        else:
-                            print(f"[solve] ({instance_id}) No patch generated")
-                            output_results(instance, output_file, None)
+                    # Output the highest quality patch that was found.
+                    patch_data = None
+                    for result_name in result_priority:
+                        if patches.get(result_name):
+                            patch_data = patches[result_name]
+                            iteration = patch_data["iteration"]
+                            print(
+                                f"[solve] ({instance_id}) Submitting {result_name} patch from attempt {iteration}"
+                            )
+                            break
 
-                    except Exception:
-                        print(f"[solve] ({instance_id}) Error:")
-                        import traceback
+                    if patch_data:
+                        # Lint repair occurred if the work directory exists
+                        lint_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "lint_repair"
+                        patch_data["lint_repair"] = True if lint_repair_dir.exists() else False
 
-                        traceback.print_exc()
+                        # Same with test repair
+                        test_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "test_repair"
+                        patch_data["test_repair"] = True if test_repair_dir.exists() else False
 
-    except Exception:
-        print("Error instantiating testbed")
-        import traceback
+                        output_results(instance, output_file, patch_data)
+                    else:
+                        print(f"[solve] ({instance_id}) No patch generated")
+                        output_results(instance, output_file, None)
 
-        traceback.print_exc()
+                except Exception:
+                    print(f"[solve] ({instance_id}) Error:")
+                    import traceback
+                    traceback.print_exc()
 
 
 def extract_appmaps(instance, testbed):
@@ -349,49 +335,15 @@ def split_runner_instances(instances: list, num_runners: int, runner_index: int)
         return instances[start_index:end_index]
 
 
-def solve_instances(instances: Dataset, args):
-    instance_set_path = None
-    if args.instance_set:
-        instance_set_path = Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
-        with open(instance_set_path) as f:
-            print(f"Using instance set: {instance_set_path}")
-            instance_set = list(map(str.strip, f))
-            instances = [
-                instance for instance in instances if instance["instance_id"] in instance_set
-            ]
-    if args.filter:
-        print(f"Filtering instances by regex: {args.filter}")
-        pattern = re.compile(args.filter)
-        instances = [instance for instance in instances if pattern.search(instance["instance_id"])]
-    if args.random_count:
-        if isinstance(instances, Dataset):
-            instances = instances.shuffle()
-            instances = instances.take(args.random_count)
-        else:
-            instances = random.sample(instances, k=args.random_count)
-    if len(instances) == 0:
-        print(f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})")
-        sys.exit(1)
-
-    if args.num_runners > 1:
-        # Shuffle the instances to ensure one worker doesn't get stuck with all the
-        # long-running projects
-        random.Random(args.seed).shuffle(instances)
-        print(f"Splitting {len(instances)} instances across {args.num_runners} runners")
-        instances = split_runner_instances(instances, args.num_runners, args.runner_index)
-        print(f"{len(instances)} instances scheduled for this runner:")
-        for instance in instances:
-            print(f"- {instance['instance_id']}")
-
-    instance_groups = split_instances(list(instances), args.num_workers)
+def solve_instances(task_instances, args):
+    task_instances = split_instances(task_instances, args.num_workers)
     data_groups = [
         {
-            "suffix": "" if args.reuse_env else f"-{i}",
             "task_instances": g,
             "func": solve_instance,
             **vars(args),
         }
-        for i, g in enumerate(instance_groups)
+        for g in task_instances
     ]
 
     if args.num_workers == 1:
@@ -403,10 +355,98 @@ def solve_instances(instances: Dataset, args):
     pool.close()
     pool.join()
 
+def filter_instances(task_instances, instance_set, random_count, filter_regex, num_runners, runner_index, seed):
+    instances = task_instances
+    instance_set_path = None
+    if instance_set:
+        instance_set_path = Path(__file__).parent / "instance_sets" / f"{instance_set}.txt"
+        with open(instance_set_path) as f:
+            print(f"Using instance set: {instance_set_path}")
+            included_instances = list(map(str.strip, f))
+            instances = [
+                instance for instance in instances if instance["instance_id"] in included_instances
+            ]
+
+    if random_count:
+        if isinstance(instances, Dataset):
+            instances = instances.shuffle()
+            instances = instances.take(random_count)
+        else:
+            instances = random.sample(instances, k=random_count)
+
+    if filter:
+        print(f"Filtering instances by regex: {filter_regex}")
+        pattern = re.compile(filter_regex)
+        instances = [
+            instance
+            for instance in task_instances
+            if pattern.search(instance["instance_id"])
+        ]
+
+    # Sorting by instance ID allows us to easily split the workload across multiple runners with
+    # minimal overlap between repositories and versions.
+    instances = sorted(instances, key=lambda x: x['instance_id'], reverse=False)
+
+    if len(instances) == 0:
+        print(f"No instances selected (instance set: {instance_set_path}, filter: {filter})")
+        sys.exit(1)
+
+    if num_runners > 1:
+        # Shuffle the instances to ensure one worker doesn't get stuck with all the
+        # long-running projects
+        random.Random(seed).shuffle(instances)
+        print(f"Splitting {len(instances)} instances across {num_runners} runners")
+        instances = split_runner_instances(instances, num_runners, runner_index)
+        print(f"{len(instances)} instances scheduled for this runner:")
+        for instance in instances:
+            print(f"- {instance['instance_id']}")
+
+    return instances
+
+def validate_args(args):
+    """
+    Validation for command line arguments
+    """
+    if not args.instances_path:
+        raise ValueError("Must provide path to task instances")
+    if not args.split:
+        raise ValueError("Must provide split to use")
+    if not args.log_dir:
+        raise ValueError("Must provide log directory")
+    if args.num_workers and args.num_workers < 1:
+        raise ValueError("Number of workers must be a positive integer")
+    if args.temp_dir and not os.path.exists(args.temp_dir):
+        raise ValueError(f"Could not find temporary directory at {args.temp_dir}")
+    if args.testbed and not os.path.exists(args.testbed):
+        raise ValueError(f"Could not find testbed at {args.testbed}")
+    if args.conda_link and not os.path.exists(args.conda_link):
+        raise ValueError(f"Could not find conda installation at {args.conda_link}")
+    if args.appmap_command and not os.path.exists(args.appmap_command):
+        raise ValueError(f"Could not find appmap binary at {args.appmap_command}")
+    if args.path_conda and not os.path.exists(args.path_conda):
+        raise ValueError(f"Could not find conda installation at {args.path_conda}")
+    if not args.retries:
+        raise ValueError("Must provide number of retries")
 
 def main(args):
+    validate_args(args)
+
     dataset = load_data(args.instances_path, args.split)
-    solve_instances(dataset, args)
+    dataset = filter_instances(dataset, args.filter)
+
+    with TestbedContextManager(
+        dataset,
+        args.log_dir,
+        conda_link=args.conda_link,
+        path_conda=args.path_conda,
+        testbed=args.testbed,
+        temp_dir=args.temp_dir,
+        timeout=args.timeout,
+        verbose=args.verbose,
+        keep=args.keep,
+    ) as tcm:
+        distributed_task_list = tcm.get_distributed_tasks()
+        solve_instances(distributed_task_list, args)
 
 
 appmap_finder = None
@@ -434,12 +474,6 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="(Optional) URL to conda installation to use",
-    )
-    parser.add_argument(
-        "--log_suffix",
-        type=str,
-        default=None,
-        help="(Optional) Suffix to append to log file names",
     )
     parser.add_argument(
         "--path_conda",
