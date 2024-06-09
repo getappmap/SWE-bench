@@ -24,7 +24,7 @@ def step_posttest(
     print(f"[posttest] ({instance_id}) Current project diff:")
     print(file_diff)
 
-    task_manager = build_task_manager(
+    with build_task_manager(
         instances_path,
         instance_id,
         work_dir,
@@ -33,42 +33,41 @@ def step_posttest(
         conda_path,
         timeout=30,
         verbose=True,
-    )
-
-    instance = task_manager.instance
-    test_cmd = MAP_REPO_TO_TEST_FRAMEWORK[instance["repo"]]
-    print(
-        f"[posttest] ({instance_id}) Test command for {instance['repo']} is {test_cmd}"
-    )
-
-    test_command = f"{task_manager.cmd_activate} && {test_cmd} "
-    test_files_str = " ".join(test_files)
-
-    print(
-        f"[posttest] ({instance_id}) Running test command: {test_command} {test_files_str}"
-    )
-    timeout = False
-    try:
-        test_output = task_manager.exec(
-            ["bash", "-c", f"{test_command} {test_files_str}"],
-            timeout=task_manager.timeout,
-            check=False,
-        )
-    except TimeoutError:
-        timeout = True
+    ) as task_manager:
+        instance = task_manager.instance
+        test_cmd = MAP_REPO_TO_TEST_FRAMEWORK[instance["repo"]]
         print(
-            f"[posttest] ({instance_id}) Test command timed out: {test_command} {test_files_str}"
+            f"[posttest] ({instance_id}) Test command for {instance['repo']} is {test_cmd}"
         )
 
-    if test_output.returncode == 0:
-        print(f"[posttest] ({instance_id}) Tests passed")
-        return True
-    else:
-        if not timeout:
-            print(
-                f"[posttest] ({instance_id}) Test command failed: {test_command} {test_files_str}"
+        test_command = f"{task_manager.cmd_activate} && {test_cmd} "
+        test_files_str = " ".join(test_files)
+
+        print(
+            f"[posttest] ({instance_id}) Running test command: {test_command} {test_files_str}"
+        )
+        timeout = False
+        try:
+            test_output = task_manager.exec(
+                ["bash", "-c", f"{test_command} {test_files_str}"],
+                timeout=task_manager.timeout,
+                check=False,
             )
-        print(
-            f"[posttest] ({instance_id}) Review {task_manager.log_file} for more information"
-        )
-        return False
+        except TimeoutError:
+            timeout = True
+            print(
+                f"[posttest] ({instance_id}) Test command timed out: {test_command} {test_files_str}"
+            )
+
+        if test_output.returncode == 0:
+            print(f"[posttest] ({instance_id}) Tests passed")
+            return True
+        else:
+            if not timeout:
+                print(
+                    f"[posttest] ({instance_id}) Test command failed: {test_command} {test_files_str}"
+                )
+            print(
+                f"[posttest] ({instance_id}) Review {task_manager.log_file} for more information"
+            )
+            return False
