@@ -3,12 +3,12 @@ import json
 import os
 import re
 from pathlib import Path
-from multiprocessing import Pool, current_process, cpu_count
+from multiprocessing import Pool, cpu_count
 from swebench.harness.context_manager import (
     TestbedContextManager,
     TaskEnvContextManager,
 )
-from swebench.harness.utils import split_instances, DotDict
+from swebench.harness.utils import DotDict, split_instances
 from subprocess import run
 from os.path import abspath
 from filelock import FileLock
@@ -80,116 +80,89 @@ def solve_instance(
 def worker_init(data: dict):
     """
     Args:
-        data: Dict containing task instances and other data
-        conda_link: URL to conda installation to use
-        task_instances: List of task instances
-        log_dir: Path to log directory
-        path_conda: Path to miniconda3 or anaconda installation
-        testbed: Path to testbed directory
-        temp_dir: Path to temporary directory for storing virtual envs
-        timeout: Timeout (seconds) for testing script execution
-        verbose: Verbose mode
-        output_file: Path to output file
+        tasks (list): List of tasks
     """
-    data_dict = DotDict(data)
+    args = DotDict(data)
 
-    assert data_dict.output is not None
-    assert data_dict.appmap_command is not None
-    assert data_dict.path_conda is not None
-    assert data_dict.retries is not None
+    assert args.output is not None
+    assert args.appmap_command is not None
+    assert args.path_conda is not None
+    assert args.retries is not None
 
-    output_file = abspath(data_dict.output)
-
-    try:
-        with TestbedContextManager(
-            data_dict.task_instances,
-            data_dict.log_dir,
-            conda_link=data_dict.conda_link,
-            path_conda=data_dict.path_conda,
-            testbed=data_dict.testbed,
-            temp_dir=data_dict.temp_dir,
-            timeout=data_dict.timeout,
-            verbose=data_dict.verbose,
-            keep=data_dict.keep,
-        ) as tcm:
-            for instance in data_dict.task_instances:
-                repo_prefix = instance["repo"].replace("/", "__")
-                env_name = f"{repo_prefix}__{instance['version']}"
-                testbed = Path(tcm.testbed) / env_name
-                log_dir = abspath(data_dict.log_dir)
-                with TaskEnvContextManager(
-                    instance,
-                    testbed.as_posix(),
-                    env_name,
-                    log_dir,
-                    data_dict.path_conda,
-                    timeout=data_dict.timeout,
-                    verbose=data_dict.verbose,
-                    log_suffix=data_dict.log_suffix,
-                ) as task_manager:
+    output_file = abspath(args.output)
+    for env_data in args.task_instances:
+        env = DotDict(env_data)
+        for instance in env.task_instances:
+            with TaskEnvContextManager(
+                        instance,
+                        env.testbed,
+                        env.venv,
+                        env.log_dir,
+                        env.conda_path,
+                        timeout=env.timeout,
+                        verbose=env.verbose,
+                    ) as task_manager:
+                try:
+                    repo_prefix = instance["repo"].replace("/", "__")
+                    env_name = f"{repo_prefix}__{instance['version']}"
+                    testbed = Path(env.testbed)
+                    log_dir = abspath(env.log_dir)
                     instance_id = instance["instance_id"]
+                    retries = args.retries
+                    issue_name = env_name
 
-                    try:
-                        retries = data_dict.retries
-                        issue_name = env_name
-
+                    print(
+                        f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
+                    )
+                    attempt_number = 0
+                    while attempt_number < retries:
                         print(
-                            f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
+                            f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
                         )
-                        attempt_number = 0
-                        while attempt_number < retries:
+
+                        if not task_manager.reset_task_env(instance):
                             print(
-                                f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
+                                f"[solve] ({instance_id}) Error resetting task environment"
                             )
+                            return
+                        
+                        print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
+                        task_manager.run_install_task(instance)
 
-                            if not task_manager.reset_task_env(instance):
-                                print(
-                                    f"[solve] ({instance_id}) Error resetting task environment"
-                                )
-                                return
-                            
-                            print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
-                            task_manager.run_install_task(instance)
+                        extract_appmaps(instance, testbed)
 
-                            extract_appmaps(instance, testbed)
-
-                            patch = solve_instance(
-                                data_dict.instances_path,
-                                instance,
-                                log_dir,
-                                testbed,
-                                data_dict.path_conda,
-                                data_dict.appmap_command,
-                                data_dict.lint_command,
-                                attempt_number,
-                                steps=data_dict.steps,
+                        patch = solve_instance(
+                            args.instances_path,
+                            instance,
+                            log_dir,
+                            testbed,
+                            env.conda_path,
+                            args.appmap_command,
+                            args.lint_command,
+                            attempt_number,
+                            steps=args.steps,
+                        )
+                        if patch:
+                            print(
+                                f"[solve] ({instance_id}) Patch generated on iteration {attempt_number +1}"
                             )
-                            if patch:
-                                print(
-                                    f"[solve] ({instance_id}) Patch generated on iteration {attempt_number +1}"
-                                )
-                                print(patch)
-                                output_results(instance, output_file, patch)
-                                break
-                            else:
-                                print(
-                                    f"[solve] ({instance_id}) No patch generated"
-                                )
-                                attempt_number += 1
-                                if attempt_number >= retries:
-                                    print(f"[solve] ({instance_id}) Giving up after {attempt_number} attempts")
-                                    output_results(instance, output_file, None)
+                            print(patch)
+                            output_results(instance, output_file, patch)
+                            break
+                        else:
+                            print(
+                                f"[solve] ({instance_id}) No patch generated"
+                            )
+                            attempt_number += 1
+                            if attempt_number >= retries:
+                                print(f"[solve] ({instance_id}) Giving up after {attempt_number} attempts")
+                                output_results(instance, output_file, None)
 
-                    except Exception:
-                        print(f"[solve] ({instance_id}) Error:")
-                        import traceback
+                except Exception:
+                    print(f"[solve] ({instance_id}) Error:")
+                    import traceback
 
-                        traceback.print_exc()
-    except Exception:
-        print("Error instantiating testbed")
-        import traceback
-
-        traceback.print_exc()
+                    traceback.print_exc()
 
 
 def extract_appmaps(instance, testbed):
@@ -224,13 +197,35 @@ def split_runner_instances(instances: list, num_runners: int, runner_index: int)
         return instances[start_index:end_index]
 
 
-def solve_instances(instances, args):
-    if args.filter:
+def solve_instances(task_instances, args):
+    task_instances = split_instances(task_instances, args.num_workers)
+    data_groups = [
+        {
+            "task_instances": g,
+            "func": solve_instance,
+            **vars(args),
+        }
+        for g in task_instances
+    ]
+
+    if args.num_workers == 1:
+        worker_init(data_groups[0])
+        return
+
+    pool = Pool(processes=args.num_workers)
+    pool.map(worker_init, data_groups)
+    pool.close()
+    pool.join()
+
+def filter_instances(task_instances, filter):
+    instances = None
+
+    if filter:
         print(f"Filtering instances by regex: {args.filter}")
         pattern = re.compile(args.filter)
         instances = [
             instance
-            for instance in instances
+            for instance in task_instances
             if pattern.search(instance["instance_id"])
         ]
 
@@ -245,29 +240,52 @@ def solve_instances(instances, args):
         for instance in instances:
             print(f"- {instance['instance_id']}")
 
-    instance_groups = split_instances(list(instances), args.num_workers)
-    data_groups = [
-        {
-            "task_instances": g,
-            "func": solve_instance,
-            **vars(args),
-        }
-        for g in instance_groups
-    ]
+    return instances
 
-    if args.num_workers == 1:
-        worker_init(data_groups[0])
-        return
-
-    pool = Pool(processes=args.num_workers)
-    pool.map(worker_init, data_groups)
-    pool.close()
-    pool.join()
-
+def validate_args(args):
+    """
+    Validation for command line arguments
+    """
+    if not args.instances_path:
+        raise ValueError("Must provide path to task instances")
+    if not args.split:
+        raise ValueError("Must provide split to use")
+    if not args.log_dir:
+        raise ValueError("Must provide log directory")
+    if args.num_workers and args.num_workers < 1:
+        raise ValueError("Number of workers must be a positive integer")
+    if args.temp_dir and not os.path.exists(args.temp_dir):
+        raise ValueError(f"Could not find temporary directory at {args.temp_dir}")
+    if args.testbed and not os.path.exists(args.testbed):
+        raise ValueError(f"Could not find testbed at {args.testbed}")
+    if args.conda_link and not os.path.exists(args.conda_link):
+        raise ValueError(f"Could not find conda installation at {args.conda_link}")
+    if args.appmap_command and not os.path.exists(args.appmap_command):
+        raise ValueError(f"Could not find appmap binary at {args.appmap_command}")
+    if args.path_conda and not os.path.exists(args.path_conda):
+        raise ValueError(f"Could not find conda installation at {args.path_conda}")
+    if not args.retries:
+        raise ValueError("Must provide number of retries")
 
 def main(args):
+    validate_args(args)
+
     dataset = load_data(args.instances_path, args.split)
-    solve_instances(dataset, args)
+    dataset = filter_instances(dataset, args.filter)
+
+    with TestbedContextManager(
+        dataset,
+        args.log_dir,
+        conda_link=args.conda_link,
+        path_conda=args.path_conda,
+        testbed=args.testbed,
+        temp_dir=args.temp_dir,
+        timeout=args.timeout,
+        verbose=args.verbose,
+        keep=args.keep,
+    ) as tcm:
+        distributed_task_list = tcm.get_distributed_tasks()
+        solve_instances(distributed_task_list, args)
 
 
 appmap_finder = None
@@ -292,12 +310,6 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="(Optional) URL to conda installation to use",
-    )
-    parser.add_argument(
-        "--log_suffix",
-        type=str,
-        default=None,
-        help="(Optional) Suffix to append to log file names",
     )
     parser.add_argument(
         "--path_conda",
