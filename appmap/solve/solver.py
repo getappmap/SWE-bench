@@ -8,8 +8,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
 from appmap.solve.is_test_file import is_test_file
+from appmap.solve.steps.read_test_directives import read_test_directives
 from appmap.solve.steps.step_posttest import step_posttest
-from appmap.solve.steps.step_pretest import step_pretest
+from appmap.solve.steps.step_pretest import build_task_manager, step_pretest
 from appmap.solve.steps.step_lint_repair import step_lint_repair
 from appmap.solve.steps.step_apply import step_apply
 from appmap.solve.steps.step_generate import step_generate
@@ -19,11 +20,12 @@ from appmap.solve.steps.step_plan import step_plan
 # Add pretest ... posttest to include those in the run.
 DEFAULT_STEPS = {
     "pretest": False,
+    "peektest": True,
     "plan": True,
     "list": True,
     "generate": True,
     "apply": True,
-    "posttest": False,
+    "posttest": True,
 }
 
 
@@ -74,11 +76,23 @@ class Solver:
         if self.steps["pretest"]:
             self.pretest()
 
+        if self.steps["peektest"]:
+            self.peektest()
+
         if self.steps["plan"]:
             self.plan()
 
         if self.steps["list"]:
             self.list_files()
+
+        files_list_file = os.path.join(self.work_dir, "files.json")
+        if not os.path.isfile(files_list_file):
+            raise FileNotFoundError(
+                f"File '{files_list_file}' does not exist. You need to run the 'list' step."
+            )
+
+        with open(files_list_file, "r") as f:
+            self.files = json.load(f)
 
         self.base_file_content = self.load_file_content()
 
@@ -107,6 +121,27 @@ class Solver:
             self.issue_file,
         )
 
+    def peektest(self):
+        self.posttest_succeeded = False
+
+        task_manager = build_task_manager(
+            self.instances_path,
+            self.instance_id,
+            self.work_dir,
+            self.conda_env,
+            self.log_dir,
+            self.conda_path,
+            timeout=30,
+            verbose=True,
+        )
+        with task_manager:
+            self.test_succeeded_files = read_test_directives(task_manager.instance)
+
+        test_succeeded_files_str = ", ".join(self.test_succeeded_files)
+        print(
+            f"[solver] ({self.instance_id}) Test succeeded files: {test_succeeded_files_str}"
+        )
+
     def plan(self):
         step_plan(
             self.log_dir,
@@ -127,8 +162,6 @@ class Solver:
             self.appmap_command,
             self.plan_file,
         )
-        with open(os.path.join(self.work_dir, "files.json")) as f:
-            self.files = json.load(f)
 
     def generate_code(self):
         step_generate(
@@ -190,8 +223,8 @@ class Solver:
         self.load_file_changes()
 
     def posttest(self):
-        assert(self.test_succeeded_files is not None)
-        
+        assert self.test_succeeded_files is not None
+
         if len(self.test_succeeded_files) == 0:
             print(
                 f"[solver] ({self.instance_id}) WARN: No test succeeded files found. Skipping posttest step."
@@ -207,14 +240,18 @@ class Solver:
 
         # At this point, some files have changed, and some tests succeeded.
         # Re-run the tests to ensure that the changes did not break anything.
+        with open(self.plan_file, "r") as f:
+            plan = f.read()
 
         self.posttest_succeeded = step_posttest(
-            self.log_dir,
             self.work_dir,
             self.instances_path,
             self.instance_id,
             self.conda_path,
             self.conda_env,
+            self.appmap_command,
+            plan,
+            self.load_file_content(),
             self.test_succeeded_files,
         )
 

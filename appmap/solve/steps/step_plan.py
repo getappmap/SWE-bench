@@ -7,7 +7,14 @@ import re
 
 
 def step_plan(
-    log_dir, args, issue_file, work_dir, instance_id, appmap_command, plan_file, context_file
+    log_dir,
+    args,
+    issue_file,
+    work_dir,
+    instance_id,
+    appmap_command,
+    plan_file,
+    context_file,
 ):
     print(f"[plan] ({instance_id}) Searching for context using {args.issue_file}")
     context_prompt = os.path.join(work_dir, "search_context.txt")

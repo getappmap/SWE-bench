@@ -200,7 +200,7 @@ def step_lint_repair(
                 content_chunk_lines.append(f"{line_number + 1}: {lines[line_number]}")
 
         repair_dir = os.path.join(
-            work_dir, "repair", norm_file_name(file), str(line_number)
+            work_dir, "lint_repair", norm_file_name(file), str(line_number)
         )
         os.makedirs(repair_dir, exist_ok=True)
 
