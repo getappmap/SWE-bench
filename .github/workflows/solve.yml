@@ -55,6 +55,9 @@ on:
       steps:
         description: "List of solver steps to perform"
         required: false
+      instance_set:
+        description: "Instance set to select a subset of instances"
+        requred: false
 
   pull_request:
     types: [opened, synchronize, labeled]
@@ -77,6 +80,7 @@ jobs:
         echo "num_runners: ${{ github.event.inputs.num_runners }}"
         echo "name: ${{ github.event.inputs.name }}"
         echo "steps: ${{ github.event.inputs.steps }}"
+        echo "instance_set: ${{ github.event.inputs.instance_set }}"
   build-appmap-js:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
     runs-on: SWE-Bench_Larger
@@ -205,6 +209,7 @@ jobs:
             --verbose \
             $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
             $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
+            $(test -n "${{ inputs.instance_set }}" && echo --instance_set "${{ inputs.instance_set }}")
 
       - name: Run evaluation
         env:

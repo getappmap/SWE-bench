@@ -2,17 +2,21 @@ import argparse
 import json
 import os
 import re
-from pathlib import Path
-from multiprocessing import Pool, current_process, cpu_count
-from swebench.harness.context_manager import (
-    TestbedContextManager,
-    TaskEnvContextManager,
-)
-from swebench.harness.utils import split_instances, DotDict
-from subprocess import run
+import sys
+from multiprocessing import Pool, cpu_count
 from os.path import abspath
-from filelock import FileLock
+from pathlib import Path
+from subprocess import run
+from textwrap import dedent
+
 from data import load_data
+from filelock import FileLock
+from swebench.harness.context_manager import (
+    TaskEnvContextManager,
+    TestbedContextManager,
+)
+from swebench.harness.utils import DotDict, split_instances
+
 
 def output_results(instance, output_file, patch):
     instance["model_patch"] = patch
@@ -233,6 +237,12 @@ def split_runner_instances(instances: list, num_runners: int, runner_index: int)
 
 
 def solve_instances(instances, args):
+    instance_set_path = None
+    if args.instance_set:
+        instance_set_path = Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
+        with open(instance_set_path) as f:
+            instance_set = list(f)
+            instances = [instance for instance in instances if instance in instance_set]
     if args.filter:
         print(f"Filtering instances by regex: {args.filter}")
         pattern = re.compile(args.filter)
@@ -241,6 +251,9 @@ def solve_instances(instances, args):
             for instance in instances
             if pattern.search(instance["instance_id"])
         ]
+    if len(instances) == 0:
+        print(f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})")
+        sys.exit(1)
 
     # Sorting by instance ID allows us to easily split the workload across multiple runners with
     # minimal overlap between repositories and versions.
@@ -282,7 +295,14 @@ def main(args):
 appmap_finder = None
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        epilog=dedent("""
+                      The full set of instances is specified by --instances. A subset can be
+                      selected by
+                        --instance_set. That subset will be filtered further by --filter.
+                       """)
+    )
+
     parser.add_argument(
         "--instances_path",
         "--instances",
@@ -391,11 +411,12 @@ if __name__ == "__main__":
         default=0,
         help="Index of the runner to use",
     )
+    parser.add_argument("--instance_set", type=str, help="(Optional) Name of instance set")
     args = parser.parse_args()
     if args.appmaps:
-        if type(args.appmaps) is bool:
+        if isinstance(args.appmaps, bool):
             appmap_path = None
-            print(f"Using only online AppMap data archives")
+            print("Using only online AppMap data archives")
         else:
             appmap_path = os.path.abspath(args.appmaps)
             print(f"Using AppMap data archives from {appmap_path} (and online)")
