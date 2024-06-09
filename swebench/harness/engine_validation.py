@@ -88,6 +88,7 @@ def setup_testbed(data: dict):
     """
     data_dict = DotDict(data)
     with TestbedContextManager(
+        data_dict.id,
         data_dict.task_instances,
         data_dict.log_dir,
         conda_link=data_dict.conda_link,
@@ -125,11 +126,12 @@ def main(args):
 
     data_groups = [
         {
+            "id": i,
             "task_instances": g,
             "func": verify_task_instances,
             **vars(args),
         }
-        for g in task_instances_groups
+        for i,g in enumerate(task_instances_groups)
     ]
 
     for group in data_groups:

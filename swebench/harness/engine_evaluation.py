@@ -166,11 +166,12 @@ def main(args):
 
     data_groups = [
         {
+            "id": i,
             "task_instances": g,
             "func": evaluate_predictions,
             **vars(args),
         }
-        for g in predictions_groups
+        for i,g in enumerate(predictions_groups)
     ]
 
     if args.num_workers == 1:

@@ -40,8 +40,14 @@ from swebench.harness.utils import (
     get_test_directives,
 )
 
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(format="%(asctime)s - %(process)d - %(levelname)s - %(message)s")
 logger_testbed = logging.getLogger("testbed")
+
+_formatter = logging.Formatter("%(asctime)s - %(process)d - %(levelname)s - %(message)s")
+_handler = logging.StreamHandler()
+_handler.setFormatter(_formatter)
+logger_testbed.addHandler(_handler)
+logger_testbed.propagate = False
 
 
 class LogWrapper:
@@ -145,6 +151,7 @@ class ExecWrapper:
 class TestbedContextManager:
     def __init__(
         self,
+        id: int,
         task_instances: list,
         log_dir: str,
         conda_link: str = None,
@@ -169,6 +176,7 @@ class TestbedContextManager:
             timeout (int): Timeout for actions
             temp_dir (str): Path to temporary directory
         """
+        self.id = id
         if verbose:
             logger_testbed.setLevel(logging.INFO)
         self.conda_link = conda_link
@@ -385,7 +393,7 @@ class TestbedContextManager:
                     continue
 
                 # Name for both environment and github repo
-                env_name = f"{repo_prefix}__{version}"
+                env_name = f"{repo_prefix}__{version}-{self.id}"
                 self.log.write(f"Setting up testbed for {env_name}")
 
                 # Clone github per repo/version
@@ -510,7 +518,7 @@ class TestbedContextManager:
         for repo, map_version_to_instances in self.task_instances_grouped.items():
             repo_prefix = repo.replace("/", "__")
             for version, instances in map_version_to_instances.items():
-                env_name = f"{repo_prefix}__{version}"
+                env_name = f"{repo_prefix}__{version}-{self.id}"
                 task_set = {
                     "conda_path": self.path_conda,
                     "log_dir": self.log_dir,
@@ -551,6 +559,11 @@ class TestbedContextManager:
 
 
 logger_taskenv = logging.getLogger("taskenv")
+_formatter = logging.Formatter("%(asctime)s - %(process)d - %(levelname)s - %(message)s")
+_handler = logging.StreamHandler()
+_handler.setFormatter(_formatter)
+logger_taskenv.addHandler(_handler)
+logger_taskenv.propagate = False
 
 
 class TaskEnvContextManager:
