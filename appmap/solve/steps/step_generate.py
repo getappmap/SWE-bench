@@ -7,6 +7,7 @@ import os
 import sys
 import json
 
+
 def step_generate(
     log_dir,
     args,
@@ -117,6 +118,7 @@ def filter_search_context(context_file, fulltext_files):
     is_fulltext = lambda x: x["location"].split(":")[0] in fulltext_files
     search_context = [x for x in search_context if not is_fulltext(x)]
     return search_context
+
 
 def format_search_context(search_context):
     """
