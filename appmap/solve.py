@@ -1,9 +1,11 @@
 import argparse
 import json
 import os
+import random
 import re
 import sys
 from multiprocessing import Pool, cpu_count
+from pathlib import Path
 from os.path import abspath
 from pathlib import Path
 from subprocess import run
@@ -255,11 +257,10 @@ def solve_instances(instances, args):
         print(f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})")
         sys.exit(1)
 
-    # Sorting by instance ID allows us to easily split the workload across multiple runners with
-    # minimal overlap between repositories and versions.
-    instances = sorted(instances, key=lambda x: x['instance_id'], reverse=False)
-
     if args.num_runners > 1:
+        # Shuffle the instances to ensure one worker doesn't get stuck with all the
+        # long-running projects
+        random.Random(args.seed).shuffle(instances)
         print(f"Splitting {len(instances)} instances across {args.num_runners} runners")
         instances = split_runner_instances(instances, args.num_runners, args.runner_index)
         print(f"{len(instances)} instances scheduled for this runner:") 
@@ -412,6 +413,12 @@ if __name__ == "__main__":
         help="Index of the runner to use",
     )
     parser.add_argument("--instance_set", type=str, help="(Optional) Name of instance set")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="(Optional) Random seed for shuffling instances",
+    )
     args = parser.parse_args()
     if args.appmaps:
         if isinstance(args.appmaps, bool):
