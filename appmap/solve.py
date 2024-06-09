@@ -243,6 +243,7 @@ def solve_instances(instances, args):
     if args.instance_set:
         instance_set_path = Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
         with open(instance_set_path) as f:
+            print(f"Using instance set: {instance_set_path}")
             instance_set = list(f)
             instances = [instance for instance in instances if instance in instance_set]
     if args.filter:

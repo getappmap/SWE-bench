@@ -5,7 +5,7 @@ on:
     inputs:
       filter:
         description: "Instance filter regex"
-        required: true
+        required: false
         default: "django-1[67]"
       dataset:
         description: "Dataset name"
@@ -53,6 +53,7 @@ on:
         required: false
       instance_set:
         description: "Instance set to select a subset of instances"
+        type: string
         required: false
 
   pull_request:
