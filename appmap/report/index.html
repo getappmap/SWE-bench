@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Report Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      margin: 0;
+      max-height: 100vh;
+    }
+
+    #report-list {
+      max-width: 20%;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    #report-viewer {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    #report-list ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    #report-list li {
+      margin: 5px 0;
+      cursor: pointer;
+    }
+
+    #report-list li::before {
+      content: "❓";
+      padding-right: 1ex;
+    }
+
+    #report-list li.resolved::before {
+      content: "✅"
+    }
+
+    #report-list li.failed::before {
+      content: "❌"
+    }
+
+    #report-list li.nopatch::before {
+      content: "🚫"
+    }
+
+    #report-list li.badpatch::before {
+      content: "🩹"
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="report-list">
+    <ul id="report-list-items">
+    </ul>
+  </div>
+
+  <div id="report-viewer">
+    <div id="report-content"></div>
+  </div>
+
+  <script type="module">
+    import * as marked from 'https://cdn.jsdelivr.net/npm/marked@12.0.2/+esm';
+
+    async function fetchReports() {
+      const classes = {
+        "Some Tests Failed": 'failed',
+        "All Tests Passed": 'resolved',
+        "Patch Apply Failed; Prediction patch is `None`": 'nopatch',
+        "Patch Apply Failed; (pred)": 'badpatch'
+      }
+      const response = await fetch('/reports-list');
+      if (response.ok) {
+        const reports = await response.json();
+        const reportList = document.getElementById('report-list-items');
+        reports.forEach(({ id, result }) => {
+          const listItem = document.createElement('li');
+          listItem.textContent = id;
+          if (result in classes) listItem.classList.add(classes[result]);
+          listItem.onclick = () => loadReport(id + ".md");
+          reportList.appendChild(listItem);
+        });
+        console.log(resultSet);
+      }
+    }
+
+    async function loadReport(reportName) {
+      const response = await fetch(`/${reportName}`);
+      if (response.ok) {
+        const reportContent = await response.text();
+        document.getElementById('report-content').innerHTML = marked.parse(reportContent);
+      }
+    }
+
+    fetchReports();
+  </script>
+
+</body>
+
+</html>
