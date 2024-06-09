@@ -87,8 +87,8 @@ def make_appmaps(data: dict):
         timeout=data_dict.timeout,
         log_suffix=data_dict.log_suffix,
     ) as tcm:
-        tcm.reset_task_env(task_instance)
-        tcm.run_install_task(task_instance)
+        tcm.reset_task_env(task_instance, "to prepare to make AppMap data using appmap-python")
+        tcm.run_install_task(task_instance, "to prepare to make AppMap data using appmap-python")
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
         spec = MAP_VERSION_TO_INSTALL[task_instance["repo"]][task_instance["version"]]
@@ -150,6 +150,7 @@ def setup_testbed(data: dict):
     """
     data_dict = DotDict(data)
     with TestbedContextManager(
+        data_dict.id,
         data_dict.task_instances,
         data_dict.log_dir,
         conda_link=data_dict.conda_link,
@@ -217,11 +218,12 @@ def main(args):
 
     data_groups = [
         {
+            "id": i,
             "task_instances": g,
             "func": make_appmaps,
             **vars(args),
         }
-        for g in task_instances_groups
+        for i,g in enumerate(task_instances_groups)
     ]
 
     for group in data_groups:

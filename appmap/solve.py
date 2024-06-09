@@ -102,6 +102,7 @@ def worker_init(data: dict):
 
     try:
         with TestbedContextManager(
+            data_dict.id,
             data_dict.task_instances,
             data_dict.log_dir,
             conda_link=data_dict.conda_link,
@@ -114,7 +115,7 @@ def worker_init(data: dict):
         ) as tcm:
             for instance in data_dict.task_instances:
                 repo_prefix = instance["repo"].replace("/", "__")
-                env_name = f"{repo_prefix}__{instance['version']}"
+                env_name = f"{repo_prefix}__{instance['version']}-{data_dict.id}"
                 testbed = Path(tcm.testbed) / env_name
                 log_dir = abspath(data_dict.log_dir)
                 with TaskEnvContextManager(
@@ -142,14 +143,18 @@ def worker_init(data: dict):
                                 f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
                             )
 
-                            if not task_manager.reset_task_env(instance):
+                            if not task_manager.reset_task_env(instance, f"to prepare {instance_id} for solve attempt {attempt_number + 1}"):
                                 print(
                                     f"[solve] ({instance_id}) Error resetting task environment"
                                 )
                                 return
 
                             print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
-                            task_manager.run_install_task(instance)
+                            if not task_manager.run_install_task(instance, f"to prepare {instance_id} for solve attempt {attempt_number + 1}"):
+                                print(
+                                    f"[solve] ({instance_id}) Error installing environment"
+                                )
+                                return
 
                             instance["appmap_archive"] = extract_appmaps(
                                 instance, testbed
@@ -251,11 +256,12 @@ def solve_instances(instances, args):
     instance_groups = split_instances(list(instances), args.num_workers)
     data_groups = [
         {
+            "id": i,
             "task_instances": g,
             "func": solve_instance,
             **vars(args),
         }
-        for g in instance_groups
+        for i,g in enumerate(instance_groups)
     ]
 
     if args.num_workers == 1:

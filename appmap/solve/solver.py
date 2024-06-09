@@ -299,15 +299,17 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
 
+    if args.directory:
+        os.chdir(args.directory)
+
+    print(f"[solver] Solving issue {args.issue_file} in directory {os.getcwd()}")
+
     steps = None
     if args.steps:
         steps = {step: False for step in DEFAULT_STEPS}
         for step in args.steps.split(","):
             if step in steps:
                 steps[step] = True
-
-    if args.directory:
-        os.chdir(args.directory)
 
     if args.log_dir:
         os.makedirs(args.log_dir, exist_ok=True)
@@ -334,16 +336,16 @@ if __name__ == "__main__":
     posttest_succeeded = solver.posttest_succeeded
 
     if len(files_changed) == 0:
-        print(f"WARN: Solver did not change any files in {issue_name}.")
+        print(f"[solver] WARN: No files changed for {issue_name}.")
         sys.exit(1)
 
     if not posttest_succeeded:
         print(
-            f"Solver changed {len(files_changed)} files in {issue_name}, but posttest failed."
+            f"[solver] Changed {len(files_changed)} files for {issue_name}, but posttest failed."
         )
         sys.exit(1)
 
     if len(files_changed) > 0:
-        print(f"Solver changed {len(files_changed)} files in {issue_name}:")
+        print(f"[solver] Changed {len(files_changed)} files for {issue_name}:")
         for file in files_changed:
             print(f"  {file}")

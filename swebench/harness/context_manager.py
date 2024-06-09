@@ -40,8 +40,14 @@ from swebench.harness.utils import (
     get_test_directives,
 )
 
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(format="%(asctime)s - %(process)d - %(levelname)s - %(message)s")
 logger_testbed = logging.getLogger("testbed")
+
+_formatter = logging.Formatter("%(asctime)s - %(process)d - %(levelname)s - %(message)s")
+_handler = logging.StreamHandler()
+_handler.setFormatter(_formatter)
+logger_testbed.addHandler(_handler)
+logger_testbed.propagate = False
 
 
 class LogWrapper:
@@ -145,6 +151,7 @@ class ExecWrapper:
 class TestbedContextManager:
     def __init__(
         self,
+        id: int,
         task_instances: list,
         log_dir: str,
         conda_link: str = None,
@@ -169,6 +176,7 @@ class TestbedContextManager:
             timeout (int): Timeout for actions
             temp_dir (str): Path to temporary directory
         """
+        self.id = id
         if verbose:
             logger_testbed.setLevel(logging.INFO)
         self.conda_link = conda_link
@@ -385,7 +393,7 @@ class TestbedContextManager:
                     continue
 
                 # Name for both environment and github repo
-                env_name = f"{repo_prefix}__{version}"
+                env_name = f"{repo_prefix}__{version}-{self.id}"
                 self.log.write(f"Setting up testbed for {env_name}")
 
                 # Clone github per repo/version
@@ -510,7 +518,7 @@ class TestbedContextManager:
         for repo, map_version_to_instances in self.task_instances_grouped.items():
             repo_prefix = repo.replace("/", "__")
             for version, instances in map_version_to_instances.items():
-                env_name = f"{repo_prefix}__{version}"
+                env_name = f"{repo_prefix}__{version}-{self.id}"
                 task_set = {
                     "conda_path": self.path_conda,
                     "log_dir": self.log_dir,
@@ -551,6 +559,11 @@ class TestbedContextManager:
 
 
 logger_taskenv = logging.getLogger("taskenv")
+_formatter = logging.Formatter("%(asctime)s - %(process)d - %(levelname)s - %(message)s")
+_handler = logging.StreamHandler()
+_handler.setFormatter(_formatter)
+logger_taskenv.addHandler(_handler)
+logger_taskenv.propagate = False
 
 
 class TaskEnvContextManager:
@@ -645,7 +658,7 @@ class TaskEnvContextManager:
         self.log.write(enter_msg, mode="w")
         return self
 
-    def reset_task_env(self, instance: dict):
+    def reset_task_env(self, instance: dict, reason = None):
         """
         Reset task environment + testbed and checkout base commit of given task instance
 
@@ -654,6 +667,9 @@ class TaskEnvContextManager:
         Returns:
             bool: True if reset successful, False otherwise
         """
+        if reason is not None:
+            self.log.write(f"Resetting task environment {os.getcwd()} to {instance['base_commit']} {reason}")
+
         try:
             # Remove all paths in .gitignore
             if os.path.exists(".gitignore"):
@@ -678,7 +694,7 @@ class TaskEnvContextManager:
                 f.write(err_msg)
             return False
 
-    def run_install_task(self, instance: dict) -> bool:
+    def run_install_task(self, instance: dict, reason = None) -> bool:
         """
         Run installation for task instance
 
@@ -687,6 +703,9 @@ class TaskEnvContextManager:
         Returns:
             bool: True if installation successful, False otherwise
         """
+        if reason is not None:
+            self.log.write(f"Installing task environment {os.getcwd()} {reason}")
+
         # Get installation instructions by repo/version
         specifications = MAP_VERSION_TO_INSTALL[instance["repo"]][instance["version"]]
 
@@ -806,7 +825,7 @@ class TaskEnvContextManager:
         """
         try:
             # Run test command for task instance
-            test_cmd = f"{self.cmd_activate} && {test_cmd_override or instance['test_cmd']}"
+            test_cmd = f"{self.cmd_activate} && printenv && {test_cmd_override or instance['test_cmd']}"
             with open(self.log_file, "a") as f:
                 f.write(f"Test Script: {test_cmd};\n")
 
