@@ -63,6 +63,7 @@ class Solver:
         self.plan_file = os.path.join(self.work_dir, "plan.md")
         self.solution_file = os.path.join(self.work_dir, "solution.md")
         self.apply_file = os.path.join(self.work_dir, "apply.md")
+        self.context_file = os.path.join(self.work_dir, "search_context.json")
         self.files = []
         self.files_changed = []
         self.test_succeeded_files = None
@@ -114,6 +115,7 @@ class Solver:
             self.instance_id,
             self.appmap_command,
             self.plan_file,
+            self.context_file,
         )
 
     def list_files(self):
@@ -137,6 +139,7 @@ class Solver:
             self.plan_file,
             self.solution_file,
             self.files,
+            self.context_file,
         )
 
     def apply_changes(self):
