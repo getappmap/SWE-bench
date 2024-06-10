@@ -7,6 +7,7 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
+from appmap.solve.is_test_file import is_test_file
 from appmap.solve.steps.step_posttest import step_posttest
 from appmap.solve.steps.step_pretest import step_pretest
 from appmap.solve.steps.step_lint_repair import step_lint_repair
@@ -154,31 +155,24 @@ class Solver:
             self.apply_file,
         )
 
-        # Test file is any ".py" file whose basename starts with "test_" or ends with "_test.py"
-        # or is contained with a directory named "test", "tests" or "testcases"
-        is_test_file = lambda file: (
-            file.endswith(".py")
-            and (
-                any(
-                    token in file.split(os.path.sep)
-                    for token in ["tests", "test", "testcases"]
-                )
-                or os.path.basename(file).startswith("test_")
-                or file.endswith("_test.py")
-            )
-        )
-
         # Revert changes to test cases
         for file in self.load_file_content():
             if is_test_file(file):
                 print(
                     f"[solver] ({self.instance_id}) Reverting changes to test file {file}"
                 )
+                self.files.remove(file)
                 if file in base_file_content:
                     with open(file, "w") as f:
                         f.write(base_file_content[file])
                 else:
                     os.remove(file)
+
+        # Maintain the removal of test files from files.json, so that subsequent steps
+        # such as lint repair and test repair don't try and modify them.
+        files_list_file = os.path.join(self.work_dir, "files.json")
+        with open(files_list_file, "w") as f:
+            json.dump(self.files, f)
 
         self.load_file_changes()
 
