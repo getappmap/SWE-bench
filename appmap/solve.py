@@ -246,8 +246,10 @@ def solve_instances(instances, args):
         instance_set_path = Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
         with open(instance_set_path) as f:
             print(f"Using instance set: {instance_set_path}")
-            instance_set = list(f)
-            instances = [instance for instance in instances if instance in instance_set]
+            instance_set = list(map(str.strip, f))
+            instances = [
+                instance for instance in instances if instance["instance_id"] in instance_set
+            ]
     if args.filter:
         print(f"Filtering instances by regex: {args.filter}")
         pattern = re.compile(args.filter)
