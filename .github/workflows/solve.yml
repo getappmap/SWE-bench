@@ -230,17 +230,14 @@ jobs:
             --num_processes 8 \
             --path_conda $(conda info --base)
 
-      - name: Compress evaluation results
-        if: ${{ always() }}
-        run: |
-          tar -cJf output_${{ matrix.index }}.tar.xz logs predictions.jsonl
-
       - name: Upload evaluation results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
           name: output_${{ matrix.index }}
-          path: output_${{ matrix.index }}.tar.xz
+          path: |
+            logs
+            predictions.jsonl
 
   report:
     needs:
@@ -256,12 +253,12 @@ jobs:
         with:
           path: ./eval-results
 
-      - name: Unpack evaluation results
+      - name: Merge evaluation results
         run: |
           mkdir -p logs
-          for file in eval-results/**/*.tar.xz; do
-            tar --to-stdout -xJf "$file" predictions.jsonl >> predictions.jsonl
-            tar -xJf "$file" logs
+          for dir in eval-results/*; do
+            cat $dir/predictions.jsonl >> predictions.jsonl
+            mv $dir/logs/* logs
           done
 
       # Cache the conda environment
