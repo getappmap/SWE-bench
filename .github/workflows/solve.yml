@@ -253,7 +253,8 @@ jobs:
           mkdir -p logs
           for dir in eval-results/*; do
             cat $dir/predictions.jsonl >> predictions.jsonl
-            mv $dir/logs/* logs
+            rsync -a $dir/logs/ logs/
+            rm -rf $dir
           done
 
       # Cache the conda environment
