@@ -49,6 +49,7 @@ def solve_instance(
     lint_command,
     iteration,
     steps,
+    temperature,
 ):
     print_disk_spaces(testbed)
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
@@ -72,6 +73,8 @@ def solve_instance(
         log_dir,
         "--appmap-command",
         appmap_command,
+        "--temperature",
+        str(temperature),
     ]
 
     if lint_command is not None:
@@ -191,6 +194,8 @@ def worker_init(data: dict):
 
                     patches = {}
                     patches_by_attempt = []
+                    temperature = data_dict.temperature
+                    temperature_increase = data_dict.temperature_increase
 
                     try:
                         while attempt_number < retries:
@@ -234,6 +239,7 @@ def worker_init(data: dict):
                                 data_dict.lint_command,
                                 attempt_number,
                                 data_dict.steps,
+                                temperature,
                             )
 
                             patches_obtained = []
@@ -272,6 +278,8 @@ def worker_init(data: dict):
 
                             # Otherwise, we need to try again; or give up if we've reached the maximum number of attempts.
                             attempt_number += 1
+                            temperature += temperature_increase
+
                             if attempt_number >= retries:
                                 print(
                                     f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
@@ -299,6 +307,7 @@ def worker_init(data: dict):
 
                             output_results(instance, output_file, patch_data)
                         else:
+                            temperature += temperature_increase
                             print(f"[solve] ({instance_id}) No patch generated")
                             output_results(instance, output_file, None)
 
@@ -539,6 +548,18 @@ if __name__ == "__main__":
         "--reuse-env",
         help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",
         action="store_true",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="(Optional) The temperature to use when running the model",
+    )
+    parser.add_argument(
+        "--temperature_increase",
+        type=float,
+        default=0.1,
+        help="(Optional) The amount to increase the temperature by on each iteration",
     )
     args = parser.parse_args()
     if args.appmaps:
