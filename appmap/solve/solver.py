@@ -22,12 +22,12 @@ from appmap.solve.steps.step_plan import step_plan
 # Add pretest ... posttest to include those in the run.
 DEFAULT_STEPS = {
     "pretest": False,
-    "peektest": True,
+    "peektest": False,
     "plan": True,
     "list": True,
     "generate": True,
     "apply": True,
-    "posttest": True,
+    "posttest": False,
 }
 
 
