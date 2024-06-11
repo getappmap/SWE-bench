@@ -19,6 +19,7 @@ def step_generate(
     solution_file,
     files,
     search_context_file,
+    temperature,
 ):
     print(f"[generate] ({instance_id}) Generating code")
 
@@ -98,6 +99,7 @@ Avoid refactorings that will affect multiple parts of the codebase.
 
     run_navie_command(
         log_dir,
+        temperature=temperature,
         command=appmap_command,
         input_path=generate_prompt,
         output_path=solution_file,

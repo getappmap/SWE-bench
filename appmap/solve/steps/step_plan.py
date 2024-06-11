@@ -15,6 +15,7 @@ def step_plan(
     appmap_command,
     plan_file,
     context_file,
+    temperature,
 ):
     print(f"[plan] ({instance_id}) Searching for context using {args.issue_file}")
     context_prompt = os.path.join(work_dir, "search_context.txt")
@@ -22,6 +23,7 @@ def step_plan(
         apply_f.write("@context /nofence /format=json\n")
     run_navie_command(
         log_dir,
+        temperature=temperature,
         command=appmap_command,
         context_path=issue_file,
         input_path=context_prompt,
