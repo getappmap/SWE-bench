@@ -143,7 +143,14 @@ def worker_init(data: dict):
                     )
                     attempt_number = 0
 
-                    # Collect the list of active steps
+                    # There are four “quality” levels of the solution proposal, in increasing order.
+                    # - `apply` applying the suggested patch(es) worked, and there are file changes resulting.
+                    # - `lint_repair` the patch(es) have been linted, and any resulting problems (if any) have been fixed
+                    # - `posttest_failed` the patch(es) have been run against the posttest test cases, but there are test failures that couldn’t be fixed
+                    # - `posttest` the patch(es) pass the posttest test cases
+                    # Not all “quality levels” may be available for a given run. For example, there may be no lint command, 
+                    # and posttest may be disabled. In that case `apply` is the highest possible quality. 
+                    # The "highest possibly quality" is the first one in the list, since the list is reversed.
                     step_args = DEFAULT_STEPS if data_dict.steps is None else data_dict.steps.split(",")
                     result_priority = []
                     if "apply" in step_args:
@@ -211,9 +218,13 @@ def worker_init(data: dict):
                             patches_obtained.reverse()
                             patches_by_attempt.append(patches_obtained)
 
-                            # Find the first existing patch file in the issue_dir for the iteration
+                            # Find the first existing patch file in the issue_dir for the iteration.
+                            # This code is relying on the patches being written by the solver as it proceeds through its steps.
+                            # Iterate from higest to lowest quality level.
                             for result_name in result_priority:
                                 patch_file = Path(issue_dir) / f"{result_name}.patch"
+                                # If there is a patch available at this quality level that we haven't seen before, store it and
+                                # exit the loop.
                                 if patch_file.exists() and not patches.get(result_name):
                                     patch = patch_file.read_text()
                                     iteration = attempt_number + 1
@@ -223,12 +234,14 @@ def worker_init(data: dict):
                                     patches[result_name] = { "name": result_name, "patch": patch, "iteration": iteration }
                                     break
 
+                            # If we have a patch at the highest quality level, we can break out of the loop.
                             if len(result_priority) and result_priority[0] in patches:
                                 print(
                                     f"[solve] ({instance_id}) This is the highest solution level attainable. Exiting solve loop."
                                 )
                                 break
                             
+                            # Otherwise, we need to try again; or give up if we've reached the maximum number of attempts.
                             attempt_number += 1
                             if attempt_number >= retries:
                                 print(
@@ -236,6 +249,7 @@ def worker_init(data: dict):
                                 )
 
 
+                        # Output the highest quality patch that was found.
                         patch_data = None
                         for result_name in result_priority:
                             if patches.get(result_name):
