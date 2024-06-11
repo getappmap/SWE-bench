@@ -53,7 +53,7 @@ on:
         required: false
       instance_set:
         description: "Instance set to select a subset of instances"
-        requred: false
+        required: false
 
   pull_request:
     types: [opened, synchronize, labeled]
@@ -201,7 +201,7 @@ jobs:
             --runner_index "${{ matrix.index }}" \
             --verbose \
             $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
-            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
+            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}") \
             $(test -n "${{ inputs.instance_set }}" && echo --instance_set "${{ inputs.instance_set }}")
 
       - name: Run evaluation
