@@ -8,6 +8,7 @@ def run_navie_command(
     command,
     output_path,
     log_path,
+    temperature=0.0,
     context_path=None,
     input_path=None,
     additional_args=None,
@@ -31,7 +32,8 @@ def run_navie_command(
 
 
     # Build the command
-    cmd = f"{command} navie --log-navie"
+    cmd = f"APPMAP_NAVIE_TEMPERATURE={temperature} {command} navie --log-navie"
+    # TODO: Add token limit option, e.g. --ai-option tokenLimit=4000
     if input_path:
         cmd += f" -i {input_path}"
     if context_path:

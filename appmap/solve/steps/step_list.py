@@ -7,13 +7,14 @@ from ..run_navie_command import run_navie_command
 import os
 
 
-def step_list(log_dir, work_dir, instance_id, appmap_command, plan_file):
+def step_list(log_dir, work_dir, instance_id, appmap_command, plan_file, temperature):
     print(f"[list] ({instance_id}) Detecting files to be modified")
 
     output_path = os.path.join(work_dir, "files.json")
     log_path = os.path.join(work_dir, "list-files.log")
     run_navie_command(
         log_dir,
+        temperature=temperature,
         command=appmap_command,
         context_path=plan_file,
         output_path=output_path,

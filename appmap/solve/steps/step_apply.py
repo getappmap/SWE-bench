@@ -4,7 +4,7 @@ import os
 
 
 def step_apply(
-    log_dir, work_dir, instance_id, appmap_command, solution_file, apply_file
+    log_dir, work_dir, instance_id, appmap_command, solution_file, apply_file, temperature
 ):
     apply_prompt = os.path.join(work_dir, "apply.txt")
     with open(apply_prompt, "w") as apply_f:
@@ -18,6 +18,7 @@ def step_apply(
     print(f"[apply] ({instance_id}) Applying changes to source files")
     run_navie_command(
         log_dir,
+        temperature=temperature,
         command=appmap_command,
         input_path=apply_prompt,
         output_path=apply_file,

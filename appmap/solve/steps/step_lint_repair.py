@@ -119,6 +119,7 @@ def step_lint_repair(
     lint_command,
     appmap_command,
     base_file_content,
+    temperature,
 ):
     context = LintRepairContext(
         log_dir,
@@ -283,6 +284,7 @@ only present in the file/content to help you identify which line has the lint er
         print(f"[lint-repair] ({instance_id}) Generating code to repair {file}")
         run_navie_command(
             log_dir,
+            temperature=temperature,
             command=appmap_command,
             input_path=repair_prompt,
             output_path=repair_output,
@@ -301,6 +303,7 @@ only present in the file/content to help you identify which line has the lint er
         print(f"[lint-repair] ({instance_id}) Applying changes to source files")
         run_navie_command(
             log_dir,
+            temperature=temperature,
             command=appmap_command,
             input_path=repair_apply_prompt,
             output_path=repair_apply_output,

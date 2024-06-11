@@ -44,6 +44,7 @@ class Solver:
         lint_command=None,
         appmap_command="appmap",
         steps=None,
+        temperature=0.0,
     ):
         self.instances_path = instances_path
         self.instance_id = instance_id
@@ -55,6 +56,7 @@ class Solver:
         self.lint_command = lint_command
         self.appmap_command = appmap_command
         self.steps = steps or DEFAULT_STEPS
+        self.temperature = temperature
 
         if self.lint_command and not self.steps["apply"]:
             print(
@@ -156,6 +158,7 @@ class Solver:
             self.appmap_command,
             self.plan_file,
             self.context_file,
+            self.temperature
         )
 
     def list_files(self):
@@ -165,6 +168,7 @@ class Solver:
             self.instance_id,
             self.appmap_command,
             self.plan_file,
+            self.temperature
         )
 
     def generate_code(self):
@@ -178,6 +182,7 @@ class Solver:
             self.solution_file,
             self.files,
             self.context_file,
+            self.temperature
         )
 
     def apply_changes(self):
@@ -188,6 +193,7 @@ class Solver:
             self.appmap_command,
             self.solution_file,
             self.apply_file,
+            self.temperature
         )
         self.load_file_changes("apply")
 
@@ -201,6 +207,7 @@ class Solver:
             self.lint_command,
             self.appmap_command,
             self.base_file_content,
+            self.temperature
         )
         self.load_file_changes("lint_repair")
 
@@ -323,7 +330,18 @@ def parse_arguments():
         help="Comma-separated list of steps to execute",
         default=None,
     )
-
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="(Optional) The temperature to use when running the model",
+    )
+    parser.add_argument(
+        "--temperature_increase",
+        type=float,
+        default=0.1,
+        help="(Optional) The amount to increase the temperature by on each iteration",
+    )
     return parser.parse_args()
 
 
@@ -361,6 +379,7 @@ if __name__ == "__main__":
         lint_command=args.lint_command,
         appmap_command=args.appmap_command,
         steps=steps,
+        temperature=args.temperature,
     )
     solver.solve()
     files_changed = solver.files_changed
