@@ -7,8 +7,12 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
+from appmap.solve.run_command import run_command
+from appmap.solve.is_test_file import is_test_file
+
+from appmap.solve.steps.read_test_directives import read_test_directives
 from appmap.solve.steps.step_posttest import step_posttest
-from appmap.solve.steps.step_pretest import step_pretest
+from appmap.solve.steps.step_pretest import build_task_manager, step_pretest
 from appmap.solve.steps.step_lint_repair import step_lint_repair
 from appmap.solve.steps.step_apply import step_apply
 from appmap.solve.steps.step_generate import step_generate
@@ -18,6 +22,7 @@ from appmap.solve.steps.step_plan import step_plan
 # Add pretest ... posttest to include those in the run.
 DEFAULT_STEPS = {
     "pretest": False,
+    "peektest": False,
     "plan": True,
     "list": True,
     "generate": True,
@@ -73,11 +78,23 @@ class Solver:
         if self.steps["pretest"]:
             self.pretest()
 
+        if self.steps["peektest"]:
+            self.peektest()
+
         if self.steps["plan"]:
             self.plan()
 
         if self.steps["list"]:
             self.list_files()
+
+        files_list_file = os.path.join(self.work_dir, "files.json")
+        if not os.path.isfile(files_list_file):
+            raise FileNotFoundError(
+                f"File '{files_list_file}' does not exist. You need to run the 'list' step."
+            )
+
+        with open(files_list_file, "r") as f:
+            self.files = json.load(f)
 
         self.base_file_content = self.load_file_content()
 
@@ -92,6 +109,8 @@ class Solver:
 
         if self.steps["posttest"]:
             self.posttest()
+        else:
+            self.posttest_succeeded = True
 
     def pretest(self):
         self.posttest_succeeded = False
@@ -104,6 +123,27 @@ class Solver:
             self.conda_env,
             self.appmap_command,
             self.issue_file,
+        )
+
+    def peektest(self):
+        self.posttest_succeeded = False
+
+        task_manager = build_task_manager(
+            self.instances_path,
+            self.instance_id,
+            self.work_dir,
+            self.conda_env,
+            self.log_dir,
+            self.conda_path,
+            timeout=30,
+            verbose=True,
+        )
+        with task_manager:
+            self.test_succeeded_files = read_test_directives(task_manager.instance)
+
+        test_succeeded_files_str = ", ".join(self.test_succeeded_files)
+        print(
+            f"[solver] ({self.instance_id}) Test succeeded files: {test_succeeded_files_str}"
         )
 
     def plan(self):
@@ -126,8 +166,6 @@ class Solver:
             self.appmap_command,
             self.plan_file,
         )
-        with open(os.path.join(self.work_dir, "files.json")) as f:
-            self.files = json.load(f)
 
     def generate_code(self):
         step_generate(
@@ -143,8 +181,6 @@ class Solver:
         )
 
     def apply_changes(self):
-        base_file_content = self.load_file_content()
-
         step_apply(
             self.log_dir,
             self.work_dir,
@@ -153,34 +189,7 @@ class Solver:
             self.solution_file,
             self.apply_file,
         )
-
-        # Test file is any ".py" file whose basename starts with "test_" or ends with "_test.py"
-        # or is contained with a directory named "test", "tests" or "testcases"
-        is_test_file = lambda file: (
-            file.endswith(".py")
-            and (
-                any(
-                    token in file.split(os.path.sep)
-                    for token in ["tests", "test", "testcases"]
-                )
-                or os.path.basename(file).startswith("test_")
-                or file.endswith("_test.py")
-            )
-        )
-
-        # Revert changes to test cases
-        for file in self.load_file_content():
-            if is_test_file(file):
-                print(
-                    f"[solver] ({self.instance_id}) Reverting changes to test file {file}"
-                )
-                if file in base_file_content:
-                    with open(file, "w") as f:
-                        f.write(base_file_content[file])
-                else:
-                    os.remove(file)
-
-        self.load_file_changes()
+        self.load_file_changes("apply")
 
     def lint_repair(self):
         step_lint_repair(
@@ -193,11 +202,11 @@ class Solver:
             self.appmap_command,
             self.base_file_content,
         )
-        self.load_file_changes()
+        self.load_file_changes("lint_repair")
 
     def posttest(self):
-        assert(self.test_succeeded_files is not None)
-        
+        assert self.test_succeeded_files is not None
+
         if len(self.test_succeeded_files) == 0:
             print(
                 f"[solver] ({self.instance_id}) WARN: No test succeeded files found. Skipping posttest step."
@@ -213,18 +222,25 @@ class Solver:
 
         # At this point, some files have changed, and some tests succeeded.
         # Re-run the tests to ensure that the changes did not break anything.
+        with open(self.plan_file, "r") as f:
+            plan = f.read()
 
         self.posttest_succeeded = step_posttest(
-            self.log_dir,
             self.work_dir,
             self.instances_path,
             self.instance_id,
             self.conda_path,
             self.conda_env,
+            self.appmap_command,
+            plan,
+            self.load_file_content(),
             self.test_succeeded_files,
         )
 
-    def load_file_changes(self):
+        result_name = "posttest" if self.posttest_succeeded else "posttest_failed"
+        self.load_file_changes(result_name)
+
+    def load_file_changes(self, result_name):
         print(f"[solver] ({self.instance_id}) Loading file changes")
         self.files_changed = []
         updated_file_content = self.load_file_content()
@@ -234,6 +250,18 @@ class Solver:
                 or updated_file_content[file] != self.base_file_content[file]
             ):
                 self.files_changed.append(file)
+
+        print(
+            f"[solver] ({self.instance_id}) Files changed: {self.files_changed}"
+        )
+
+        diff_command = f"git diff"
+        diff = run_command(self.log_dir, diff_command, fail_on_error=True)
+        diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
+        with open(diff_file, "w") as f:
+            f.write(diff)
+
+        print(f"[solver] ({self.instance_id}) Diff saved to file {diff_file}")
 
     def load_file_content(self):
         result = {}

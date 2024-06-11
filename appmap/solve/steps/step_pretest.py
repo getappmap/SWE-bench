@@ -59,11 +59,22 @@ def step_pretest(
     conda_path,
     conda_env,
     appmap_command,
-    issue_file,
+    test_files,
 ):
     print(
         f"[pretest] ({instance_id}) Running tests for {instance_id} using {conda_env}"
     )
+
+    appmap_available = False
+    # TODO: Think about re-enabling this.``
+    # try:
+    #     tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
+    #     appmap_available = True
+    # except RuntimeError:
+    #     appmap_available = False
+
+    test_file_str = ", ".join(test_files)
+    print(f"[pretest] ({instance_id}) Running test files: {test_file_str}")
 
     tcm = build_task_manager(
         instances_path,
@@ -75,92 +86,6 @@ def step_pretest(
         timeout=30,
         verbose=True,
     )
-
-    appmap_available = False
-    # TODO: Think about re-enabling this.``
-    # try:
-    #     tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
-    #     appmap_available = True
-    # except RuntimeError:
-    #     appmap_available = False
-
-    try:
-        tcm.exec(
-            ["bash", "-c", f"{tcm.cmd_activate} && pip install pytest-test-groups"]
-        )
-    except RuntimeError:
-        print("Failed to install pytest-test-groups, continuing without it")
-
-    include_pattern = "^(.*[\\/])?(tests?/.*|.*_test\\.py|.*_spec\\.py|test_.*\\.py)$"
-
-    input_path = os.path.join(work_dir, "pretest.txt")
-    output_path = os.path.join(work_dir, "pretest_context.yml")
-    log_path = os.path.join(work_dir, "pretest.log")
-
-    with open(input_path, "w") as pretest_f:
-        # TODO: 5/6/24 There's no server-side support for /includepattern yet, actually.
-        pretest_f.write(
-            f"""@context /format=yaml /nofence /includepattern={include_pattern}
-            
-Search exclusively for test cases.
-"""
-        )
-
-    run_navie_command(
-        log_dir,
-        command=appmap_command,
-        context_path=issue_file,
-        input_path=input_path,
-        output_path=output_path,
-        log_path=log_path,
-    )
-
-    print(f"[pretest] ({instance_id}) Context stored in {output_path}")
-
-    # Load pretest context as YAML
-    test_files = []
-    with open(output_path, "r") as f:
-        pretest_context = yaml.safe_load(f)
-
-    # Each context item consists of directory, type, content, and location
-    for item in pretest_context:
-        if item["type"] != "code-snippet":
-            continue
-
-        location = item["location"]
-        path = location.split(":")[0]
-        if not path.endswith(".py"):
-            continue
-        if not "test" in path:  # TODO: Make this more robust
-            continue
-
-        directory = item["directory"]
-        full_path = os.path.join(directory, path)
-        relative_path = os.path.relpath(full_path, os.getcwd())
-        if os.path.exists(relative_path) and relative_path not in test_files:
-            test_files.append(relative_path)
-
-    if len(test_files) == 0:
-        print(f"[pretest] ({instance_id}) WARN: No relevant test files detected")
-        return []
-
-    test_file_str = ", ".join(test_files)
-    print(f"[pretest] ({instance_id}) Selected test files: {test_file_str}")
-
-    if "django" in instance_id:
-        print(
-            f"[pretest] ({instance_id}) Converting Django test files to module format"
-        )
-        # The test file path will be something like: tests/template_tests/syntax_tests/test_autoescape.py
-        # The Django test runner wanst to see it as: template_tests.syntax_tests.test_autoescape
-        test_files = [
-            test_file.replace("/", ".").replace(".py", "") for test_file in test_files
-        ]
-        # Strip the leading 'tests.' from the path
-        test_files = [test_file.replace("tests.", "", 1) for test_file in test_files]
-        print(
-            f"[pretest] ({instance_id}) Converted test files to modules: {test_files}"
-        )
 
     instance = tcm.instance
     test_cmd = MAP_REPO_TO_TEST_FRAMEWORK[instance["repo"]]
@@ -252,7 +177,7 @@ Search exclusively for test cases.
             print(f"[pretest] ({instance_id}) Index complete")
 
     if len(test_succeeded_files) == 0:
-        print(f"[pretest] ({instance_id}) No tests succeeded in pretest.")
+        print(f"[pretest] ({instance_id}) WARN: No tests succeeded in pretest.")
     else:
         test_succeeded_files_str = ", ".join(test_succeeded_files)
         print(

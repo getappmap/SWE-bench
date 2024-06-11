@@ -11,6 +11,8 @@ from pathlib import Path
 from subprocess import run
 from textwrap import dedent
 
+from appmap.solve.solver import DEFAULT_STEPS
+
 from data import load_data
 from filelock import FileLock
 from swebench.harness.context_manager import (
@@ -37,7 +39,7 @@ def solve_instance(
     appmap_command,
     lint_command,
     iteration,
-    steps=None,
+    steps,
 ):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
     issue_dir.mkdir(parents=True, exist_ok=True)
@@ -72,15 +74,6 @@ def solve_instance(
     if solve_result.returncode != 0:
         print(f"Solver did not succeed for {instance['instance_id']}/{iteration + 1}.")
         return
-
-    patch_result = run(
-        ["git", "--no-pager", "diff"],
-        check=True,
-        cwd=testbed,
-        capture_output=True,
-        text=True,
-    )
-    return patch_result.stdout
 
 
 def worker_init(data: dict):
@@ -136,37 +129,61 @@ def worker_init(data: dict):
                 ) as task_manager:
                     instance_id = instance["instance_id"]
 
-                    try:
-                        retries = data_dict.retries
-                        issue_name = env_name
+                    retries = data_dict.retries
+                    issue_name = env_name
 
-                        print(
-                            f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
-                        )
-                        attempt_number = 0
+                    print(
+                        f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
+                    )
+                    attempt_number = 0
+
+                    # Collect the list of active steps
+                    step_args = DEFAULT_STEPS if data_dict.steps is None else data_dict.steps.split(",")
+                    result_priority = []
+                    if "apply" in step_args:
+                        result_priority.append("apply")
+                    if data_dict.lint_command is not None:
+                        result_priority.append("lint_repair")
+                    if "posttest" in step_args:
+                        result_priority.append("posttest_failed")
+                        result_priority.append("posttest")
+                    result_priority.reverse()
+
+                    patches = {}
+
+                    try:
                         while attempt_number < retries:
                             print(
                                 f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
                             )
 
-                            if not task_manager.reset_task_env(instance, f"to prepare {instance_id} for solve attempt {attempt_number + 1}"):
-                                print(
-                                    f"[solve] ({instance_id}) Error resetting task environment"
-                                )
+                            if not task_manager.reset_task_env(
+                                instance,
+                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
+                            ):
+                                print(f"[solve] ({instance_id}) Error resetting task environment")
                                 return
 
-                            print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
-                            if not task_manager.run_install_task(instance, f"to prepare {instance_id} for solve attempt {attempt_number + 1}"):
-                                print(
-                                    f"[solve] ({instance_id}) Error installing environment"
-                                )
-                                return
-
-                            instance["appmap_archive"] = extract_appmaps(
-                                instance, testbed
+                            print(
+                                f"[solve] ({instance_id}) Installing environment for {instance_id}"
                             )
+                            if not task_manager.run_install_task(
+                                instance,
+                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
+                            ):
+                                print(f"[solve] ({instance_id}) Error installing environment")
+                                return
 
-                            patch = solve_instance(
+                            instance["appmap_archive"] = extract_appmaps(instance, testbed)
+
+                            # In case this is a re-run, delete any existing patch files
+                            issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(attempt_number + 1)
+                            for result in result_priority:
+                                patch_file = issue_dir / f"{result}.patch"
+                                if patch_file.exists():
+                                    patch_file.unlink()
+
+                            solve_instance(
                                 data_dict.instances_path,
                                 instance,
                                 log_dir,
@@ -175,29 +192,56 @@ def worker_init(data: dict):
                                 data_dict.appmap_command,
                                 data_dict.lint_command,
                                 attempt_number,
-                                steps=data_dict.steps,
+                                data_dict.steps,
                             )
-                            if patch:
+
+                            # Find the first existing patch file in the issue_dir for the iteration
+                            for result in result_priority:
+                                patch_file = Path(issue_dir) / f"{result}.patch"
+                                if patch_file.exists() and not patches.get(result):
+                                    patch = patch_file.read_text()
+                                    print(
+                                        f"[solve] ({instance_id}) Patch generated for '{result}' on iteration {attempt_number +1}"
+                                    )
+                                    patches[result] = { "patch": patch, "attempt_number": attempt_number }
+                                    break
+
+                            if len(result_priority) and result_priority[0] in patches:
                                 print(
-                                    f"[solve] ({instance_id}) Patch generated on iteration {attempt_number +1}"
+                                    f"[solve] ({instance_id}) This is the highest solution level attainable. Exiting solve loop."
                                 )
-                                print(patch)
-                                output_results(instance, output_file, patch)
                                 break
-                            else:
+                            
+                            attempt_number += 1
+                            if attempt_number >= retries:
                                 print(
-                                    f"[solve] ({instance_id}) No patch generated"
+                                    f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
                                 )
-                                attempt_number += 1
-                                if attempt_number >= retries:
-                                    print(f"[solve] ({instance_id}) Giving up after {attempt_number} attempts")
-                                    output_results(instance, output_file, None)
+
+
+                        patch = None
+                        for result in result_priority:
+                            if patches.get(result):
+                                patch_data = patches[result]
+                                iteration = patch_data["attempt_number"] + 1
+                                print(
+                                    f"[solve] ({instance_id}) Submitting {result} patch from attempt {iteration}"
+                                )
+                                patch = patch_data["patch"]
+                                break
+
+                        if patch:
+                            output_results(instance, output_file, patch)
+                        else:
+                            print(f"[solve] ({instance_id}) No patch generated")
+                            output_results(instance, output_file, None)
 
                     except Exception:
                         print(f"[solve] ({instance_id}) Error:")
                         import traceback
 
                         traceback.print_exc()
+
     except Exception:
         print("Error instantiating testbed")
         import traceback
@@ -216,6 +260,7 @@ def extract_appmaps(instance, testbed):
         appmap_archive.extract(testbed)
         return appmap_archive.name
 
+
 def split_runner_instances(instances: list, num_runners: int, runner_index: int) -> list:
     """
     Split a list of instances into multiple groups based on the number of runners and the index of the runner.
@@ -231,7 +276,7 @@ def split_runner_instances(instances: list, num_runners: int, runner_index: int)
     remainder = len(instances) % num_runners
     if runner_index == 0:
         # Lucky index 0 gets all the remainder instances
-        return instances[:instances_per_runner + remainder]
+        return instances[: instances_per_runner + remainder]
     else:
         start_index = instances_per_runner * runner_index + remainder
         end_index = start_index + instances_per_runner
@@ -243,16 +288,15 @@ def solve_instances(instances, args):
     if args.instance_set:
         instance_set_path = Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
         with open(instance_set_path) as f:
-            instance_set = list(f)
-            instances = [instance for instance in instances if instance in instance_set]
+            print(f"Using instance set: {instance_set_path}")
+            instance_set = list(map(str.strip, f))
+            instances = [
+                instance for instance in instances if instance["instance_id"] in instance_set
+            ]
     if args.filter:
         print(f"Filtering instances by regex: {args.filter}")
         pattern = re.compile(args.filter)
-        instances = [
-            instance
-            for instance in instances
-            if pattern.search(instance["instance_id"])
-        ]
+        instances = [instance for instance in instances if pattern.search(instance["instance_id"])]
     if len(instances) == 0:
         print(f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})")
         sys.exit(1)
@@ -263,7 +307,7 @@ def solve_instances(instances, args):
         random.Random(args.seed).shuffle(instances)
         print(f"Splitting {len(instances)} instances across {args.num_runners} runners")
         instances = split_runner_instances(instances, args.num_runners, args.runner_index)
-        print(f"{len(instances)} instances scheduled for this runner:") 
+        print(f"{len(instances)} instances scheduled for this runner:")
         for instance in instances:
             print(f"- {instance['instance_id']}")
 
@@ -275,7 +319,7 @@ def solve_instances(instances, args):
             "func": solve_instance,
             **vars(args),
         }
-        for i,g in enumerate(instance_groups)
+        for i, g in enumerate(instance_groups)
     ]
 
     if args.num_workers == 1:
@@ -311,12 +355,8 @@ if __name__ == "__main__":
         help="path or huggingface name of task instances dataset",
         default="princeton-nlp/SWE-bench_Lite",
     )
-    parser.add_argument(
-        "--split", type=str, default="test", help="Dataset split to use"
-    )
-    parser.add_argument(
-        "--log_dir", type=str, help="Path to log directory", default="logs"
-    )
+    parser.add_argument("--split", type=str, default="test", help="Dataset split to use")
+    parser.add_argument("--log_dir", type=str, help="Path to log directory", default="logs")
     parser.add_argument(
         "--conda_link",
         type=str,
@@ -334,9 +374,7 @@ if __name__ == "__main__":
         type=str,
         help="(Optional) Path to miniconda3 or anaconda installation",
     )
-    parser.add_argument(
-        "--testbed", type=str, help="(Optional) Path to testbed directory"
-    )
+    parser.add_argument("--testbed", type=str, help="(Optional) Path to testbed directory")
     parser.add_argument(
         "--temp_dir",
         type=str,
@@ -354,9 +392,7 @@ if __name__ == "__main__":
         default=3,
         help="Number of times to try and create a code update for each test instance",
     )
-    parser.add_argument(
-        "--verbose", action="store_true", help="(Optional) Verbose mode"
-    )
+    parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
     parser.add_argument(
         "--num_workers",
         type=int,
@@ -428,7 +464,7 @@ if __name__ == "__main__":
             appmap_path = os.path.abspath(args.appmaps)
             print(f"Using AppMap data archives from {appmap_path} (and online)")
 
-        # Don't load the ArchiveFinder unless appmap support is activated, because the 
+        # Don't load the ArchiveFinder unless appmap support is activated, because the
         # 'github' dependency is hard to install on some systems.
         from appmap.archive import ArchiveFinder
 
