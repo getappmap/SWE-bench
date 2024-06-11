@@ -24,10 +24,6 @@ on:
           - swe-bench-ubuntu-latest
           - SWE-Bench_Larger
           - ubuntu-latest
-      num_processes:
-        description: "Number of processes to parallelize per runner"
-        required: true
-        default: "6"
       split:
         description: "Dataset split"
         required: true
@@ -57,7 +53,7 @@ on:
         required: false
       instance_set:
         description: "Instance set to select a subset of instances"
-        requred: false
+        required: false
 
   pull_request:
     types: [opened, synchronize, labeled]
@@ -68,19 +64,18 @@ jobs:
   show-inputs:
     runs-on: ubuntu-latest
     steps:
-    - name: Display Input Values
-      run: |
-        echo "filter: ${{ github.event.inputs.filter }}"
-        echo "dataset: ${{ github.event.inputs.dataset }}"
-        echo "runner: ${{ github.event.inputs.runner }}"
-        echo "num_processes: ${{ github.event.inputs.num_processes }}"
-        echo "split: ${{ github.event.inputs.split }}"
-        echo "retries: ${{ github.event.inputs.retries }}"
-        echo "appmaps: ${{ github.event.inputs.appmaps }}"
-        echo "num_runners: ${{ github.event.inputs.num_runners }}"
-        echo "name: ${{ github.event.inputs.name }}"
-        echo "steps: ${{ github.event.inputs.steps }}"
-        echo "instance_set: ${{ github.event.inputs.instance_set }}"
+      - name: Display Input Values
+        run: |
+          echo "filter: ${{ github.event.inputs.filter }}"
+          echo "dataset: ${{ github.event.inputs.dataset }}"
+          echo "runner: ${{ github.event.inputs.runner }}"
+          echo "split: ${{ github.event.inputs.split }}"
+          echo "retries: ${{ github.event.inputs.retries }}"
+          echo "appmaps: ${{ github.event.inputs.appmaps }}"
+          echo "num_runners: ${{ github.event.inputs.num_runners }}"
+          echo "name: ${{ github.event.inputs.name }}"
+          echo "steps: ${{ github.event.inputs.steps }}"
+          echo "instance_set: ${{ github.event.inputs.instance_set }}"
   build-appmap-js:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
     runs-on: SWE-Bench_Larger
@@ -189,7 +184,6 @@ jobs:
           SWE_FILTER: ${{ inputs.filter }}
           SWE_RETRIES: ${{ inputs.retries }}
           NUM_RUNNERS: ${{ inputs.num_runners }}
-          NUM_PROCESSES: ${{ inputs.num_processes }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
@@ -202,13 +196,12 @@ jobs:
             --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,C402,C408,C416,D,E122,E124,E127,E128,E201,E202,E203,E221,E225,E231,E251,E261,E265,E266,E302,E303,E305,E402,E501,E502,E713,E731,F401,F841,W293" \
             --temp_dir "${{ runner.temp }}" \
-            --num_workers "${NUM_PROCESSES:-6}" \
             --path_conda $(conda info --base) \
             --num_runners "${NUM_RUNNERS:-1}" \
             --runner_index "${{ matrix.index }}" \
             --verbose \
             $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
-            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}")
+            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}") \
             $(test -n "${{ inputs.instance_set }}" && echo --instance_set "${{ inputs.instance_set }}")
 
       - name: Run evaluation
@@ -230,14 +223,17 @@ jobs:
             --num_processes 8 \
             --path_conda $(conda info --base)
 
+      - name: Compress evaluation results
+        if: ${{ always() }}
+        run: |
+          tar -cJf output_${{ matrix.index }}.tar.xz logs predictions.jsonl
+
       - name: Upload evaluation results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
           name: output_${{ matrix.index }}
-          path: |
-            logs
-            predictions.jsonl
+          path: output_${{ matrix.index }}.tar.xz
 
   report:
     needs:
@@ -253,12 +249,12 @@ jobs:
         with:
           path: ./eval-results
 
-      - name: Merge evaluation results
+      - name: Unpack evaluation results
         run: |
           mkdir -p logs
-          for dir in eval-results/*; do
-            cat $dir/predictions.jsonl >> predictions.jsonl
-            mv $dir/logs/* logs
+          for file in eval-results/**/*.tar.xz; do
+            tar --to-stdout -xJf "$file" predictions.jsonl >> predictions.jsonl
+            tar -xJf "$file" logs
           done
 
       # Cache the conda environment
