@@ -7,7 +7,9 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
+from appmap.solve.run_command import run_command
 from appmap.solve.is_test_file import is_test_file
+
 from appmap.solve.steps.read_test_directives import read_test_directives
 from appmap.solve.steps.step_posttest import step_posttest
 from appmap.solve.steps.step_pretest import build_task_manager, step_pretest
@@ -107,6 +109,8 @@ class Solver:
 
         if self.steps["posttest"]:
             self.posttest()
+        else:
+            self.posttest_succeeded = True
 
     def pretest(self):
         self.posttest_succeeded = False
@@ -198,7 +202,7 @@ class Solver:
             self.appmap_command,
             self.base_file_content,
         )
-        self.load_file_changes()
+        self.load_file_changes("lint_repair")
 
     def posttest(self):
         assert self.test_succeeded_files is not None
@@ -233,7 +237,10 @@ class Solver:
             self.test_succeeded_files,
         )
 
-    def load_file_changes(self):
+        result_name = "posttest" if self.posttest_succeeded else "posttest_failed"
+        self.load_file_changes(result_name)
+
+    def load_file_changes(self, result_name):
         print(f"[solver] ({self.instance_id}) Loading file changes")
         self.files_changed = []
         updated_file_content = self.load_file_content()
@@ -243,6 +250,18 @@ class Solver:
                 or updated_file_content[file] != self.base_file_content[file]
             ):
                 self.files_changed.append(file)
+
+        print(
+            f"[solver] ({self.instance_id}) Files changed: {self.files_changed}"
+        )
+
+        diff_command = f"git diff"
+        diff = run_command(self.log_dir, diff_command, fail_on_error=True)
+        diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
+        with open(diff_file, "w") as f:
+            f.write(diff)
+
+        print(f"[solver] ({self.instance_id}) Diff saved to file {diff_file}")
 
     def load_file_content(self):
         result = {}

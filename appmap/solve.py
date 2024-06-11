@@ -11,6 +11,8 @@ from pathlib import Path
 from subprocess import run
 from textwrap import dedent
 
+from appmap.solve.solver import DEFAULT_STEPS
+
 from data import load_data
 from filelock import FileLock
 from swebench.harness.context_manager import (
@@ -37,7 +39,7 @@ def solve_instance(
     appmap_command,
     lint_command,
     iteration,
-    steps=None,
+    steps,
 ):
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
     issue_dir.mkdir(parents=True, exist_ok=True)
@@ -72,15 +74,6 @@ def solve_instance(
     if solve_result.returncode != 0:
         print(f"Solver did not succeed for {instance['instance_id']}/{iteration + 1}.")
         return
-
-    patch_result = run(
-        ["git", "--no-pager", "diff"],
-        check=True,
-        cwd=testbed,
-        capture_output=True,
-        text=True,
-    )
-    return patch_result.stdout
 
 
 def worker_init(data: dict):
@@ -136,14 +129,29 @@ def worker_init(data: dict):
                 ) as task_manager:
                     instance_id = instance["instance_id"]
 
-                    try:
-                        retries = data_dict.retries
-                        issue_name = env_name
+                    retries = data_dict.retries
+                    issue_name = env_name
 
-                        print(
-                            f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
-                        )
-                        attempt_number = 0
+                    print(
+                        f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
+                    )
+                    attempt_number = 0
+
+                    # Collect the list of active steps
+                    step_args = DEFAULT_STEPS if data_dict.steps is None else data_dict.steps.split(",")
+                    result_priority = []
+                    if "apply" in step_args:
+                        result_priority.append("apply")
+                    if data_dict.lint_command is not None:
+                        result_priority.append("lint_repair")
+                    if "posttest" in step_args:
+                        result_priority.append("posttest_failed")
+                        result_priority.append("posttest")
+                    result_priority.reverse()
+
+                    patches = {}
+
+                    try:
                         while attempt_number < retries:
                             print(
                                 f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
@@ -168,7 +176,14 @@ def worker_init(data: dict):
 
                             instance["appmap_archive"] = extract_appmaps(instance, testbed)
 
-                            patch = solve_instance(
+                            # In case this is a re-run, delete any existing patch files
+                            issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(attempt_number + 1)
+                            for result in result_priority:
+                                patch_file = issue_dir / f"{result}.patch"
+                                if patch_file.exists():
+                                    patch_file.unlink()
+
+                            solve_instance(
                                 data_dict.instances_path,
                                 instance,
                                 log_dir,
@@ -177,29 +192,56 @@ def worker_init(data: dict):
                                 data_dict.appmap_command,
                                 data_dict.lint_command,
                                 attempt_number,
-                                steps=data_dict.steps,
+                                data_dict.steps,
                             )
-                            if patch:
-                                print(
-                                    f"[solve] ({instance_id}) Patch generated on iteration {attempt_number +1}"
-                                )
-                                print(patch)
-                                output_results(instance, output_file, patch)
-                                break
-                            else:
-                                print(f"[solve] ({instance_id}) No patch generated")
-                                attempt_number += 1
-                                if attempt_number >= retries:
+
+                            # Find the first existing patch file in the issue_dir for the iteration
+                            for result in result_priority:
+                                patch_file = Path(issue_dir) / f"{result}.patch"
+                                if patch_file.exists() and not patches.get(result):
+                                    patch = patch_file.read_text()
                                     print(
-                                        f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
+                                        f"[solve] ({instance_id}) Patch generated for '{result}' on iteration {attempt_number +1}"
                                     )
-                                    output_results(instance, output_file, None)
+                                    patches[result] = { "patch": patch, "attempt_number": attempt_number }
+                                    break
+
+                            if len(result_priority) and result_priority[0] in patches:
+                                print(
+                                    f"[solve] ({instance_id}) This is the highest solution level attainable. Exiting solve loop."
+                                )
+                                break
+                            
+                            attempt_number += 1
+                            if attempt_number >= retries:
+                                print(
+                                    f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
+                                )
+
+
+                        patch = None
+                        for result in result_priority:
+                            if patches.get(result):
+                                patch_data = patches[result]
+                                iteration = patch_data["attempt_number"] + 1
+                                print(
+                                    f"[solve] ({instance_id}) Submitting {result} patch from attempt {iteration}"
+                                )
+                                patch = patch_data["patch"]
+                                break
+
+                        if patch:
+                            output_results(instance, output_file, patch)
+                        else:
+                            print(f"[solve] ({instance_id}) No patch generated")
+                            output_results(instance, output_file, None)
 
                     except Exception:
                         print(f"[solve] ({instance_id}) Error:")
                         import traceback
 
                         traceback.print_exc()
+
     except Exception:
         print("Error instantiating testbed")
         import traceback
