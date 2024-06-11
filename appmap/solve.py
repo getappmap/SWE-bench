@@ -22,9 +22,15 @@ from swebench.harness.context_manager import (
 from swebench.harness.utils import DotDict, split_instances
 
 
-def output_results(instance, output_file, patch):
-    instance["model_patch"] = patch
+def output_results(instance, output_file, patch_data):
+    instance["model_patch"] = patch_data["patch"] if patch_data is not None else None
     instance["model_name_or_path"] = "navie"
+    if patch_data is not None:
+        instance["model_patch_name"] = patch_data["name"]
+        instance["model_iteration"] = patch_data["iteration"]
+        instance["model_lint_repair"] = patch_data["lint_repair"]
+        instance["model_test_repair"] = patch_data["test_repair"]
+
     with FileLock(f"{output_file}.lock"):
         with open(output_file, "a+") as f:
             f.write(json.dumps(instance) + "\n")
@@ -150,6 +156,7 @@ def worker_init(data: dict):
                     result_priority.reverse()
 
                     patches = {}
+                    patches_by_attempt = []
 
                     try:
                         while attempt_number < retries:
@@ -178,8 +185,8 @@ def worker_init(data: dict):
 
                             # In case this is a re-run, delete any existing patch files
                             issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(attempt_number + 1)
-                            for result in result_priority:
-                                patch_file = issue_dir / f"{result}.patch"
+                            for result_name in result_priority:
+                                patch_file = issue_dir / f"{result_name}.patch"
                                 if patch_file.exists():
                                     patch_file.unlink()
 
@@ -195,15 +202,25 @@ def worker_init(data: dict):
                                 data_dict.steps,
                             )
 
+                            patches_obtained = []
+                            for result_name in result_priority:
+                                patch_file = Path(issue_dir) / f"{result_name}.patch"
+                                if patch_file.exists():
+                                    patches_obtained.append(result_name)
+                            # Place patches in the order they were attained.
+                            patches_obtained.reverse()
+                            patches_by_attempt.append(patches_obtained)
+
                             # Find the first existing patch file in the issue_dir for the iteration
-                            for result in result_priority:
-                                patch_file = Path(issue_dir) / f"{result}.patch"
-                                if patch_file.exists() and not patches.get(result):
+                            for result_name in result_priority:
+                                patch_file = Path(issue_dir) / f"{result_name}.patch"
+                                if patch_file.exists() and not patches.get(result_name):
                                     patch = patch_file.read_text()
+                                    iteration = attempt_number + 1
                                     print(
-                                        f"[solve] ({instance_id}) Patch generated for '{result}' on iteration {attempt_number +1}"
+                                        f"[solve] ({instance_id}) Patch generated for '{result_name}' on iteration {iteration}"
                                     )
-                                    patches[result] = { "patch": patch, "attempt_number": attempt_number }
+                                    patches[result_name] = { "name": result_name, "patch": patch, "iteration": iteration }
                                     break
 
                             if len(result_priority) and result_priority[0] in patches:
@@ -219,19 +236,26 @@ def worker_init(data: dict):
                                 )
 
 
-                        patch = None
-                        for result in result_priority:
-                            if patches.get(result):
-                                patch_data = patches[result]
-                                iteration = patch_data["attempt_number"] + 1
+                        patch_data = None
+                        for result_name in result_priority:
+                            if patches.get(result_name):
+                                patch_data = patches[result_name]
+                                iteration = patch_data["iteration"]
                                 print(
-                                    f"[solve] ({instance_id}) Submitting {result} patch from attempt {iteration}"
+                                    f"[solve] ({instance_id}) Submitting {result_name} patch from attempt {iteration}"
                                 )
-                                patch = patch_data["patch"]
                                 break
 
-                        if patch:
-                            output_results(instance, output_file, patch)
+                        if patch_data:
+                            # Lint repair occurred if the work directory exists
+                            lint_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "lint_repair"
+                            patch_data["lint_repair"] = True if lint_repair_dir.exists() else False
+
+                            # Same with test repair
+                            test_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "test_repair"
+                            patch_data["test_repair"] = True if test_repair_dir.exists() else False
+
+                            output_results(instance, output_file, patch_data)
                         else:
                             print(f"[solve] ({instance_id}) No patch generated")
                             output_results(instance, output_file, None)
