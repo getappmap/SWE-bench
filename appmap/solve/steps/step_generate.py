@@ -2,6 +2,7 @@ from ..run_command import run_command
 from ..run_navie_command import run_navie_command
 from ..format_instructions import format_instructions
 
+from .erase_test_changes import erase_test_changes
 
 import os
 import sys
@@ -105,6 +106,8 @@ Avoid refactorings that will affect multiple parts of the codebase.
     )
 
     print(f"[generate] ({instance_id}) Code generated in {solution_file}")
+
+    erase_test_changes(instance_id, solution_file)
 
 
 def filter_search_context(context_file, fulltext_files):

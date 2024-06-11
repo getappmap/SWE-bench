@@ -177,8 +177,6 @@ class Solver:
         )
 
     def apply_changes(self):
-        base_file_content = self.load_file_content()
-
         step_apply(
             self.log_dir,
             self.work_dir,
@@ -187,27 +185,7 @@ class Solver:
             self.solution_file,
             self.apply_file,
         )
-
-        # Revert changes to test cases
-        for file in self.load_file_content():
-            if is_test_file(file):
-                print(
-                    f"[solver] ({self.instance_id}) Reverting changes to test file {file}"
-                )
-                self.files.remove(file)
-                if file in base_file_content:
-                    with open(file, "w") as f:
-                        f.write(base_file_content[file])
-                else:
-                    os.remove(file)
-
-        # Maintain the removal of test files from files.json, so that subsequent steps
-        # such as lint repair and test repair don't try and modify them.
-        files_list_file = os.path.join(self.work_dir, "files.json")
-        with open(files_list_file, "w") as f:
-            json.dump(self.files, f)
-
-        self.load_file_changes()
+        self.load_file_changes("apply")
 
     def lint_repair(self):
         step_lint_repair(
