@@ -23,20 +23,34 @@ import re
 from ..is_test_file import is_test_file
 
 
-def erase_test_changes(instance_id, change_file):
+def erase_test_changes(change_name, change_content):
+    match_attribute = lambda m, group_number: m.group(group_number) if m is not None and m.group(group_number) else None
+
+    changes = re.findall(r"<change>.*?</change>", change_content, flags=re.DOTALL)
+    for change in changes:
+        file_tag = match_attribute(re.search(r"<file.*?</file>", change, flags=re.DOTALL), 0)
+        if not file_tag:
+            print(f"[erase_test_changes] ({change_name}) Change has no file tag")
+            continue
+        file_name = match_attribute(re.search(r"<file.*?>(.*?)</file>", file_tag), 1)
+        if not file_name:
+            print(f"[erase_test_changes] ({change_name}) File tag has no content")
+            continue
+
+        print(f"[erase_test_changes] ({change_name}) Checking file {file_tag}")
+        if is_test_file(file_name):
+            print(
+                f"[erase_test_changes] ({change_name}) Erasing change to test file {file_name}"
+            )
+            change_content = change_content.replace(change, "")
+
+    return change_content
+
+def erase_test_changes_from_file(change_name, change_file):
     with open(change_file, "r") as f:
         repair_content = f.read()
 
-    changes = re.findall(r"<change>.*?</change>", repair_content, flags=re.DOTALL)
-    for change in changes:
-        file_tag = re.search(r"<file.*?</file>", change, flags=re.DOTALL).group(0)
-        file_name = re.search(r"<file.*?>(.*?)</file>", file_tag).group(1)
-        print(f"[erase_test_changes] ({instance_id}) Checking file {file_tag}")
-        if is_test_file(file_name):
-            print(
-                f"[erase_test_changes] ({instance_id}) Erasing change to test file {file_name}"
-            )
-            repair_content = repair_content.replace(change, "")
+    repair_content = erase_test_changes(change_name, repair_content)
 
     with open(change_file, "w") as f:
         f.write(repair_content)
