@@ -38,7 +38,16 @@ def read_predictions(predictions_path: str) -> list[dict]:
 def write_csv_report(report_map, predictions: list[dict], split, output_csv_path):
     categories = [key for key in report_map.keys() if key != "no_generation"]
     # Prepare CSV headers
-    headers = ["instance_id", "split", *categories, "appmap_archive"]
+    headers = [
+        "instance_id",
+        "split",
+        *categories,
+        "model_patch_name",
+        "model_iteration",
+        "model_lint_repair",
+        "model_test_repair",
+        "appmap_archive",
+    ]
 
     # Write to CSV
     with open(output_csv_path, "w", newline="") as csv_file:
@@ -48,10 +57,16 @@ def write_csv_report(report_map, predictions: list[dict], split, output_csv_path
             row = {
                 "instance_id": instance["instance_id"],
                 "split": split,
-                "appmap_archive": instance["appmap_archive"],
             }
             for category in categories:
                 row[category] = instance["instance_id"] in report_map.get(category, [])
+
+            row["model_patch_name"] = instance.get("model_patch_name", "")
+            row["model_iteration"] = instance.get("model_iteration", "")
+            row["model_lint_repair"] = instance.get("model_lint_repair", "")
+            row["model_test_repair"] = instance.get("model_test_repair", "")
+            row["appmap_archive"] = instance["appmap_archive"]
+
             writer.writerow(row)
 
         print(f"Wrote {len(predictions)} predictions to {output_csv_path}")
