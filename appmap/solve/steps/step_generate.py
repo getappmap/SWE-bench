@@ -22,6 +22,8 @@ def step_generate(
 ):
     print(f"[generate] ({instance_id}) Generating code")
 
+    # TODO: This file can get large, causing an overflow in the LLM invocation.
+    # Detect large context files and prune them to match the intended solution.
     context_file = os.path.join(work_dir, "context.txt")
     with open(context_file, "w") as context_f:
         for file in files:
@@ -88,6 +90,7 @@ Avoid refactorings that will affect multiple parts of the codebase.
     print(f"[generate] ({instance_id}) Filtering search context for generation")
     search_context = filter_search_context(search_context_file, files)
     search_context = format_search_context(search_context)
+    # Context is limited by Navie, so this file will generally not cause an LLM overflow.
     context_file = os.path.join(work_dir, "generate-context.xml")
     with open(context_file, "w") as context_f:
         context_f.write(search_context)
