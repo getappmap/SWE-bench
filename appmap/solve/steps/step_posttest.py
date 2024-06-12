@@ -7,7 +7,7 @@ from ..format_instructions import format_instructions
 from ..run_navie_command import run_navie_command
 from ..run_command import run_command
 
-from .erase_test_changes import erase_test_changes
+from .erase_test_changes import erase_test_changes_from_file
 from .step_pretest import build_task_manager
 
 
@@ -173,7 +173,7 @@ only present in the file/content to help you identify which line has the lint er
         f"[posttest] ({instance_id}) Code generated to repair source file in {repair_output}"
     )
 
-    erase_test_changes(instance_id, repair_output)
+    erase_test_changes_from_file(instance_id, repair_output)
 
     with open(repair_apply_prompt, "w") as f:
         f.write("@apply /all\n\n")
