@@ -3,6 +3,7 @@ import json
 import os
 import random
 import re
+import shutil
 import sys
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -47,6 +48,7 @@ def solve_instance(
     iteration,
     steps,
 ):
+    print_disk_spaces(testbed)
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
     issue_dir.mkdir(parents=True, exist_ok=True)
     issue_file = issue_dir / "issue.txt"
@@ -80,6 +82,25 @@ def solve_instance(
     if solve_result.returncode != 0:
         print(f"Solver did not succeed for {instance['instance_id']}/{iteration + 1}.")
         return
+
+
+def print_disk_space(path, description):
+    total, used, free = shutil.disk_usage(path)
+    print(
+        f"{description} Disk Space - Total: {total // (2**30)} GB, Used: {used // (2**30)} GB, Free: {free // (2**30)} GB"
+    )
+
+
+def print_disk_spaces(testbed):
+    # Check and print disk space for testbed
+    testbed_fs_stat = os.statvfs(testbed)
+    tmp_fs_stat = os.statvfs("/tmp")
+
+    print_disk_space(testbed, "Testbed")
+
+    # Check if testbed and /tmp are on the same filesystem
+    if testbed_fs_stat.f_fsid != tmp_fs_stat.f_fsid:
+        print_disk_space("/tmp", "/tmp")
 
 
 def worker_init(data: dict):
