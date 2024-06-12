@@ -23,9 +23,15 @@ def run_navie_command(
     :param additional_args: Additional arguments for the command
     :return: None
     """
+
+    # TODO: Add token limit option, e.g. --ai-option tokenLimit=4000
+    # TODO: Check input_path and context_path to determine file sizes.
+    #       If the file sizes overflow a desired context limit, figure out how to 
+    #       prune them in some way.
+
+
     # Build the command
     cmd = f"{command} navie --log-navie"
-    # TODO: Add token limit option, e.g. --ai-option tokenLimit=4000
     if input_path:
         cmd += f" -i {input_path}"
     if context_path:

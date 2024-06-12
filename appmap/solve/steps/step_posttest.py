@@ -159,6 +159,9 @@ only present in the file/content to help you identify which line has the lint er
 """
             )
 
+    # TODO: test_output can be large, and cause an LLM overflow. We should limit the size of test_output,
+    # and/or prune it to only include the relevant parts.
+    
     # Plan the repair
     print(f"[posttest] ({instance_id}) Generating code to fix test errors")
     run_navie_command(
