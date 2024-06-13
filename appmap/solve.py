@@ -35,11 +35,6 @@ from swebench.harness.utils import DotDict, split_instances
 def output_results(instance, output_file, patch_data):
     instance["model_patch"] = patch_data["patch"] if patch_data is not None else None
     instance["model_name_or_path"] = "navie"
-    if patch_data is not None:
-        instance["model_patch_name"] = patch_data["name"]
-        instance["model_iteration"] = patch_data["iteration"]
-        instance["model_lint_repair"] = patch_data["lint_repair"]
-        instance["model_test_repair"] = patch_data["test_repair"]
 
     with FileLock(f"{output_file}.lock"):
         with open(output_file, "a+") as f:
@@ -129,7 +124,7 @@ def worker_init(data: dict):
         env = DotDict(env_data)
         for instance in env.task_instances:
             output_results(instance, output_file, instance)
-            # return
+            return
 
             with TaskEnvContextManager(
                 instance,
@@ -482,7 +477,7 @@ def main(args):
     dataset = filter_instances(
         dataset,
         args.instance_set,
-        args.andom_count,
+        args.random_count,
         args.filter,
         args.num_runners,
         args.runner_index,
