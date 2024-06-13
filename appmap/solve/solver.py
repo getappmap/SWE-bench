@@ -98,6 +98,15 @@ class Solver:
         with open(files_list_file, "r") as f:
             self.files = json.load(f)
 
+        for file in self.files:
+            if not os.path.isfile(file):
+                print(f"[solver] ({self.instance_id}) WARN: File '{file}' from files.json does not exist.")
+                self.files.remove(file)
+
+        if len(self.files) == 0:
+            print(f"[solver] ({self.instance_id}) No files to change. Exiting without a solution.")
+            return
+
         self.base_file_content = self.load_file_content()
 
         # Retry generate + apply in order to get a patch
