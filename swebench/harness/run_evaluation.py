@@ -69,6 +69,7 @@ def main(
     timeout: int,
     verbose: bool,
     num_processes: int = -1,
+    reuse_env: bool = False,
 ):
     """
     Runs evaluation on predictions for each model/repo/version combination.
@@ -158,6 +159,7 @@ def main(
                 args.verbose = verbose
                 args.conda_link = conda_link
                 args.path_conda = path_conda
+                args.reuse_env = reuse_env
 
                 # Remove predictions that have already been evaluated
                 repo_version_predictions = map_repo_version_to_predictions[repo][version]
@@ -231,6 +233,11 @@ if __name__ == "__main__":
     parser.add_argument("--timeout", type=int, help="(Optional) Timeout in seconds (default: 900)", default=900)
     parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
     parser.add_argument("--num_processes", type=int, help="(Optional) Number of processes to use.", default=-1)
+    parser.add_argument(
+        "--reuse-env",
+        help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",
+        action="store_true",
+    )
     args = parser.parse_args()
     logger.propagate = args.verbose
     main(**vars(args))

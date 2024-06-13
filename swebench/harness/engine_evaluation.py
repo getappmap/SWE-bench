@@ -166,12 +166,12 @@ def main(args):
 
     data_groups = [
         {
-            "id": i,
+            "suffix": "" if args.reuse_env else f"-{i}",
             "task_instances": g,
             "func": evaluate_predictions,
             **vars(args),
         }
-        for i,g in enumerate(predictions_groups)
+        for i, g in enumerate(predictions_groups)
     ]
 
     if args.num_workers == 1:
@@ -197,5 +197,10 @@ if __name__ == "__main__":
     parser.add_argument("--temp_dir", type=str, help="(Optional) Path to temporary directory for storing virtual envs")
     parser.add_argument("--timeout", type=int, default=None, help="(Optional) Timeout (seconds) for testing script execution")
     parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
+    parser.add_argument(
+        "--reuse-env",
+        help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",
+        action="store_true",
+    )
     args = parser.parse_args()
     main(args)
