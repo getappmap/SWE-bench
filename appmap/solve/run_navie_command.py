@@ -11,6 +11,7 @@ def run_navie_command(
     temperature=0.0,
     context_path=None,
     input_path=None,
+    prompt_path=None,
     additional_args=None,
 ):
     """
@@ -27,9 +28,8 @@ def run_navie_command(
 
     # TODO: Add token limit option, e.g. --ai-option tokenLimit=4000
     # TODO: Check input_path and context_path to determine file sizes.
-    #       If the file sizes overflow a desired context limit, figure out how to 
+    #       If the file sizes overflow a desired context limit, figure out how to
     #       prune them in some way.
-
 
     # Build the command
     cmd = f"APPMAP_NAVIE_TEMPERATURE={temperature} {command} navie --log-navie"
@@ -38,6 +38,8 @@ def run_navie_command(
         cmd += f" -i {input_path}"
     if context_path:
         cmd += f" -c {context_path}"
+    if prompt_path:
+        cmd += f" -p {prompt_path}"
     cmd += f" -o {output_path}"
     if additional_args:
         cmd += f" {additional_args}"

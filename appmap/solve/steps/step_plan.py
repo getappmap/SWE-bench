@@ -18,14 +18,22 @@ def step_plan(
     temperature,
 ):
     print(f"[plan] ({instance_id}) Searching for context using {args.issue_file}")
+    with open(args.issue_file, "r") as f:
+        issue_content = f.read()
+
     context_prompt = os.path.join(work_dir, "search_context.txt")
     with open(context_prompt, "w") as apply_f:
-        apply_f.write("@context /nofence /format=json\n")
+        apply_f.write(
+            f"""@context /nofence /format=json /noterms
+                      
+{issue_content}
+"""
+        )
+
     run_navie_command(
         log_dir,
         temperature=temperature,
         command=appmap_command,
-        context_path=issue_file,
         input_path=context_prompt,
         output_path=context_file,
         log_path=os.path.join(work_dir, "search_context.log"),
@@ -33,11 +41,18 @@ def step_plan(
 
     print(f"[plan] ({instance_id}) Generating a plan for {args.issue_file}")
 
-    plan_prompt = os.path.join(work_dir, "plan.txt")
+    plan_question = os.path.join(work_dir, "plan.txt")
+    with open(plan_question, "w") as plan_f:
+        plan_f.write(
+            f"""@plan /nocontext\n
+
+{issue_content}
+"""
+        )
+    plan_prompt = os.path.join(work_dir, "plan.prompt.md")
     with open(plan_prompt, "w") as plan_f:
         plan_f.write(
-            """@plan
-
+            """
 Focus the plan on modifying exactly one file.
 
 Do not modify test case files. Test case files are those that include "test", "tests" in their paths,
@@ -46,15 +61,14 @@ or match the patterns "*_test.py" or "test_*.py".
 DO choose the one most relevant file to modify.
 DO NOT modify any other files.
 DO NOT choose a test case file.
-
 """
         )
 
     run_navie_command(
         log_dir,
         command=appmap_command,
-        context_path=issue_file,
-        input_path=plan_prompt,
+        input_path=plan_question,
+        prompt_path=plan_prompt,
         output_path=plan_file,
         log_path=os.path.join(work_dir, "plan.log"),
     )

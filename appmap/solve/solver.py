@@ -158,7 +158,7 @@ class Solver:
             self.appmap_command,
             self.plan_file,
             self.context_file,
-            self.temperature
+            self.temperature,
         )
 
     def list_files(self):
@@ -168,7 +168,7 @@ class Solver:
             self.instance_id,
             self.appmap_command,
             self.plan_file,
-            self.temperature
+            self.temperature,
         )
 
     def generate_code(self):
@@ -182,7 +182,7 @@ class Solver:
             self.solution_file,
             self.files,
             self.context_file,
-            self.temperature
+            self.temperature,
         )
 
     def apply_changes(self):
@@ -193,7 +193,7 @@ class Solver:
             self.appmap_command,
             self.solution_file,
             self.apply_file,
-            self.temperature
+            self.temperature,
         )
         self.load_file_changes("apply")
 
@@ -207,7 +207,7 @@ class Solver:
             self.lint_command,
             self.appmap_command,
             self.base_file_content,
-            self.temperature
+            self.temperature,
         )
         self.load_file_changes("lint_repair")
 
@@ -258,9 +258,7 @@ class Solver:
             ):
                 self.files_changed.append(file)
 
-        print(
-            f"[solver] ({self.instance_id}) Files changed: {self.files_changed}"
-        )
+        print(f"[solver] ({self.instance_id}) Files changed: {self.files_changed}")
 
         diff_command = f"git diff"
         diff = run_command(self.log_dir, diff_command, fail_on_error=True)

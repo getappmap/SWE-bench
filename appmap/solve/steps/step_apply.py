@@ -4,7 +4,13 @@ import os
 
 
 def step_apply(
-    log_dir, work_dir, instance_id, appmap_command, solution_file, apply_file, temperature
+    log_dir,
+    work_dir,
+    instance_id,
+    appmap_command,
+    solution_file,
+    apply_file,
+    temperature,
 ):
     apply_prompt = os.path.join(work_dir, "apply.txt")
     with open(apply_prompt, "w") as apply_f:

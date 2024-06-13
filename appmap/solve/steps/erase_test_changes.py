@@ -24,11 +24,15 @@ from ..is_test_file import is_test_file
 
 
 def erase_test_changes(change_name, change_content):
-    match_attribute = lambda m, group_number: m.group(group_number) if m is not None and m.group(group_number) else None
+    match_attribute = lambda m, group_number: (
+        m.group(group_number) if m is not None and m.group(group_number) else None
+    )
 
     changes = re.findall(r"<change>.*?</change>", change_content, flags=re.DOTALL)
     for change in changes:
-        file_tag = match_attribute(re.search(r"<file.*?</file>", change, flags=re.DOTALL), 0)
+        file_tag = match_attribute(
+            re.search(r"<file.*?</file>", change, flags=re.DOTALL), 0
+        )
         if not file_tag:
             print(f"[erase_test_changes] ({change_name}) Change has no file tag")
             continue
@@ -45,6 +49,7 @@ def erase_test_changes(change_name, change_content):
             change_content = change_content.replace(change, "")
 
     return change_content
+
 
 def erase_test_changes_from_file(change_name, change_file):
     with open(change_file, "r") as f:

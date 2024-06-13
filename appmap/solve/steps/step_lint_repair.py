@@ -205,16 +205,19 @@ def step_lint_repair(
         )
         os.makedirs(repair_dir, exist_ok=True)
 
-        repair_prompt, repair_output, repair_log = [
-            os.path.join(repair_dir, f"generate.{ext}") for ext in ["txt", "md", "log"]
+        repair_question, repair_prompt, repair_output, repair_log = [
+            os.path.join(repair_dir, f"generate.{ext}")
+            for ext in ["txt", ".prompt.md", "md", "log"]
         ]
-        repair_apply_prompt, repair_apply_output, repair_apply_log = [
+        repair_apply_question, repair_apply_output, repair_apply_log = [
             os.path.join(repair_dir, f"apply.{ext}") for ext in ["txt", "md", "log"]
         ]
 
+        with open(repair_question, "w") as f:
+            f.write(f"""@generate /noformat /noterms""")
         with open(repair_prompt, "w") as f:
             f.write(
-                f"""@generate /noformat
+                f"""## Objective
 
 Fix the linter errors indicated by the <lint-errors> tag.
 
@@ -286,8 +289,9 @@ only present in the file/content to help you identify which line has the lint er
             log_dir,
             temperature=temperature,
             command=appmap_command,
-            input_path=repair_prompt,
+            input_path=repair_question,
             output_path=repair_output,
+            prompt_path=repair_prompt,
             log_path=repair_log,
         )
 
@@ -295,7 +299,7 @@ only present in the file/content to help you identify which line has the lint er
             f"[lint-repair] ({instance_id}) Code generated to repair source file in {repair_output}"
         )
 
-        with open(repair_apply_prompt, "w") as f:
+        with open(repair_apply_question, "w") as f:
             f.write("@apply /all\n\n")
             with open(repair_output, "r") as plan_fp:
                 f.write(plan_fp.read())
@@ -305,7 +309,7 @@ only present in the file/content to help you identify which line has the lint er
             log_dir,
             temperature=temperature,
             command=appmap_command,
-            input_path=repair_apply_prompt,
+            input_path=repair_apply_question,
             output_path=repair_apply_output,
             log_path=repair_apply_log,
         )

@@ -57,12 +57,10 @@ def step_generate(
             context_f.write("</content>\n")
             context_f.write("</file>\n")
 
-    generate_prompt = os.path.join(work_dir, "generate.txt")
-    with open(generate_prompt, "w") as generate_f:
-        generate_f.write(
-            f"""@generate /nocontext /noformat
-
-## Input format
+    generate_prompt = os.path.join(work_dir, "generate.prompt.md")
+    with open(generate_prompt, "w") as context_prompt_f:
+        context_prompt_f.write(
+            f"""## Input format
 
 The plan is delineated by the XML <plan> tag.
 The source files are delineated by XML <file> tags. Each file has a <path> tag with the file path and a <content> tag with the file content.
@@ -77,14 +75,19 @@ Avoid refactorings that will affect multiple parts of the codebase.
 ## Output format
 
 {format_instructions()}
+"""
+        )
+    generate_question = os.path.join(work_dir, "generate.txt")
+    with open(generate_question, "w") as generate_f:
+        generate_f.write(
+            f"""@generate /nocontext /noformat
 
 """
         )
 
-        generate_f.write("<plan>\n")
         with open(plan_file, "r") as plan_content:
             generate_f.write(plan_content.read())
-        generate_f.write("</plan>\n")
+        generate_f.write("\n\n")
         with open(context_file, "r") as context_content:
             generate_f.write(context_content.read())
 
@@ -97,16 +100,17 @@ Avoid refactorings that will affect multiple parts of the codebase.
         context_f.write(search_context)
 
     print(
-        f"[generate] ({instance_id}) Solving plan {plan_file} using {generate_prompt}"
+        f"[generate] ({instance_id}) Solving plan {plan_file} using {generate_question}"
     )
 
     run_navie_command(
         log_dir,
         temperature=temperature,
         command=appmap_command,
-        input_path=generate_prompt,
+        input_path=generate_question,
         output_path=solution_file,
         context_path=context_file,
+        prompt_path=generate_prompt,
         log_path=os.path.join(work_dir, "generate.log"),
     )
 
