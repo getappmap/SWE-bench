@@ -12,6 +12,8 @@ from pathlib import Path
 from subprocess import run
 from textwrap import dedent
 
+from datasets import Dataset
+
 from appmap.solve.solver import DEFAULT_STEPS
 
 from data import load_data
@@ -342,7 +344,7 @@ def split_runner_instances(instances: list, num_runners: int, runner_index: int)
         return instances[start_index:end_index]
 
 
-def solve_instances(instances, args):
+def solve_instances(instances: Dataset, args):
     instance_set_path = None
     if args.instance_set:
         instance_set_path = Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
@@ -356,6 +358,12 @@ def solve_instances(instances, args):
         print(f"Filtering instances by regex: {args.filter}")
         pattern = re.compile(args.filter)
         instances = [instance for instance in instances if pattern.search(instance["instance_id"])]
+    if args.random_count:
+        if isinstance(instances, Dataset):
+            instances = instances.shuffle()
+            instances = instances.take(args.random_count)
+        else:
+            instances = random.sample(instances, k=args.random_count)
     if len(instances) == 0:
         print(f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})")
         sys.exit(1)
@@ -513,6 +521,14 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="(Optional) Random seed for shuffling instances",
+    )
+    parser.add_argument(
+        "--random",
+        help="Pick n (default=1) random instances from the dataset",
+        type=int,
+        const=1,
+        nargs="?",
+        dest="random_count",
     )
     args = parser.parse_args()
     if args.appmaps:
