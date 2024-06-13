@@ -9,6 +9,7 @@ def run_navie_command(
     output_path,
     log_path,
     temperature=0.0,
+    token_limit=None,
     context_path=None,
     input_path=None,
     prompt_path=None,
@@ -31,8 +32,14 @@ def run_navie_command(
     #       If the file sizes overflow a desired context limit, figure out how to
     #       prune them in some way.
 
-    # Build the command
-    cmd = f"APPMAP_NAVIE_TEMPERATURE={temperature} {command} navie --log-navie"
+    env = {
+        "APPMAP_NAVIE_TEMPERATURE": temperature,
+    }
+    if token_limit:
+        env["APPMAP_NAVIE_TOKEN_LIMIT"] = token_limit
+    env_str = " ".join([f"{k}={v}" for k, v in env.items()])
+
+    cmd = f"{env_str} {command} navie --log-navie"
     # TODO: Add token limit option, e.g. --ai-option tokenLimit=4000
     if input_path:
         cmd += f" -i {input_path}"
