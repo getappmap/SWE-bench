@@ -100,11 +100,18 @@ class Solver:
 
         self.base_file_content = self.load_file_content()
 
-        if self.steps["generate"]:
-            self.generate_code()
+        # Retry generate + apply in order to get a patch
+        for i in range(2):
+            if self.steps["generate"]:
+                self.generate_code()
 
-        if self.steps["apply"]:
-            self.apply_changes()
+            if self.steps["apply"]:
+                self.apply_changes()
+
+            if len(self.files_changed) > 0:
+                break
+
+            print(f"[solver] ({self.instance_id}) No files changed. Retrying apply + generate.")
 
         if self.lint_command:
             self.lint_repair()
