@@ -221,8 +221,7 @@ jobs:
             --skip_existing \
             --timeout 900 \
             --verbose \
-            --num_processes 8 \
-            --path_conda $(conda info --base)
+            --num_processes 8
 
       - name: Compress evaluation results
         if: ${{ always() }}
