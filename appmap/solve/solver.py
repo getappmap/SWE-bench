@@ -70,7 +70,7 @@ class Solver:
         self.plan_file = os.path.join(self.work_dir, "plan.md")
         self.solution_file = os.path.join(self.work_dir, "solution.md")
         self.apply_file = os.path.join(self.work_dir, "apply.md")
-        self.context_file = os.path.join(self.work_dir, "search_context.json")
+        self.context_yaml_file = os.path.join(self.work_dir, "search_context.yml")
         self.files = []
         self.files_changed = []
         self.test_succeeded_files = None
@@ -173,7 +173,7 @@ class Solver:
             self.instance_id,
             self.appmap_command,
             self.plan_file,
-            self.context_file,
+            self.context_yaml_file,
             self.temperature,
         )
 
@@ -197,7 +197,7 @@ class Solver:
             self.plan_file,
             self.solution_file,
             self.files,
-            self.context_file,
+            self.context_yaml_file,
             self.temperature,
         )
 

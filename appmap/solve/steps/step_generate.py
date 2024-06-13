@@ -1,3 +1,4 @@
+import yaml
 from ..run_command import run_command
 from ..run_navie_command import run_navie_command
 from ..format_instructions import format_instructions
@@ -18,7 +19,7 @@ def step_generate(
     plan_file,
     solution_file,
     files,
-    search_context_file,
+    context_yaml_file,
     temperature,
 ):
     print(f"[generate] ({instance_id}) Generating code")
@@ -92,10 +93,10 @@ Avoid refactorings that will affect multiple parts of the codebase.
             generate_f.write(context_content.read())
 
     print(f"[generate] ({instance_id}) Filtering search context for generation")
-    search_context = filter_search_context(search_context_file, files)
+    search_context = filter_search_context(context_yaml_file, files)
     search_context = format_search_context(search_context)
     # Context is limited by Navie, so this file will generally not cause an LLM overflow.
-    context_file = os.path.join(work_dir, "generate-context.xml")
+    context_file = os.path.join(work_dir, "generate_context.xml")
     with open(context_file, "w") as context_f:
         context_f.write(search_context)
 
@@ -119,13 +120,12 @@ Avoid refactorings that will affect multiple parts of the codebase.
     erase_test_changes_from_file(instance_id, solution_file)
 
 
-def filter_search_context(context_file, fulltext_files):
+def filter_search_context(context_yaml_file, fulltext_files):
     """
     Filters search context to only include non-fulltext files
     """
-    search_context = []
-    with open(context_file, "r") as context_f:
-        search_context = json.load(context_f)
+    with open(context_yaml_file, "r") as context_f:
+        search_context = yaml.safe_load(context_f)
 
     is_fulltext = lambda x: x["location"].split(":")[0] in fulltext_files
     search_context = [x for x in search_context if not is_fulltext(x)]

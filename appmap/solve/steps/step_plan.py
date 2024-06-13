@@ -1,4 +1,7 @@
-import textwrap
+
+import yaml
+
+from appmap.solve.steps.step_generate import format_search_context
 from ..run_navie_command import run_navie_command
 
 
@@ -14,7 +17,7 @@ def step_plan(
     instance_id,
     appmap_command,
     plan_file,
-    context_file,
+    context_yaml_file,
     temperature,
 ):
     print(f"[plan] ({instance_id}) Generating a plan for {issue_file}")
@@ -56,7 +59,7 @@ or explanations.
     context_prompt = os.path.join(work_dir, "search_context.txt")
     with open(context_prompt, "w") as apply_f:
         apply_f.write(
-            f"""@context /nofence /format=json /noterms /exclude=(\\btesting\\b|\\btest\\b|\\btests\\b|\\btest_|_test\.py$|\.txt$|\.html$|\.rst$|\.md$)
+            f"""@context /nofence /format=yaml /noterms /exclude=(\\btesting\\b|\\btest\\b|\\btests\\b|\\btest_|_test\.py$|\.txt$|\.html$|\.rst$|\.md$)
                       
 {issue_content_as_code}
 """
@@ -67,7 +70,7 @@ or explanations.
         temperature=temperature,
         command=appmap_command,
         input_path=context_prompt,
-        output_path=context_file,
+        output_path=context_yaml_file,
         log_path=os.path.join(work_dir, "search_context.log"),
     )
 
@@ -95,13 +98,18 @@ DO NOT modify any other files.
 DO NOT choose a test case file.
 """
         )
+    context_xml_file = os.path.join(work_dir, "plan_context.xml")
+    with open(context_xml_file, "w") as context_f:
+        with open(context_yaml_file, "r") as f:
+            context = yaml.safe_load(f)
+        context_f.write(format_search_context(context))
 
     run_navie_command(
         log_dir,
         command=appmap_command,
         input_path=plan_question,
         prompt_path=plan_prompt,
-        context_path=context_file,
+        context_path=context_xml_file,
         output_path=plan_file,
         log_path=os.path.join(work_dir, "plan.log"),
     )
