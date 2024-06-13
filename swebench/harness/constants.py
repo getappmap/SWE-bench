@@ -73,44 +73,23 @@ MAP_VERSION_TO_INSTALL_FLASK.update(
     }
 )
 
-DJANGO_DEFAULTS = {
-    "use_pytest": False,
-    "appmap":"""
-appmap_dir: tmp/appmap
-language: python
-name: django
-packages:
-- path: django
-  exclude:
-  - template.base
-  - test
-  - urls.resolvers
-  - utils.datastructures
-  - utils.regex_helper
-  - utils.translation
-""",
-}
-
 MAP_VERSION_TO_INSTALL_DJANGO = {
-    k: {**DJANGO_DEFAULTS,
+    k: {
         "python": "3.5",
         "packages": "requirements.txt",
         "install": "python setup.py install",
     }
     for k in ["1.7", "1.8", "1.9", "1.10", "1.11", "2.0", "2.1", "2.2"]
 }
-
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
-        k: {**DJANGO_DEFAULTS,
-            "python": "3.5", "install": "python setup.py install"}
+        k: {"python": "3.5", "install": "python setup.py install"}
         for k in ["1.4", "1.5", "1.6"]
     }
 )
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
-            **DJANGO_DEFAULTS,
             "python": "3.6",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
@@ -121,7 +100,6 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
-            **DJANGO_DEFAULTS,
             "python": "3.8",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
@@ -132,7 +110,6 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
-            **DJANGO_DEFAULTS,
             "python": "3.9",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
@@ -143,7 +120,6 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
-            **DJANGO_DEFAULTS,
             "python": "3.11",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
@@ -222,7 +198,7 @@ MAP_VERSION_TO_INSTALL_SEABORN.update(
 MAP_VERSION_TO_INSTALL_PYTEST = {
     k: {
         "python": "3.9",
-        "install": "pip install -e .[testing]"
+        "install": "pip install -e ."
     } for k in [
         '4.4','4.5','4.6','5.0','5.1','5.2','5.3','5.4',
         '6.0','6.2','6.3','7.0','7.1','7.2','7.4','8.0'
@@ -342,8 +318,7 @@ MAP_VERSION_TO_INSTALL_SPHINX = {
         "arch_specific_packages": {
             "aarch64": "gxx_linux-aarch64 gcc_linux-aarch64 make",
             "x86_64": "gxx_linux-64 gcc_linux-64 make",
-        },
-        "use_pytest": False
+        }
     } for k in
         ["1.5", "1.6", "1.7", "1.8", "2.0", "2.1", "2.2", "2.3", "2.4", "3.0"] + \
         ["3.1", "3.2", "3.3", "3.4", "3.5", "4.0", "4.1", "4.2", "4.3", "4.4"] + \
@@ -388,54 +363,19 @@ for k in ["3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "4.0", "4.1", "4.2", "4.3", 
 MAP_VERSION_TO_INSTALL_ASTROPY = {
     k: {
         "python": "3.9",
-        "install": "pip install -e .[test] --no-build-isolation",
+        "install": "pip install -e .[test]",
         "pip_packages": [
-            "attrs==23.1.0",
-            "exceptiongroup==1.1.3",
-            "execnet==2.0.2",
-            "hypothesis==6.82.6",
-            "iniconfig==2.0.0",
-            "numpy==1.25.2",
-            "packaging==23.1",
-            "pluggy==1.3.0",
-            "psutil==5.9.5",
-            "pyerfa==2.0.0.3",
-            "pytest-arraydiff==0.5.0",
-            "pytest-astropy-header==0.2.2",
-            "pytest-astropy==0.10.0",
-            "pytest-cov==4.1.0",
-            "pytest-doctestplus==1.0.0",
-            "pytest-filter-subpackage==0.1.2",
-            "pytest-mock==3.11.1",
-            "pytest-openfiles==0.5.0",
-            "pytest-remotedata==0.4.0",
-            "pytest-xdist==3.3.1",
-            "pytest==7.4.0",
-            "PyYAML==6.0.1",
-            "setuptools==68.0.0",
-            "sortedcontainers==2.4.0",
-            "tomli==2.0.1",
-            "cython==3.0.10",
-            "extension_helpers==1.1.1",
+            "attrs==23.1.0", "exceptiongroup==1.1.3", "execnet==2.0.2", "hypothesis==6.82.6",
+            "iniconfig==2.0.0", "numpy==1.25.2", "packaging==23.1", "pluggy==1.3.0",
+            "psutil==5.9.5", "pyerfa==2.0.0.3", "pytest-arraydiff==0.5.0", "pytest-astropy-header==0.2.2",
+            "pytest-astropy==0.10.0", "pytest-cov==4.1.0", "pytest-doctestplus==1.0.0", "pytest-filter-subpackage==0.1.2",
+            "pytest-mock==3.11.1", "pytest-openfiles==0.5.0", "pytest-remotedata==0.4.0", "pytest-xdist==3.3.1",
+            "pytest==7.4.0", "PyYAML==6.0.1", "setuptools==68.0.0", "sortedcontainers==2.4.0", "tomli==2.0.1",
         ],
-        "appmap" : """
-appmap_dir: tmp/appmap
-language: python
-name: astropy
-packages:
-- path: astropy
-  exclude:
-  - conftest
-  - extern
-  - units
-  - utils
-  - coordinates
-  - time.formats
-
-""",
     }
-    for k in ["0.1", "0.2", "0.3", "0.4", "1.1", "1.2", "1.3", "3.0", "3.1", "3.2"]
-    + ["4.1", "4.2", "4.3", "5.0", "5.1", "5.2"]
+    for k in
+        ["0.1", "0.2", "0.3", "0.4", "1.1", "1.2", "1.3", "3.0", "3.1", "3.2"] + \
+        ["4.1", "4.2", "4.3", "5.0", "5.1", "5.2"]
 }
 
 MAP_VERSION_TO_INSTALL_SYMPY = {
@@ -444,7 +384,6 @@ MAP_VERSION_TO_INSTALL_SYMPY = {
         "packages": "mpmath flake8",
         "pip_packages": ["mpmath==1.3.0", "flake8-comprehensions"],
         "install": "pip install -e .",
-        "use_pytest": False
     }
     for k in
         ["0.7", "1.0", "1.1", "1.10", "1.11", "1.12", "1.2", "1.4", "1.5", "1.6"] + \
@@ -457,7 +396,6 @@ MAP_VERSION_TO_INSTALL_SYMPY.update(
             "packages": "requirements.txt",
             "install": "pip install -e .",
             "pip_packages": ["mpmath==1.3.0"],
-            "use_pytest": False
         }
         for k in ["1.13"]
     }
@@ -469,12 +407,7 @@ MAP_VERSION_TO_INSTALL_PYLINT = {
 }
 MAP_VERSION_TO_INSTALL_PYLINT.update({
     k: {**MAP_VERSION_TO_INSTALL_PYLINT[k], "pip_packages": [
-        "gitpython==3.1.43",
-    ]} for k in ['2.14', '2.13']})
-
-MAP_VERSION_TO_INSTALL_PYLINT.update({
-    k: {**MAP_VERSION_TO_INSTALL_PYLINT[k], "pip_packages": [
-        "astroid==3.0.0a9",
+        "astroid==3.0.0a6"
     ]} for k in ['3.0']})
 
 MAP_VERSION_TO_INSTALL_XARRAY = {
@@ -618,11 +551,10 @@ MAP_VERSION_TO_INSTALL = {
 MAP_REPO_TO_INSTALL = {}
 
 # Constants - Task Instance Test Frameworks
-TEST_PYTEST = "pytest --no-header -rA --tb=no -p no:cacheprovider -v"
+TEST_PYTEST = "pytest --no-header -rA --tb=no -p no:cacheprovider"
 MAP_REPO_TO_TEST_FRAMEWORK = {
-    "astropy/astropy": f"{TEST_PYTEST} -Wi",
-    # Run with --parallel 1 to avoid pickling errors collecting failed test results
-    "django/django": "./tests/runtests.py --verbosity 2 --parallel 1",
+    "astropy/astropy": TEST_PYTEST,
+    "django/django": "./tests/runtests.py --verbosity 2",
     "marshmallow-code/marshmallow": TEST_PYTEST,
     "matplotlib/matplotlib": TEST_PYTEST,
     "mwaskom/seaborn": "pytest --no-header -rA",
@@ -633,7 +565,7 @@ MAP_REPO_TO_TEST_FRAMEWORK = {
     "pydicom/pydicom": TEST_PYTEST,
     "pylint-dev/astroid": TEST_PYTEST,
     "pylint-dev/pylint": TEST_PYTEST,
-    "pytest-dev/pytest": "pytest -vrA",
+    "pytest-dev/pytest": "pytest -rA",
     "pyvista/pyvista": TEST_PYTEST,
     "scikit-learn/scikit-learn": TEST_PYTEST,
     "sphinx-doc/sphinx": "tox -epy39 -v --",
@@ -647,7 +579,7 @@ MAP_REPO_TO_REQS_PATHS = {
     "django/django": ["tests/requirements/py3.txt"],
     "matplotlib/matplotlib": ["requirements/dev/dev-requirements.txt", "requirements/testing/travis_all.txt"],
     "pallets/flask": ["requirements/dev.txt"],
-    "pylint-dev/pylint": ["requirements_test_min.txt", "requirements_test.txt"],
+    "pylint-dev/pylint": ["requirements_test.txt"],
     "pyvista/pyvista": ["requirements_test.txt", 'requirements.txt'],
     "sqlfluff/sqlfluff": ["requirements_dev.txt"],
     "sympy/sympy": ["requirements-dev.txt"],

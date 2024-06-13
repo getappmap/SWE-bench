@@ -1,8 +1,6 @@
 import json
 import os
 import re
-from tempfile import gettempdir
-from filelock import FileLock
 import requests
 import subprocess
 
@@ -51,7 +49,7 @@ def get_conda_env_names(conda_source: str, env: dict = None) -> list:
         parts = line.split()
         if len(parts) <= 1:
             continue
-        env_name = parts[0]
+        env_name = parts[1]
         env_names.append(env_name)
     return env_names
 
@@ -139,7 +137,7 @@ def get_instances(instance_path: str) -> list:
 
 def get_requirements(instance: dict, save_path: str = None):
     """
-    Get requirements.txt for a given task instance
+    Get requirements.txt for given task instance
 
     Args:
         instance (dict): task instance
@@ -148,30 +146,43 @@ def get_requirements(instance: dict, save_path: str = None):
         requirements.txt (str): If save_path given, returns path to saved requirements.txt.
             Otherwise, returns requirements.txt as string
     """
-    # Attempt to find all listed requirements.txt at each path based on task instance's repo
-    
+    # Attempt to find requirements.txt at each path based on task instance's repo
+    path_worked = False
     commit = 'environment_setup_commit' if 'environment_setup_commit' in instance else 'base_commit'
-    all_req_lines = []
 
-    for req_path in MAP_REPO_TO_REQS_PATHS.get(instance["repo"], []):
-        reqs_url = os.path.join(SWE_BENCH_URL_RAW, instance["repo"], instance[commit], req_path)
+    for req_path in MAP_REPO_TO_REQS_PATHS[instance["repo"]]:
+        reqs_url = os.path.join(
+            SWE_BENCH_URL_RAW, instance["repo"], instance[commit], req_path
+        )
         reqs = requests.get(reqs_url)
         if reqs.status_code == 200:
-            lines = reqs.text.split("\n")
-            all_req_lines.extend(lines)
-        else:
-            print(f"Could not find requirements.txt at paths {MAP_REPO_TO_REQS_PATHS[instance['repo']]}")
+            path_worked = True
+            break
+    if not path_worked:
+        print(
+            f"Could not find requirements.txt at paths {MAP_REPO_TO_REQS_PATHS[instance['repo']]}"
+        )
+        return None
 
+    lines = reqs.text
     original_req = []
     additional_reqs = []
-    exclude_line = lambda line: any([line.strip().startswith(x) for x in ["-e .", "#", ".[test]"]])
+    req_dir = "/".join(req_path.split("/")[:-1])
+    exclude_line = lambda line: any(
+        [line.strip().startswith(x) for x in ["-e .", "#", ".[test"]]
+    )
 
-    for line in all_req_lines:
+    for line in lines.split("\n"):
         if line.strip().startswith("-r"):
             # Handle recursive requirements
-            file_name = line[len("-r"):].strip()
-            req_dir = os.path.dirname(req_path)
-            reqs_url = os.path.join(SWE_BENCH_URL_RAW, instance["repo"], instance[commit], req_dir, file_name)
+            file_name = line[len("-r") :].strip()
+            reqs_url = os.path.join(
+                SWE_BENCH_URL_RAW,
+                instance["repo"],
+                instance[commit],
+                req_dir,
+                file_name,
+            )
             reqs = requests.get(reqs_url)
             if reqs.status_code == 200:
                 for line_extra in reqs.text.split("\n"):
@@ -247,23 +258,11 @@ def clone_repo(repo_name: str, path: str, token: str = None) -> bool:
             + repo_name.replace("/", "__")
             + ".git"
         )
-        Repo.clone_from(repo_url, path, bare=True)
+        Repo.clone_from(repo_url, path)
         return True
     except Exception as e:
         print(e)
         return False
-
-
-def clone_to(repo, repo_path):
-    """
-    Clone repository through a base clone to repo_path
-    """
-    base_path = os.path.join(gettempdir(), "git-repos", repo)
-    # clone repo to basepath if not exists, under a file lock
-    with FileLock(base_path + ".lock"):
-        if not os.path.exists(base_path):
-            clone_repo(repo, base_path)
-    Repo.clone_from(base_path, repo_path)
 
 
 def split_instances(input_list: list, n: int) -> list:

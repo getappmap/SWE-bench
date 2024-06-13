@@ -47,7 +47,7 @@ def get_logs_eval(log_fp: str) -> Tuple[dict, bool]:
         if any([
             x not in content for x in [
                 f"{APPLY_PATCH_PASS} (test)",
-                f"{APPLY_PATCH_PASS} (pred",
+                f"{APPLY_PATCH_PASS} (pred)",
             ]
 
         ]):
@@ -55,7 +55,7 @@ def get_logs_eval(log_fp: str) -> Tuple[dict, bool]:
             return {}, False
 
         # Get status map of evaluation results
-        content = content.split(f"{APPLY_PATCH_PASS} (pred")[-1]
+        content = content.split(f"{APPLY_PATCH_PASS} (pred)")[-1]
         return log_parser(content), True
 
 

@@ -4,7 +4,6 @@ from multiprocessing import Pool, cpu_count
 from swebench.harness.constants import PatchType
 from swebench.harness.context_manager import TaskEnvContextManager, TestbedContextManager
 from swebench.harness.utils import get_instances, split_instances, DotDict
-from swebench.metrics.getters import get_eval_refs
 
 
 SKIP_INSTANCES = {"pytest-dev/pytest": ["6387", "7956", "3805"]}
@@ -14,6 +13,8 @@ def validate_args(args):
     """
     Validation for command line arguments
     """
+    if not os.path.exists(args.instances_path):
+        raise ValueError(f"Could not find instances file at {args.instances_path}")
     if not os.path.exists(args.log_dir):
         raise ValueError(f"Could not find log directory at {args.log_dir}")
 
@@ -61,8 +62,8 @@ def verify_task_instances(data: dict):
             ):
                 continue
             if (
-                not tcm.reset_task_env(task_instance, "to verify task instances")
-                or not tcm.run_install_task(task_instance, "to verify task instances")
+                not tcm.reset_task_env(task_instance)
+                or not tcm.run_install_task(task_instance)
                 or not tcm.apply_patch(task_instance["test_patch"], patch_type=PatchType.PATCH_TEST.value)
                 or not tcm.run_tests_task(task_instance)
                 or not tcm.apply_patch(task_instance["patch"], patch_type=PatchType.PATCH_GOLD.value)
@@ -88,7 +89,6 @@ def setup_testbed(data: dict):
     """
     data_dict = DotDict(data)
     with TestbedContextManager(
-        data_dict.id,
         data_dict.task_instances,
         data_dict.log_dir,
         conda_link=data_dict.conda_link,
@@ -96,7 +96,7 @@ def setup_testbed(data: dict):
         testbed=data_dict.testbed,
         temp_dir=data_dict.temp_dir,
         timeout=data_dict.timeout,
-        verbose=data_dict.verbose
+        verbose=data_dict.verbose,
     ) as tcm:
         distributed_task_list = tcm.get_distributed_tasks()
         for task_list in distributed_task_list:
@@ -121,17 +121,16 @@ def main(args):
     if args.num_workers is None:
         args.num_workers = cpu_count()
 
-    task_instances = list(get_eval_refs(args.instances_path).values())
+    task_instances = get_instances(args.instances_path)
     task_instances_groups = split_instances(task_instances, args.num_workers)
 
     data_groups = [
         {
-            "id": i,
             "task_instances": g,
             "func": verify_task_instances,
             **vars(args),
         }
-        for i,g in enumerate(task_instances_groups)
+        for g in task_instances_groups
     ]
 
     for group in data_groups:
