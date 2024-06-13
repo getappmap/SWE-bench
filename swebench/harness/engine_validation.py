@@ -88,7 +88,6 @@ def setup_testbed(data: dict):
     """
     data_dict = DotDict(data)
     with TestbedContextManager(
-        data_dict.id,
         data_dict.task_instances,
         data_dict.log_dir,
         conda_link=data_dict.conda_link,
@@ -96,7 +95,8 @@ def setup_testbed(data: dict):
         testbed=data_dict.testbed,
         temp_dir=data_dict.temp_dir,
         timeout=data_dict.timeout,
-        verbose=data_dict.verbose
+        verbose=data_dict.verbose,
+        suffix=data_dict.suffix,
     ) as tcm:
         distributed_task_list = tcm.get_distributed_tasks()
         for task_list in distributed_task_list:
@@ -126,12 +126,12 @@ def main(args):
 
     data_groups = [
         {
-            "id": i,
+            "suffix": "" if args.reuse_env else f"-{i}",
             "task_instances": g,
             "func": verify_task_instances,
             **vars(args),
         }
-        for i,g in enumerate(task_instances_groups)
+        for i, g in enumerate(task_instances_groups)
     ]
 
     for group in data_groups:
@@ -159,6 +159,11 @@ if __name__ == "__main__":
     parser.add_argument("--timeout", type=int, default=None, help="(Optional) Timeout (seconds) for testing script execution")
     parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
     parser.add_argument("--num_workers", type=int, default=None, help="(Optional) Number of workers")
+    parser.add_argument(
+        "--reuse-env",
+        help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",
+        action="store_true",
+    )
     args = parser.parse_args()
     validate_args(args)
     main(args)
