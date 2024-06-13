@@ -109,14 +109,6 @@ def step_posttest(
         f.write(
             f"""@generate /noformat
 
-<plan>
-"""
-        )
-        f.write(plan)
-        f.write(
-            """
-</plan>
-
 <test-errors>
 """
         )
@@ -147,11 +139,9 @@ def step_posttest(
         f.write(
             f"""# Repair Plan
 
-A code base has been updated according to the instructions provided in the <plan> tag.
-Test cases have been run, and there are some test errors. The test errors are indicated in the <test-errors> tag.
+A test case has failed. The errors emitted by the test case are provided in the <test-errors> tag.
 
-Fix the test errors indicated by the <test-errors> tag, while confirming to the intention of the
-<plan> and without changing the code that is not indicated in the <test-errors> tag.
+Fix the test errors in any of the provided <file>, without changing the intended behavior of the code.
 
 ## Output format
 
@@ -210,7 +200,6 @@ only present in the file/content to help you identify which line has the lint er
     print(
         f"[posttest] ({instance_id}) RETEST Running test command: {test_command} {test_files_str}"
     )
-    timeout = False
     try:
         test_response = task_manager.exec(
             ["bash", "-c", f"{test_command} {test_files_str}"],
