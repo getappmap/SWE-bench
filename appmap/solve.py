@@ -174,7 +174,11 @@ def worker_init(data: dict):
                     # Not all “quality levels” may be available for a given run. For example, there may be no lint command,
                     # and posttest may be disabled. In that case `apply` is the highest possible quality.
                     # The "highest possibly quality" is the first one in the list, since the list is reversed.
-                    step_args = DEFAULT_STEPS if data_dict.steps is None else data_dict.steps.split(",")
+                    step_args = (
+                        [k for k, v in DEFAULT_STEPS.items() if v]
+                        if data_dict.steps is None
+                        else data_dict.steps.split(",")
+                    )
                     result_priority = []
                     if "apply" in step_args:
                         result_priority.append("apply")
