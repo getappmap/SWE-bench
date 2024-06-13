@@ -254,6 +254,8 @@ def worker_init(data: dict):
                                 # exit the loop.
                                 if patch_file.exists() and not patches.get(result_name):
                                     patch = patch_file.read_text()
+                                    if not patch:
+                                        continue
                                     iteration = attempt_number + 1
                                     print(
                                         f"[solve] ({instance_id}) Patch generated for '{result_name}' on iteration {iteration}"
