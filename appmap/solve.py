@@ -12,6 +12,8 @@ from pathlib import Path
 from subprocess import run
 from textwrap import dedent
 
+from datasets import Dataset
+
 from appmap.solve.solver import DEFAULT_STEPS
 
 from data import load_data
@@ -128,7 +130,6 @@ def worker_init(data: dict):
 
     try:
         with TestbedContextManager(
-            data_dict.id,
             data_dict.task_instances,
             data_dict.log_dir,
             conda_link=data_dict.conda_link,
@@ -138,10 +139,11 @@ def worker_init(data: dict):
             timeout=data_dict.timeout,
             verbose=data_dict.verbose,
             keep=data_dict.keep,
+            suffix=data_dict.suffix,
         ) as tcm:
             for instance in data_dict.task_instances:
                 repo_prefix = instance["repo"].replace("/", "__")
-                env_name = f"{repo_prefix}__{instance['version']}-{data_dict.id}"
+                env_name = f"{repo_prefix}__{instance['version']}{data_dict.suffix}"
                 testbed = Path(tcm.testbed) / env_name
                 log_dir = abspath(data_dict.log_dir)
                 with TaskEnvContextManager(
@@ -169,10 +171,14 @@ def worker_init(data: dict):
                     # - `lint_repair` the patch(es) have been linted, and any resulting problems (if any) have been fixed
                     # - `posttest_failed` the patch(es) have been run against the posttest test cases, but there are test failures that couldn’t be fixed
                     # - `posttest` the patch(es) pass the posttest test cases
-                    # Not all “quality levels” may be available for a given run. For example, there may be no lint command, 
-                    # and posttest may be disabled. In that case `apply` is the highest possible quality. 
+                    # Not all “quality levels” may be available for a given run. For example, there may be no lint command,
+                    # and posttest may be disabled. In that case `apply` is the highest possible quality.
                     # The "highest possibly quality" is the first one in the list, since the list is reversed.
-                    step_args = DEFAULT_STEPS if data_dict.steps is None else data_dict.steps.split(",")
+                    step_args = (
+                        [k for k, v in DEFAULT_STEPS.items() if v]
+                        if data_dict.steps is None
+                        else data_dict.steps.split(",")
+                    )
                     result_priority = []
                     if "apply" in step_args:
                         result_priority.append("apply")
@@ -248,6 +254,8 @@ def worker_init(data: dict):
                                 # exit the loop.
                                 if patch_file.exists() and not patches.get(result_name):
                                     patch = patch_file.read_text()
+                                    if not patch:
+                                        continue
                                     iteration = attempt_number + 1
                                     print(
                                         f"[solve] ({instance_id}) Patch generated for '{result_name}' on iteration {iteration}"
@@ -261,14 +269,13 @@ def worker_init(data: dict):
                                     f"[solve] ({instance_id}) This is the highest solution level attainable. Exiting solve loop."
                                 )
                                 break
-                            
+
                             # Otherwise, we need to try again; or give up if we've reached the maximum number of attempts.
                             attempt_number += 1
                             if attempt_number >= retries:
                                 print(
                                     f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
                                 )
-
 
                         # Output the highest quality patch that was found.
                         patch_data = None
@@ -342,7 +349,7 @@ def split_runner_instances(instances: list, num_runners: int, runner_index: int)
         return instances[start_index:end_index]
 
 
-def solve_instances(instances, args):
+def solve_instances(instances: Dataset, args):
     instance_set_path = None
     if args.instance_set:
         instance_set_path = Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
@@ -356,6 +363,12 @@ def solve_instances(instances, args):
         print(f"Filtering instances by regex: {args.filter}")
         pattern = re.compile(args.filter)
         instances = [instance for instance in instances if pattern.search(instance["instance_id"])]
+    if args.random_count:
+        if isinstance(instances, Dataset):
+            instances = instances.shuffle()
+            instances = instances.take(args.random_count)
+        else:
+            instances = random.sample(instances, k=args.random_count)
     if len(instances) == 0:
         print(f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})")
         sys.exit(1)
@@ -373,7 +386,7 @@ def solve_instances(instances, args):
     instance_groups = split_instances(list(instances), args.num_workers)
     data_groups = [
         {
-            "id": i,
+            "suffix": "" if args.reuse_env else f"-{i}",
             "task_instances": g,
             "func": solve_instance,
             **vars(args),
@@ -513,6 +526,19 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="(Optional) Random seed for shuffling instances",
+    )
+    parser.add_argument(
+        "--random",
+        help="Pick n (default=1) random instances from the dataset",
+        type=int,
+        const=1,
+        nargs="?",
+        dest="random_count",
+    )
+    parser.add_argument(
+        "--reuse-env",
+        help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",
+        action="store_true",
     )
     args = parser.parse_args()
     if args.appmaps:

@@ -149,9 +149,9 @@ class ExecWrapper:
 
 
 class TestbedContextManager:
+
     def __init__(
         self,
-        id: int,
         task_instances: list,
         log_dir: str,
         conda_link: str = None,
@@ -161,6 +161,7 @@ class TestbedContextManager:
         timeout: int = None,
         verbose: bool = False,
         keep: bool = False,
+        suffix: str = "",
     ):
         """
         Initialize testbed context. Creates temporary directories and groups task instances
@@ -176,7 +177,7 @@ class TestbedContextManager:
             timeout (int): Timeout for actions
             temp_dir (str): Path to temporary directory
         """
-        self.id = id
+        self.suffix = suffix
         if verbose:
             logger_testbed.setLevel(logging.INFO)
         self.conda_link = conda_link
@@ -393,7 +394,7 @@ class TestbedContextManager:
                     continue
 
                 # Name for both environment and github repo
-                env_name = f"{repo_prefix}__{version}-{self.id}"
+                env_name = f"{repo_prefix}__{version}{self.suffix}"
                 self.log.write(f"Setting up testbed for {env_name}")
 
                 # Clone github per repo/version
@@ -518,7 +519,7 @@ class TestbedContextManager:
         for repo, map_version_to_instances in self.task_instances_grouped.items():
             repo_prefix = repo.replace("/", "__")
             for version, instances in map_version_to_instances.items():
-                env_name = f"{repo_prefix}__{version}-{self.id}"
+                env_name = f"{repo_prefix}__{version}{self.suffix}"
                 task_set = {
                     "conda_path": self.path_conda,
                     "log_dir": self.log_dir,
