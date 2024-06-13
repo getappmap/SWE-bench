@@ -46,38 +46,42 @@ def format_instructions():
 
     ## Example output
 
-    <change>
-        <file change-number-for-this-file="1">src/main/java/org/springframework/samples/petclinic/vet/Vet.java</file>
-        <original line-count="13" no-ellipsis="true"><![CDATA[
-        @JoinTable(
-            name = "vet_specialties",
-            joinColumns = @JoinColumn(name = "vet_id"),
-            inverseJoinColumns = @JoinColumn(name = "specialty_id")
-        )
-        private Set<Specialty> specialties;
-
-        protected Set<Specialty> getSpecialtiesInternal() {
-            if (this.specialties == null) {
-                this.specialties = new HashSet<>();
-            }
-            return this.specialties;
-        }]]></original>
-        <modified no-ellipsis="true"><![CDATA[
-        @JoinTable(
-            name = "vet_specialties",
-            joinColumns = @JoinColumn(name = "vet_id"),
-            inverseJoinColumns = @JoinColumn(name = "specialty_id")
-        )
-        private Set<Specialty> specialties;
-
-        private String address;
-
-        protected Set<Specialty> getSpecialtiesInternal() {
-            if (this.specialties == null) {
-                this.specialties = new HashSet<>();
-            }
-            return this.specialties;
-        }]]></modified>
-    </change>
+<change>
+    <file change-number-for-this-file="1">src/myproj/myfunc.py</file>
+    <original line-count="14" no-ellipsis="true"><![CDATA[
+class DateTime(Field):
+    def bind_to_schema(self, field_name, schema):
+        self.field_name = field_name
+        self.container = schema
+        # Configure format from schema opts
+        if self.format is None and hasattr(schema, "opts"):
+            self.format = schema.opts.datetimeformat
+            self.dateformat = schema.opts.dateformat
+            self.metadata["marshmallow_field"] = self
+        # _bind_to_schema is called before processors
+        if hasattr(schema, "root"):
+            self.root = schema.root
+        if self.metadata.get("validate"):
+            self._validate = self.metadata["validate"]
+    ]]></original>
+    <modified no-ellipsis="true"><![CDATA[
+class DateTime(Field):
+    def bind_to_schema(self, field_name, schema):
+        self.field_name = field_name
+        self.container = schema
+        # Check if 'schema' has 'opts' before accessing
+        if hasattr(schema, "opts"):
+            # Configure format from schema opts
+            if self.format is None:
+                self.format = schema.opts.datetimeformat
+                self.dateformat = schema.opts.dateformat
+            self.metadata["marshmallow_field"] = self
+            # _bind_to_schema is called before processors
+            if hasattr(schema, "root"):
+                self.root = schema.root
+            if self.metadata.get("validate"):
+                self._validate = self.metadata["validate"]
+    ]]></modified>
+</change>
     """
     )
