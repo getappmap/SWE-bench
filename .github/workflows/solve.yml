@@ -78,7 +78,6 @@ jobs:
           echo "steps: ${{ github.event.inputs.steps }}"
           echo "instance_set: ${{ github.event.inputs.instance_set }}"
   build-appmap-js:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
     runs-on: SWE-Bench_Larger
     steps:
       - name: Checkout
@@ -134,7 +133,6 @@ jobs:
     needs:
       - build-appmap-js
       - prepare-matrix
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'evaluate') || github.event_name == 'workflow_dispatch' }}
     runs-on: ${{ inputs.runner || 'swe-bench-ubuntu-latest' }}
     strategy:
       matrix:
@@ -191,8 +189,8 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           python appmap/solve.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
-            --split ${SWE_SPLIT:-test} \
-            --filter "${SWE_FILTER:-django-1[67]}" \
+            --split ${SWE_SPLIT:-dev} \
+            --filter "${SWE_FILTER:-marshmallow-1343}" \
             --retries "${SWE_RETRIES:-3}" \
             --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
             --lint_command "flake8 --extend-ignore=BLK100,C402,C408,C416,D,E122,E124,E127,E128,E131,E201,E202,E203,E221,E225,E231,E251,E261,E265,E266,E302,E303,E305,E402,E501,E502,E713,E731,F401,F841,W291,W293" \
