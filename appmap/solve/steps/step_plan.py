@@ -17,14 +17,15 @@ def step_plan(
     context_file,
     temperature,
 ):
-    print(f"[plan] ({instance_id}) Searching for context using {args.issue_file}")
-    with open(args.issue_file, "r") as f:
+    print(f"[plan] ({instance_id}) Generating a plan for {issue_file}")
+    with open(issue_file, "r") as f:
         issue_content = f.read()
 
+    print(f"[plan] ({instance_id}) Searching for context using {issue_file}")
     context_prompt = os.path.join(work_dir, "search_context.txt")
     with open(context_prompt, "w") as apply_f:
         apply_f.write(
-            f"""@context /nofence /format=json /noterms
+            f"""@context /nofence /format=json /noterms /exclude=(\\btesting\\b|\\btest\\b|\\btests\\b|\\btest_|_test\.py$|\.txt$|\.html$|\.rst$|\.md$)
                       
 {issue_content}
 """
@@ -39,7 +40,7 @@ def step_plan(
         log_path=os.path.join(work_dir, "search_context.log"),
     )
 
-    print(f"[plan] ({instance_id}) Generating a plan for {args.issue_file}")
+    print(f"[plan] ({instance_id}) Generating a plan for {issue_file}")
 
     plan_question = os.path.join(work_dir, "plan.txt")
     with open(plan_question, "w") as plan_f:
