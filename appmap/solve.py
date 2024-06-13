@@ -128,74 +128,74 @@ def worker_init(data: dict):
     for env_data in args.task_instances:
         env = DotDict(env_data)
         for instance in env.task_instances:
+            output_results(instance, output_file, instance)
+            # return
+
             with TaskEnvContextManager(
-                        instance,
-                        env.testbed,
-                        env.venv,
-                        env.log_dir,
-                        env.conda_path,
-                        timeout=env.timeout,
-                        verbose=env.verbose,
-                        log_suffix=args.log_suffix,
-                    ) as task_manager:
+                instance,
+                env.testbed,
+                env.venv,
+                env.log_dir,
+                env.conda_path,
+                timeout=env.timeout,
+                verbose=env.verbose,
+                log_suffix=args.log_suffix,
+            ) as task_manager:
+                repo_prefix = instance["repo"].replace("/", "__")
+                env_name = f"{repo_prefix}__{instance['version']}"
+                testbed = Path(env.testbed)
+                log_dir = abspath(env.log_dir)
+                instance_id = instance["instance_id"]
+                retries = args.retries
+                issue_name = env_name
+
+                retries = args.retries
+                issue_name = env_name
+
+                print(
+                    f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
+                )
+                attempt_number = 0
+
+                # There are four “quality” levels of the solution proposal, in increasing order.
+                # - `apply` applying the suggested patch(es) worked, and there are file changes resulting.
+                # - `lint_repair` the patch(es) have been linted, and any resulting problems (if any) have been fixed
+                # - `posttest_failed` the patch(es) have been run against the posttest test cases, but there are test failures that couldn’t be fixed
+                # - `posttest` the patch(es) pass the posttest test cases
+                # Not all “quality levels” may be available for a given run. For example, there may be no lint command,
+                # and posttest may be disabled. In that case `apply` is the highest possible quality.
+                # The "highest possibly quality" is the first one in the list, since the list is reversed.
+                step_args = (
+                    [k for k, v in DEFAULT_STEPS.items() if v]
+                    if args.steps is None
+                    else args.steps.split(",")
+                )
+                result_priority = []
+                if "apply" in step_args:
+                    result_priority.append("apply")
+                if args.lint_command is not None:
+                    result_priority.append("lint_repair")
+                if "posttest" in step_args:
+                    result_priority.append("posttest_failed")
+                    result_priority.append("posttest")
+                result_priority.reverse()
+
+                patches = {}
+                patches_by_attempt = []
+
                 try:
-                    repo_prefix = instance["repo"].replace("/", "__")
-                    env_name = f"{repo_prefix}__{instance['version']}"
-                    testbed = Path(env.testbed)
-                    log_dir = abspath(env.log_dir)
-                    instance_id = instance["instance_id"]
-                    retries = args.retries
-                    issue_name = env_name
-
-                    retries = args.retries
-                    issue_name = env_name
-
-                    print(
-                        f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
-                    )
-                    attempt_number = 0
-
-                    # There are four “quality” levels of the solution proposal, in increasing order.
-                    # - `apply` applying the suggested patch(es) worked, and there are file changes resulting.
-                    # - `lint_repair` the patch(es) have been linted, and any resulting problems (if any) have been fixed
-                    # - `posttest_failed` the patch(es) have been run against the posttest test cases, but there are test failures that couldn’t be fixed
-                    # - `posttest` the patch(es) pass the posttest test cases
-                    # Not all “quality levels” may be available for a given run. For example, there may be no lint command,
-                    # and posttest may be disabled. In that case `apply` is the highest possible quality.
-                    # The "highest possibly quality" is the first one in the list, since the list is reversed.
-                    step_args = (
-                        [k for k, v in DEFAULT_STEPS.items() if v]
-                        if data_dict.steps is None
-                        else data_dict.steps.split(",")
-                    )
-                    result_priority = []
-                    if "apply" in step_args:
-                        result_priority.append("apply")
-                    if data_dict.lint_command is not None:
-                        result_priority.append("lint_repair")
-                    if "posttest" in step_args:
-                        result_priority.append("posttest_failed")
-                        result_priority.append("posttest")
-                    result_priority.reverse()
-
-                    patches = {}
-                    patches_by_attempt = []
-
-                    try:
-                        while attempt_number < retries:
-                            print(
-                                f"[solve] ({instance_id}) Error resetting task environment"
-                            )
-                            return
-                        
-                        print(f"[solve] ({instance_id}) Installing environment for {instance_id}")
-                        task_manager.run_install_task(instance)
+                    while attempt_number < retries:
+                        print(
+                            f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
+                        )
 
                         if not task_manager.reset_task_env(
                             instance,
                             f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
                         ):
-                            print(f"[solve] ({instance_id}) Error resetting task environment")
+                            print(
+                                f"[solve] ({instance_id}) Error resetting task environment"
+                            )
                             return
 
                         print(
@@ -205,13 +205,20 @@ def worker_init(data: dict):
                             instance,
                             f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
                         ):
-                            print(f"[solve] ({instance_id}) Error installing environment")
+                            print(
+                                f"[solve] ({instance_id}) Error installing environment"
+                            )
                             return
 
                         instance["appmap_archive"] = extract_appmaps(instance, testbed)
 
                         # In case this is a re-run, delete any existing patch files
-                        issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(attempt_number + 1)
+                        issue_dir = (
+                            Path(log_dir)
+                            / "solve"
+                            / instance["instance_id"]
+                            / str(attempt_number + 1)
+                        )
                         for result_name in result_priority:
                             patch_file = issue_dir / f"{result_name}.patch"
                             if patch_file.exists():
@@ -253,7 +260,11 @@ def worker_init(data: dict):
                                 print(
                                     f"[solve] ({instance_id}) Patch generated for '{result_name}' on iteration {iteration}"
                                 )
-                                patches[result_name] = { "name": result_name, "patch": patch, "iteration": iteration }
+                                patches[result_name] = {
+                                    "name": result_name,
+                                    "patch": patch,
+                                    "iteration": iteration,
+                                }
                                 break
 
                         # If we have a patch at the highest quality level, we can break out of the loop.
@@ -283,12 +294,28 @@ def worker_init(data: dict):
 
                     if patch_data:
                         # Lint repair occurred if the work directory exists
-                        lint_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "lint_repair"
-                        patch_data["lint_repair"] = True if lint_repair_dir.exists() else False
+                        lint_repair_dir = (
+                            Path(log_dir)
+                            / "solve"
+                            / instance["instance_id"]
+                            / str(iteration)
+                            / "lint_repair"
+                        )
+                        patch_data["lint_repair"] = (
+                            True if lint_repair_dir.exists() else False
+                        )
 
                         # Same with test repair
-                        test_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "test_repair"
-                        patch_data["test_repair"] = True if test_repair_dir.exists() else False
+                        test_repair_dir = (
+                            Path(log_dir)
+                            / "solve"
+                            / instance["instance_id"]
+                            / str(iteration)
+                            / "test_repair"
+                        )
+                        patch_data["test_repair"] = (
+                            True if test_repair_dir.exists() else False
+                        )
 
                         output_results(instance, output_file, patch_data)
                     else:
@@ -298,6 +325,7 @@ def worker_init(data: dict):
                 except Exception:
                     print(f"[solve] ({instance_id}) Error:")
                     import traceback
+
                     traceback.print_exc()
 
 
@@ -313,7 +341,9 @@ def extract_appmaps(instance, testbed):
         return appmap_archive.name
 
 
-def split_runner_instances(instances: list, num_runners: int, runner_index: int) -> list:
+def split_runner_instances(
+    instances: list, num_runners: int, runner_index: int
+) -> list:
     """
     Split a list of instances into multiple groups based on the number of runners and the index of the runner.
 
@@ -355,16 +385,29 @@ def solve_instances(task_instances, args):
     pool.close()
     pool.join()
 
-def filter_instances(task_instances, instance_set, random_count, filter_regex, num_runners, runner_index, seed):
+
+def filter_instances(
+    task_instances,
+    instance_set,
+    random_count,
+    filter_regex,
+    num_runners,
+    runner_index,
+    seed,
+):
     instances = task_instances
     instance_set_path = None
     if instance_set:
-        instance_set_path = Path(__file__).parent / "instance_sets" / f"{instance_set}.txt"
+        instance_set_path = (
+            Path(__file__).parent / "instance_sets" / f"{instance_set}.txt"
+        )
         with open(instance_set_path) as f:
             print(f"Using instance set: {instance_set_path}")
             included_instances = list(map(str.strip, f))
             instances = [
-                instance for instance in instances if instance["instance_id"] in included_instances
+                instance
+                for instance in instances
+                if instance["instance_id"] in included_instances
             ]
 
     if random_count:
@@ -385,10 +428,12 @@ def filter_instances(task_instances, instance_set, random_count, filter_regex, n
 
     # Sorting by instance ID allows us to easily split the workload across multiple runners with
     # minimal overlap between repositories and versions.
-    instances = sorted(instances, key=lambda x: x['instance_id'], reverse=False)
+    instances = sorted(instances, key=lambda x: x["instance_id"], reverse=False)
 
     if len(instances) == 0:
-        print(f"No instances selected (instance set: {instance_set_path}, filter: {filter})")
+        print(
+            f"No instances selected (instance set: {instance_set_path}, filter: {filter})"
+        )
         sys.exit(1)
 
     if num_runners > 1:
@@ -402,6 +447,7 @@ def filter_instances(task_instances, instance_set, random_count, filter_regex, n
             print(f"- {instance['instance_id']}")
 
     return instances
+
 
 def validate_args(args):
     """
@@ -428,11 +474,20 @@ def validate_args(args):
     if not args.retries:
         raise ValueError("Must provide number of retries")
 
+
 def main(args):
     validate_args(args)
 
     dataset = load_data(args.instances_path, args.split)
-    dataset = filter_instances(dataset, args.filter)
+    dataset = filter_instances(
+        dataset,
+        args.instance_set,
+        args.andom_count,
+        args.filter,
+        args.num_runners,
+        args.runner_index,
+        args.seed,
+    )
 
     with TestbedContextManager(
         dataset,
@@ -453,11 +508,13 @@ appmap_finder = None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        epilog=dedent("""
+        epilog=dedent(
+            """
                       The full set of instances is specified by --instances. A subset can be
                       selected by
                         --instance_set. That subset will be filtered further by --filter.
-                       """)
+                       """
+        )
     )
 
     parser.add_argument(
@@ -467,8 +524,12 @@ if __name__ == "__main__":
         help="path or huggingface name of task instances dataset",
         default="princeton-nlp/SWE-bench_Lite",
     )
-    parser.add_argument("--split", type=str, default="test", help="Dataset split to use")
-    parser.add_argument("--log_dir", type=str, help="Path to log directory", default="logs")
+    parser.add_argument(
+        "--split", type=str, default="test", help="Dataset split to use"
+    )
+    parser.add_argument(
+        "--log_dir", type=str, help="Path to log directory", default="logs"
+    )
     parser.add_argument(
         "--conda_link",
         type=str,
@@ -480,7 +541,9 @@ if __name__ == "__main__":
         type=str,
         help="(Optional) Path to miniconda3 or anaconda installation",
     )
-    parser.add_argument("--testbed", type=str, help="(Optional) Path to testbed directory")
+    parser.add_argument(
+        "--testbed", type=str, help="(Optional) Path to testbed directory"
+    )
     parser.add_argument(
         "--temp_dir",
         type=str,
@@ -498,7 +561,9 @@ if __name__ == "__main__":
         default=3,
         help="Number of times to try and create a code update for each test instance",
     )
-    parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
+    parser.add_argument(
+        "--verbose", action="store_true", help="(Optional) Verbose mode"
+    )
     parser.add_argument(
         "--num_workers",
         type=int,
@@ -554,7 +619,9 @@ if __name__ == "__main__":
         default=0,
         help="Index of the runner to use",
     )
-    parser.add_argument("--instance_set", type=str, help="(Optional) Name of instance set")
+    parser.add_argument(
+        "--instance_set", type=str, help="(Optional) Name of instance set"
+    )
     parser.add_argument(
         "--seed",
         type=int,
