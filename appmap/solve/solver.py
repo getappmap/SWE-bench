@@ -269,11 +269,14 @@ class Solver:
 
         diff_command = f"git diff"
         diff = run_command(self.log_dir, diff_command, fail_on_error=True)
-        diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
-        with open(diff_file, "w") as f:
-            f.write(diff)
+        if diff:
+            diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
+            with open(diff_file, "w") as f:
+                f.write(diff)
 
-        print(f"[solver] ({self.instance_id}) Diff saved to file {diff_file}")
+            print(f"[solver] ({self.instance_id}) Diff saved to file {diff_file}")
+        else:
+            print(f"[solver] ({self.instance_id}) Diff is empty.")
 
     def load_file_content(self):
         result = {}
