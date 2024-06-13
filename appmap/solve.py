@@ -11,25 +11,19 @@ from pathlib import Path
 from subprocess import run
 from textwrap import dedent
 
-from appmap.solve.solver import DEFAULT_STEPS
-
 from data import load_data
 from filelock import FileLock
-from swebench.harness.context_manager import (
-    TaskEnvContextManager,
-    TestbedContextManager,
-)
 from swebench.harness.utils import DotDict, split_instances
 
 
 def output_results(instance, output_file, patch_data):
     instance["model_patch"] = patch_data["patch"] if patch_data is not None else None
     instance["model_name_or_path"] = "navie"
-    if patch_data is not None:
-        instance["model_patch_name"] = patch_data["name"]
-        instance["model_iteration"] = patch_data["iteration"]
-        instance["model_lint_repair"] = patch_data["lint_repair"]
-        instance["model_test_repair"] = patch_data["test_repair"]
+    # if patch_data is not None:
+    #     instance["model_patch_name"] = patch_data["name"]
+    #     instance["model_iteration"] = patch_data["iteration"]
+    #     instance["model_lint_repair"] = patch_data["lint_repair"]
+    #     instance["model_test_repair"] = patch_data["test_repair"]
 
     with FileLock(f"{output_file}.lock"):
         with open(output_file, "a+") as f:
@@ -105,186 +99,8 @@ def worker_init(data: dict):
 
     output_file = abspath(data_dict.output)
 
-    try:
-        with TestbedContextManager(
-            data_dict.id,
-            data_dict.task_instances,
-            data_dict.log_dir,
-            conda_link=data_dict.conda_link,
-            path_conda=data_dict.path_conda,
-            testbed=data_dict.testbed,
-            temp_dir=data_dict.temp_dir,
-            timeout=data_dict.timeout,
-            verbose=data_dict.verbose,
-            keep=data_dict.keep,
-        ) as tcm:
-            for instance in data_dict.task_instances:
-                repo_prefix = instance["repo"].replace("/", "__")
-                env_name = f"{repo_prefix}__{instance['version']}-{data_dict.id}"
-                testbed = Path(tcm.testbed) / env_name
-                log_dir = abspath(data_dict.log_dir)
-                with TaskEnvContextManager(
-                    instance,
-                    testbed.as_posix(),
-                    env_name,
-                    log_dir,
-                    data_dict.path_conda,
-                    timeout=data_dict.timeout,
-                    verbose=data_dict.verbose,
-                    log_suffix=data_dict.log_suffix,
-                ) as task_manager:
-                    instance_id = instance["instance_id"]
-
-                    retries = data_dict.retries
-                    issue_name = env_name
-
-                    print(
-                        f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
-                    )
-                    attempt_number = 0
-
-                    # There are four “quality” levels of the solution proposal, in increasing order.
-                    # - `apply` applying the suggested patch(es) worked, and there are file changes resulting.
-                    # - `lint_repair` the patch(es) have been linted, and any resulting problems (if any) have been fixed
-                    # - `posttest_failed` the patch(es) have been run against the posttest test cases, but there are test failures that couldn’t be fixed
-                    # - `posttest` the patch(es) pass the posttest test cases
-                    # Not all “quality levels” may be available for a given run. For example, there may be no lint command, 
-                    # and posttest may be disabled. In that case `apply` is the highest possible quality. 
-                    # The "highest possibly quality" is the first one in the list, since the list is reversed.
-                    step_args = DEFAULT_STEPS if data_dict.steps is None else data_dict.steps.split(",")
-                    result_priority = []
-                    if "apply" in step_args:
-                        result_priority.append("apply")
-                    if data_dict.lint_command is not None:
-                        result_priority.append("lint_repair")
-                    if "posttest" in step_args:
-                        result_priority.append("posttest_failed")
-                        result_priority.append("posttest")
-                    result_priority.reverse()
-
-                    patches = {}
-                    patches_by_attempt = []
-
-                    try:
-                        while attempt_number < retries:
-                            print(
-                                f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
-                            )
-
-                            if not task_manager.reset_task_env(
-                                instance,
-                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
-                            ):
-                                print(f"[solve] ({instance_id}) Error resetting task environment")
-                                return
-
-                            print(
-                                f"[solve] ({instance_id}) Installing environment for {instance_id}"
-                            )
-                            if not task_manager.run_install_task(
-                                instance,
-                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
-                            ):
-                                print(f"[solve] ({instance_id}) Error installing environment")
-                                return
-
-                            instance["appmap_archive"] = extract_appmaps(instance, testbed)
-
-                            # In case this is a re-run, delete any existing patch files
-                            issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(attempt_number + 1)
-                            for result_name in result_priority:
-                                patch_file = issue_dir / f"{result_name}.patch"
-                                if patch_file.exists():
-                                    patch_file.unlink()
-
-                            solve_instance(
-                                data_dict.instances_path,
-                                instance,
-                                log_dir,
-                                testbed,
-                                data_dict.path_conda,
-                                data_dict.appmap_command,
-                                data_dict.lint_command,
-                                attempt_number,
-                                data_dict.steps,
-                            )
-
-                            patches_obtained = []
-                            for result_name in result_priority:
-                                patch_file = Path(issue_dir) / f"{result_name}.patch"
-                                if patch_file.exists():
-                                    patches_obtained.append(result_name)
-                            # Place patches in the order they were attained.
-                            patches_obtained.reverse()
-                            patches_by_attempt.append(patches_obtained)
-
-                            # Find the first existing patch file in the issue_dir for the iteration.
-                            # This code is relying on the patches being written by the solver as it proceeds through its steps.
-                            # Iterate from higest to lowest quality level.
-                            for result_name in result_priority:
-                                patch_file = Path(issue_dir) / f"{result_name}.patch"
-                                # If there is a patch available at this quality level that we haven't seen before, store it and
-                                # exit the loop.
-                                if patch_file.exists() and not patches.get(result_name):
-                                    patch = patch_file.read_text()
-                                    iteration = attempt_number + 1
-                                    print(
-                                        f"[solve] ({instance_id}) Patch generated for '{result_name}' on iteration {iteration}"
-                                    )
-                                    patches[result_name] = { "name": result_name, "patch": patch, "iteration": iteration }
-                                    break
-
-                            # If we have a patch at the highest quality level, we can break out of the loop.
-                            if len(result_priority) and result_priority[0] in patches:
-                                print(
-                                    f"[solve] ({instance_id}) This is the highest solution level attainable. Exiting solve loop."
-                                )
-                                break
-                            
-                            # Otherwise, we need to try again; or give up if we've reached the maximum number of attempts.
-                            attempt_number += 1
-                            if attempt_number >= retries:
-                                print(
-                                    f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
-                                )
-
-
-                        # Output the highest quality patch that was found.
-                        patch_data = None
-                        for result_name in result_priority:
-                            if patches.get(result_name):
-                                patch_data = patches[result_name]
-                                iteration = patch_data["iteration"]
-                                print(
-                                    f"[solve] ({instance_id}) Submitting {result_name} patch from attempt {iteration}"
-                                )
-                                break
-
-                        if patch_data:
-                            # Lint repair occurred if the work directory exists
-                            lint_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "lint_repair"
-                            patch_data["lint_repair"] = True if lint_repair_dir.exists() else False
-
-                            # Same with test repair
-                            test_repair_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration) / "test_repair"
-                            patch_data["test_repair"] = True if test_repair_dir.exists() else False
-
-                            output_results(instance, output_file, patch_data)
-                        else:
-                            print(f"[solve] ({instance_id}) No patch generated")
-                            output_results(instance, output_file, None)
-
-                    except Exception:
-                        print(f"[solve] ({instance_id}) Error:")
-                        import traceback
-
-                        traceback.print_exc()
-
-    except Exception:
-        print("Error instantiating testbed")
-        import traceback
-
-        traceback.print_exc()
+    for instance in data_dict.task_instances:
+        output_results(instance, output_file, instance)
 
 
 def extract_appmaps(instance, testbed):
