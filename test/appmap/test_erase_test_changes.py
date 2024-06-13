@@ -2,7 +2,6 @@ from pathlib import Path
 import sys
 import pytest
 import os
-from unittest.mock import patch, mock_open
 
 # Add the parent directory to the Python path
 thisdir = Path( os.path.dirname(os.path.abspath(__file__)) )
