@@ -207,14 +207,46 @@ def step_lint_repair(
 
         repair_question, repair_prompt, repair_output, repair_log = [
             os.path.join(repair_dir, f"generate.{ext}")
-            for ext in ["txt", ".prompt.md", "md", "log"]
+            for ext in ["txt", "prompt.md", "md", "log"]
         ]
         repair_apply_question, repair_apply_output, repair_apply_log = [
             os.path.join(repair_dir, f"apply.{ext}") for ext in ["txt", "md", "log"]
         ]
 
         with open(repair_question, "w") as f:
-            f.write(f"""@generate /noformat /noterms""")
+            f.write(f"""@generate /noformat /noterms
+                    
+<lint-errors>
+"""
+            )
+            f.write("\n".join(lint_errors))
+            f.write(
+                """
+</lint-errors>
+<diff>"""
+            )
+            f.write(file_diff)
+            f.write(
+                """
+</diff>
+<file>
+<path>"""
+            )
+            f.write(file)
+            f.write(
+                """
+</path>
+<content>
+"""
+            )
+            f.write("".join(content_chunk_lines))
+            f.write(
+                """
+</content>
+</file>
+"""
+            )
+
         with open(repair_prompt, "w") as f:
             f.write(
                 f"""## Objective
@@ -249,39 +281,9 @@ the symbol from the correct module.
 
 In the <original> and <modified> tags, do not emit line numbers. The line numbers are
 only present in the file/content to help you identify which line has the lint error.
+"""
+            )
 
-## Error report
-
-<lint-errors>
-"""
-            )
-            f.write("\n".join(lint_errors))
-            f.write(
-                """
-</lint-errors>
-<diff>"""
-            )
-            f.write(file_diff)
-            f.write(
-                """
-</diff>
-<file>
-<path>"""
-            )
-            f.write(file)
-            f.write(
-                """
-</path>
-<content>
-"""
-            )
-            f.write("".join(content_chunk_lines))
-            f.write(
-                """
-</content>
-</file>
-"""
-            )
 
         # Plan the repair
         print(f"[lint-repair] ({instance_id}) Generating code to repair {file}")
