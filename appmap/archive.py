@@ -14,8 +14,34 @@ if "GITHUB_TOKEN" not in os.environ:
 github_client = Github(os.environ.get("GITHUB_TOKEN", None))
 github_requester: Requester = github_client._Github__requester
 
-RUNS = {"getappmap/download-gdrive-appmap-archives": [9357711421]}
-unavailable_repos = []
+RUNS = {
+    "getappmap/download-gdrive-appmap-archives": [9357711421],
+    "getappmap/SWE-bench": [
+        9387841075,
+        9387836277,
+        9387750538,
+        9387818738,
+        9387246481,
+        9387560383,
+        9387556159,
+        9387552571,
+        9387550441,
+        9387545110,
+        9391200795,
+        9391182409,
+        9391037925,
+        9404783807,
+        9404779233,
+        9404773898,
+        9404853224,
+        9404795820,
+        9403533528,
+        9422673252,
+        9422663223,
+        9403096497,
+        9390993060,
+    ],
+}
 
 
 def download_artifact(self: Artifact) -> str:
@@ -114,12 +140,17 @@ class GithubArchive:
 @cache
 def get_artifacts(repo_id: str, run_id: str) -> list[Artifact]:
     try:
-        repo = github_client.get_repo(repo_id)
+        repo = get_repo(repo_id)
     except UnknownObjectException:
         print(f"Repository {repo_id} is unavailable", flush=True)
         return []
     run = repo.get_workflow_run(run_id)
     return run.get_artifacts()
+
+
+@cache
+def get_repo(repo_id):
+    return github_client.get_repo(repo_id)
 
 
 class ArchiveFinder:
