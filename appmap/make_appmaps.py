@@ -11,7 +11,10 @@ import subprocess
 import sys
 import tarfile
 from multiprocessing import Pool, cpu_count
-from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK, MAP_VERSION_TO_INSTALL
+from swebench.harness.constants import (
+    MAP_REPO_TO_TEST_FRAMEWORK,
+    MAP_VERSION_TO_INSTALL,
+)
 from swebench.harness.context_manager import (
     TaskEnvContextManager,
     TestbedContextManager,
@@ -87,8 +90,12 @@ def make_appmaps(data: dict):
         timeout=data_dict.timeout,
         log_suffix=data_dict.log_suffix,
     ) as tcm:
-        tcm.reset_task_env(task_instance, "to prepare to make AppMap data using appmap-python")
-        tcm.run_install_task(task_instance, "to prepare to make AppMap data using appmap-python")
+        tcm.reset_task_env(
+            task_instance, "to prepare to make AppMap data using appmap-python"
+        )
+        tcm.run_install_task(
+            task_instance, "to prepare to make AppMap data using appmap-python"
+        )
         tcm.log.write("Installing appmap")
         tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
         spec = MAP_VERSION_TO_INSTALL[task_instance["repo"]][task_instance["version"]]
@@ -105,8 +112,10 @@ def make_appmaps(data: dict):
             "PYTHONUNBUFFERED": "1",
             **envvars,
         }
-        envvars = " ".join([f"{k}={v}" for k,v in envvars.items()])
-        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && conda env config vars set {envvars}"])
+        envvars = " ".join([f"{k}={v}" for k, v in envvars.items()])
+        tcm.exec(
+            ["bash", "-c", f"{tcm.cmd_activate} && conda env config vars set {envvars}"]
+        )
         tcm.log.write(f"Running tests with appmap with {envvars}")
         test_cmd = f"appmap-python {task_instance['test_cmd']}"
         if spec.get("use_pytest", True):

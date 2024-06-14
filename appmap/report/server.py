@@ -9,6 +9,7 @@ INDEX_HTML_PATH = os.path.join(os.path.dirname(__file__), "index.html")
 
 result_list = []
 
+
 class ReportHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/index.html" or self.path == "/":

@@ -44,9 +44,7 @@ def infer_test_directives(
     with open(input_path, "w") as pretest_f:
         # TODO: 5/6/24 There's no server-side support for /includepattern yet, actually.
         pretest_f.write(
-            f"""@context /format=yaml /nofence /includepattern={include_pattern}
-            
-Search exclusively for test cases.
+            f"""@context /format=yaml /nofence /includepattern={include_pattern} /noterms
 """
         )
 

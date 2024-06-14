@@ -119,6 +119,7 @@ def step_lint_repair(
     lint_command,
     appmap_command,
     base_file_content,
+    temperature,
 ):
     context = LintRepairContext(
         log_dir,
@@ -204,50 +205,17 @@ def step_lint_repair(
         )
         os.makedirs(repair_dir, exist_ok=True)
 
-        repair_prompt, repair_output, repair_log = [
-            os.path.join(repair_dir, f"generate.{ext}") for ext in ["txt", "md", "log"]
+        repair_question, repair_prompt, repair_output, repair_log = [
+            os.path.join(repair_dir, f"generate.{ext}")
+            for ext in ["txt", "prompt.md", "md", "log"]
         ]
-        repair_apply_prompt, repair_apply_output, repair_apply_log = [
+        repair_apply_question, repair_apply_output, repair_apply_log = [
             os.path.join(repair_dir, f"apply.{ext}") for ext in ["txt", "md", "log"]
         ]
 
-        with open(repair_prompt, "w") as f:
-            f.write(
-                f"""@generate /noformat
-
-Fix the linter errors indicated by the <lint-errors> tag.
-
-The <diff> section contains the current diff between the work-in-progress file and the
-current committed version. You can use this to understand the context of the lint errors,
-and possibly to restore or repair code that was improperly removed or changed.
-
-The <file> section contains the current content of the file. It contains line numbers
-to help you identify the lines that have the lint errors. Do not emit the line numbers
-in your solution.
-
-## Instructions
-
-Fix the lint errors by:
-
-* Modifying the line. Example: Fixing syntax.
-* Adding other lines that make the line valid. Example: Adding required imports.
-* Adjusting leading whitespace. Example: Fixing indentation in Python. 
-
-Don't fix the lint errors by removing the line that has the error. The line that
-has the error is important, but it needs to be fixed.
-
-If the lint error is related to an undefined symbol, do your best to import 
-the symbol from the correct module.
-
-## Output format
-
-{format_instructions()}
-
-In the <original> and <modified> tags, do not emit line numbers. The line numbers are
-only present in the file/content to help you identify which line has the lint error.
-
-## Error report
-
+        with open(repair_question, "w") as f:
+            f.write(f"""@generate /noformat /noterms
+                    
 <lint-errors>
 """
             )
@@ -279,13 +247,53 @@ only present in the file/content to help you identify which line has the lint er
 """
             )
 
+        with open(repair_prompt, "w") as f:
+            f.write(
+                f"""## Objective
+
+Fix the linter errors indicated by the <lint-errors> tag.
+
+The <diff> section contains the current diff between the work-in-progress file and the
+current committed version. You can use this to understand the context of the lint errors,
+and possibly to restore or repair code that was improperly removed or changed.
+
+The <file> section contains the current content of the file. It contains line numbers
+to help you identify the lines that have the lint errors. Do not emit the line numbers
+in your solution.
+
+## Instructions
+
+Fix the lint errors by:
+
+* Modifying the line. Example: Fixing syntax.
+* Adding other lines that make the line valid. Example: Adding required imports.
+* Adjusting leading whitespace. Example: Fixing indentation in Python. 
+
+Don't fix the lint errors by removing the line that has the error. The line that
+has the error is important, but it needs to be fixed.
+
+If the lint error is related to an undefined symbol, do your best to import 
+the symbol from the correct module.
+
+## Output format
+
+{format_instructions()}
+
+In the <original> and <modified> tags, do not emit line numbers. The line numbers are
+only present in the file/content to help you identify which line has the lint error.
+"""
+            )
+
+
         # Plan the repair
         print(f"[lint-repair] ({instance_id}) Generating code to repair {file}")
         run_navie_command(
             log_dir,
+            temperature=temperature,
             command=appmap_command,
-            input_path=repair_prompt,
+            input_path=repair_question,
             output_path=repair_output,
+            prompt_path=repair_prompt,
             log_path=repair_log,
         )
 
@@ -293,7 +301,7 @@ only present in the file/content to help you identify which line has the lint er
             f"[lint-repair] ({instance_id}) Code generated to repair source file in {repair_output}"
         )
 
-        with open(repair_apply_prompt, "w") as f:
+        with open(repair_apply_question, "w") as f:
             f.write("@apply /all\n\n")
             with open(repair_output, "r") as plan_fp:
                 f.write(plan_fp.read())
@@ -301,8 +309,9 @@ only present in the file/content to help you identify which line has the lint er
         print(f"[lint-repair] ({instance_id}) Applying changes to source files")
         run_navie_command(
             log_dir,
+            temperature=temperature,
             command=appmap_command,
-            input_path=repair_apply_prompt,
+            input_path=repair_apply_question,
             output_path=repair_apply_output,
             log_path=repair_apply_log,
         )

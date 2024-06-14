@@ -44,6 +44,7 @@ class Solver:
         lint_command=None,
         appmap_command="appmap",
         steps=None,
+        temperature=0.0,
     ):
         self.instances_path = instances_path
         self.instance_id = instance_id
@@ -55,6 +56,7 @@ class Solver:
         self.lint_command = lint_command
         self.appmap_command = appmap_command
         self.steps = steps or DEFAULT_STEPS
+        self.temperature = temperature
 
         if self.lint_command and not self.steps["apply"]:
             print(
@@ -68,7 +70,7 @@ class Solver:
         self.plan_file = os.path.join(self.work_dir, "plan.md")
         self.solution_file = os.path.join(self.work_dir, "solution.md")
         self.apply_file = os.path.join(self.work_dir, "apply.md")
-        self.context_file = os.path.join(self.work_dir, "search_context.json")
+        self.context_yaml_file = os.path.join(self.work_dir, "search_context.yml")
         self.files = []
         self.files_changed = []
         self.test_succeeded_files = None
@@ -96,13 +98,29 @@ class Solver:
         with open(files_list_file, "r") as f:
             self.files = json.load(f)
 
+        for file in self.files:
+            if not os.path.isfile(file):
+                print(f"[solver] ({self.instance_id}) WARN: File '{file}' from files.json does not exist.")
+                self.files.remove(file)
+
+        if len(self.files) == 0:
+            print(f"[solver] ({self.instance_id}) No files to change. Exiting without a solution.")
+            return
+
         self.base_file_content = self.load_file_content()
 
-        if self.steps["generate"]:
-            self.generate_code()
+        # Retry generate + apply in order to get a patch
+        for i in range(2):
+            if self.steps["generate"]:
+                self.generate_code()
 
-        if self.steps["apply"]:
-            self.apply_changes()
+            if self.steps["apply"]:
+                self.apply_changes()
+
+            if len(self.files_changed) > 0:
+                break
+
+            print(f"[solver] ({self.instance_id}) No files changed. Retrying apply + generate.")
 
         if self.lint_command:
             self.lint_repair()
@@ -155,7 +173,8 @@ class Solver:
             self.instance_id,
             self.appmap_command,
             self.plan_file,
-            self.context_file,
+            self.context_yaml_file,
+            self.temperature,
         )
 
     def list_files(self):
@@ -165,6 +184,7 @@ class Solver:
             self.instance_id,
             self.appmap_command,
             self.plan_file,
+            self.temperature,
         )
 
     def generate_code(self):
@@ -177,7 +197,8 @@ class Solver:
             self.plan_file,
             self.solution_file,
             self.files,
-            self.context_file,
+            self.context_yaml_file,
+            self.temperature,
         )
 
     def apply_changes(self):
@@ -188,6 +209,7 @@ class Solver:
             self.appmap_command,
             self.solution_file,
             self.apply_file,
+            self.temperature,
         )
         self.load_file_changes("apply")
 
@@ -201,6 +223,7 @@ class Solver:
             self.lint_command,
             self.appmap_command,
             self.base_file_content,
+            self.temperature,
         )
         self.load_file_changes("lint_repair")
 
@@ -251,17 +274,18 @@ class Solver:
             ):
                 self.files_changed.append(file)
 
-        print(
-            f"[solver] ({self.instance_id}) Files changed: {self.files_changed}"
-        )
+        print(f"[solver] ({self.instance_id}) Files changed: {self.files_changed}")
 
         diff_command = f"git diff"
         diff = run_command(self.log_dir, diff_command, fail_on_error=True)
-        diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
-        with open(diff_file, "w") as f:
-            f.write(diff)
+        if diff:
+            diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
+            with open(diff_file, "w") as f:
+                f.write(diff)
 
-        print(f"[solver] ({self.instance_id}) Diff saved to file {diff_file}")
+            print(f"[solver] ({self.instance_id}) Diff saved to file {diff_file}")
+        else:
+            print(f"[solver] ({self.instance_id}) Diff is empty.")
 
     def load_file_content(self):
         result = {}
@@ -323,7 +347,18 @@ def parse_arguments():
         help="Comma-separated list of steps to execute",
         default=None,
     )
-
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="(Optional) The temperature to use when running the model",
+    )
+    parser.add_argument(
+        "--temperature_increase",
+        type=float,
+        default=0.1,
+        help="(Optional) The amount to increase the temperature by on each iteration",
+    )
     return parser.parse_args()
 
 
@@ -361,6 +396,7 @@ if __name__ == "__main__":
         lint_command=args.lint_command,
         appmap_command=args.appmap_command,
         steps=steps,
+        temperature=args.temperature,
     )
     solver.solve()
     files_changed = solver.files_changed

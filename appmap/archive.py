@@ -53,6 +53,7 @@ class FileArchive:
 ARCHIVE_DIR = "/tmp/appmap-archives"
 os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
+
 class GithubArchive:
     def __init__(self, artifact: Artifact) -> None:
         self.artifact = artifact

@@ -10,7 +10,6 @@ from ...data import load_data
 from ..log import log_command
 
 from ..run_command import run_command
-from ..run_navie_command import run_navie_command
 
 
 def build_task_manager(

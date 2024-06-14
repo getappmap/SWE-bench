@@ -1,8 +1,9 @@
+import yaml
 from ..run_command import run_command
 from ..run_navie_command import run_navie_command
 from ..format_instructions import format_instructions
 
-from .erase_test_changes import erase_test_changes
+from .erase_test_changes import erase_test_changes_from_file
 
 import os
 import sys
@@ -18,10 +19,13 @@ def step_generate(
     plan_file,
     solution_file,
     files,
-    search_context_file,
+    context_yaml_file,
+    temperature,
 ):
     print(f"[generate] ({instance_id}) Generating code")
 
+    # TODO: This file can get large, causing an overflow in the LLM invocation.
+    # Detect large context files and prune them to match the intended solution.
     context_file = os.path.join(work_dir, "context.txt")
     with open(context_file, "w") as context_f:
         for file in files:
@@ -54,12 +58,10 @@ def step_generate(
             context_f.write("</content>\n")
             context_f.write("</file>\n")
 
-    generate_prompt = os.path.join(work_dir, "generate.txt")
-    with open(generate_prompt, "w") as generate_f:
-        generate_f.write(
-            f"""@generate /nocontext /noformat
-
-## Input format
+    generate_prompt = os.path.join(work_dir, "generate.prompt.md")
+    with open(generate_prompt, "w") as context_prompt_f:
+        context_prompt_f.write(
+            f"""## Input format
 
 The plan is delineated by the XML <plan> tag.
 The source files are delineated by XML <file> tags. Each file has a <path> tag with the file path and a <content> tag with the file content.
@@ -74,49 +76,56 @@ Avoid refactorings that will affect multiple parts of the codebase.
 ## Output format
 
 {format_instructions()}
+"""
+        )
+    generate_question = os.path.join(work_dir, "generate.txt")
+    with open(generate_question, "w") as generate_f:
+        generate_f.write(
+            f"""@generate /nocontext /noformat
 
 """
         )
 
-        generate_f.write("<plan>\n")
         with open(plan_file, "r") as plan_content:
             generate_f.write(plan_content.read())
-        generate_f.write("</plan>\n")
+        generate_f.write("\n\n")
         with open(context_file, "r") as context_content:
             generate_f.write(context_content.read())
 
     print(f"[generate] ({instance_id}) Filtering search context for generation")
-    search_context = filter_search_context(search_context_file, files)
+    search_context = filter_search_context(context_yaml_file, files)
     search_context = format_search_context(search_context)
-    context_file = os.path.join(work_dir, "generate-context.xml")
+    # Context is limited by Navie, so this file will generally not cause an LLM overflow.
+    context_file = os.path.join(work_dir, "generate_context.xml")
     with open(context_file, "w") as context_f:
         context_f.write(search_context)
 
     print(
-        f"[generate] ({instance_id}) Solving plan {plan_file} using {generate_prompt}"
+        f"[generate] ({instance_id}) Solving plan {plan_file} using {generate_question}"
     )
 
     run_navie_command(
         log_dir,
+        temperature=temperature,
         command=appmap_command,
-        input_path=generate_prompt,
+        input_path=generate_question,
         output_path=solution_file,
         context_path=context_file,
+        prompt_path=generate_prompt,
         log_path=os.path.join(work_dir, "generate.log"),
     )
 
     print(f"[generate] ({instance_id}) Code generated in {solution_file}")
 
-    erase_test_changes(instance_id, solution_file)
+    erase_test_changes_from_file(instance_id, solution_file)
 
 
-def filter_search_context(context_file, fulltext_files):
+def filter_search_context(context_yaml_file, fulltext_files):
     """
     Filters search context to only include non-fulltext files
     """
-    search_context = []
-    with open(context_file, "r") as context_f:
-        search_context = json.load(context_f)
+    with open(context_yaml_file, "r") as context_f:
+        search_context = yaml.safe_load(context_f)
 
     is_fulltext = lambda x: x["location"].split(":")[0] in fulltext_files
     search_context = [x for x in search_context if not is_fulltext(x)]

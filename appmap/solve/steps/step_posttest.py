@@ -7,7 +7,7 @@ from ..format_instructions import format_instructions
 from ..run_navie_command import run_navie_command
 from ..run_command import run_command
 
-from .erase_test_changes import erase_test_changes
+from .erase_test_changes import erase_test_changes_from_file
 from .step_pretest import build_task_manager
 
 
@@ -97,41 +97,17 @@ def step_posttest(
     repair_dir = os.path.join(work_dir, "test_repair")
     os.makedirs(repair_dir, exist_ok=True)
 
-    repair_prompt, repair_output, repair_log = [
-        os.path.join(repair_dir, f"generate.{ext}") for ext in ["txt", "md", "log"]
+    repair_question, repair_prompt, repair_output, repair_log = [
+        os.path.join(repair_dir, f"generate.{ext}")
+        for ext in ["txt", "prompt.md", "md", "log"]
     ]
     repair_apply_prompt, repair_apply_output, repair_apply_log = [
         os.path.join(repair_dir, f"apply.{ext}") for ext in ["txt", "md", "log"]
     ]
 
-    with open(repair_prompt, "w") as f:
+    with open(repair_question, "w") as f:
         f.write(
             f"""@generate /noformat
-
-A code base has been updated according to the instructions provided in the <plan> tag.
-Test cases have been run, and there are some test errors. The test errors are indicated in the <test-errors> tag.
-
-Fix the test errors indicated by the <test-errors> tag, while confirming to the intention of the
-<plan> and without changing the code that is not indicated in the <test-errors> tag.
-
-## Output format
-
-{format_instructions()}
-
-In the <original> and <modified> tags, do not emit line numbers. The line numbers are
-only present in the file/content to help you identify which line has the lint error.
-
-## Plan
-
-<plan>
-"""
-        )
-        f.write(plan)
-        f.write(
-            """
-</plan>
-
-## Error report
 
 <test-errors>
 """
@@ -159,13 +135,35 @@ only present in the file/content to help you identify which line has the lint er
 """
             )
 
+    with open(repair_prompt, "w") as f:
+        f.write(
+            f"""# Repair Plan
+
+A test case has failed. The errors emitted by the test case are provided in the <test-errors> tag.
+
+Fix the test errors in any of the provided <file>, without changing the intended behavior of the code.
+
+## Output format
+
+{format_instructions()}
+
+In the <original> and <modified> tags, do not emit line numbers. The line numbers are
+only present in the file/content to help you identify which line has the lint error.
+
+"""
+        )
+
+    # TODO: test_output can be large, and cause an LLM overflow. We should limit the size of test_output,
+    # and/or prune it to only include the relevant parts.
+
     # Plan the repair
     print(f"[posttest] ({instance_id}) Generating code to fix test errors")
     run_navie_command(
         posttest_log_dir,
         command=appmap_command,
-        input_path=repair_prompt,
+        input_path=repair_question,
         output_path=repair_output,
+        prompt_path=repair_prompt,
         log_path=repair_log,
     )
 
@@ -173,7 +171,7 @@ only present in the file/content to help you identify which line has the lint er
         f"[posttest] ({instance_id}) Code generated to repair source file in {repair_output}"
     )
 
-    erase_test_changes(instance_id, repair_output)
+    erase_test_changes_from_file(instance_id, repair_output)
 
     with open(repair_apply_prompt, "w") as f:
         f.write("@apply /all\n\n")
@@ -202,7 +200,6 @@ only present in the file/content to help you identify which line has the lint er
     print(
         f"[posttest] ({instance_id}) RETEST Running test command: {test_command} {test_files_str}"
     )
-    timeout = False
     try:
         test_response = task_manager.exec(
             ["bash", "-c", f"{test_command} {test_files_str}"],
