@@ -621,8 +621,7 @@ MAP_REPO_TO_INSTALL = {}
 TEST_PYTEST = "pytest --no-header -rA --tb=no -p no:cacheprovider -v"
 MAP_REPO_TO_TEST_FRAMEWORK = {
     "astropy/astropy": f"{TEST_PYTEST} -Wi",
-    # Run with --parallel 1 to avoid pickling errors collecting failed test results
-    "django/django": "./tests/runtests.py --verbosity 2 --parallel 1",
+    "django/django": "./tests/runtests.py --verbosity 2",
     "marshmallow-code/marshmallow": TEST_PYTEST,
     "matplotlib/matplotlib": TEST_PYTEST,
     "mwaskom/seaborn": "pytest --no-header -rA",
