@@ -1,0 +1,64 @@
+name: Run test harness validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+
+jobs:
+  validate:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'validate') }}
+    runs-on: SWE-Bench_Larger
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            texlive \
+            texlive-xetex \
+            dvipng \
+            ghostscript \
+            libfreetype-dev \
+            libtiff-dev \
+            libxrender1
+
+      # Cache the conda environment
+      - name: Cache conda environment
+        id: cache-conda
+        uses: actions/cache@v4
+        with:
+          path: /usr/share/miniconda/envs/swe-bench
+          key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
+
+      # Create conda env if cache miss happens
+      - name: Create conda env
+        if: steps.cache-conda.outputs.cache-hit != 'true'
+        run: |
+          conda init bash
+          conda env create -f environment.yml
+
+      - name: Run validation
+        run: |
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate swe-bench
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          mkdir -p validate_logs
+          python swebench/harness/engine_validation.py \
+            --instances_path "princeton-nlp/SWE-bench_Lite" \
+            --log_dir "validate_logs" \
+            --temp_dir "${{ runner.temp }}" \
+            --num_workers 1 \
+            --verbose \
+            --path_conda $(conda info --base)
+
+      - name: Upload validation logs
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: validation-logs-${{ github.run_id }}
+          path: validate_logs
