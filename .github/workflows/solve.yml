@@ -190,7 +190,6 @@ jobs:
             --filter "${SWE_FILTER:-marshmallow-1343}" \
             --num_runners "${NUM_RUNNERS:-1}" \
             --runner_index "${{ matrix.index }}" \
-            --verbose \
             $(test -n "${{ inputs.instance_set }}" && echo --instance_set "${{ inputs.instance_set }}")
 
       - name: Run evaluation
