@@ -638,7 +638,7 @@ MAP_REPO_TO_TEST_FRAMEWORK = {
     "sphinx-doc/sphinx": "tox -epy39 -v --",
     "sqlfluff/sqlfluff": TEST_PYTEST,
     "swe-bench/humaneval": "python",
-    "sympy/sympy": "bin/test -C --verbose",
+    "sympy/sympy": "PYTHONWARNINGS=ignore bin/test -C --verbose",
 }
 
 # Constants - Task Instance Requirements File Paths
