@@ -130,7 +130,7 @@ class GithubArchive:
         appmaps = glob.glob(
             os.path.join(self.dirpath, "tmp/appmap/**/*.appmap.json"), recursive=True
         )
-        print(f"Extracted {len(appmaps)} appmaps", flush=True)
+        print(f"Extracted {len(appmaps)} appmaps from {self}", flush=True)
         assert self.is_unpacked
 
     def __str__(self) -> str:

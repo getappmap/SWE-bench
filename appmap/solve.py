@@ -361,16 +361,20 @@ def worker_init(data: dict):
 def extract_appmaps(instance, testbed):
     if not appmap_finder:
         return
+    instance_id = instance["instance_id"]
     appmap_archive = appmap_finder.find_archive(
         instance["repo"].split("/")[-1] + "-" + instance["version"]
     )
     if appmap_archive is not None:
         try:
-            print(f"AppMap archive: {appmap_archive}", flush=True)
+            print(f"[{instance_id}] AppMap archive: {appmap_archive}", flush=True)
             appmap_archive.extract(testbed)
             return appmap_archive.name
         except:
-            print("Error extracting AppMaps; continuing without", flush=True)
+            print(
+                f"[{instance_id}] Error extracting AppMaps from {appmap_archive}; continuing without",
+                flush=True,
+            )
             import traceback
 
             traceback.print_exc()
