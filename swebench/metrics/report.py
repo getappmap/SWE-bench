@@ -383,4 +383,11 @@ def get_model_report(
         if get_resolution_status(report) == ResolvedStatus.FULL.value:
             report_map["resolved"].append(p[KEY_INSTANCE_ID])
 
+        if len(report['PASS_TO_PASS']['failure']) > 0 or len(report['FAIL_TO_PASS']['failure']) > 0:
+            print(f'FAIL: {p[KEY_INSTANCE_ID]}')
+            for t in report:
+                for f in report[t]['failure']:
+                    print(f'FAIL ({t}): {f}')
+            print('\n')
+
     return report_map
