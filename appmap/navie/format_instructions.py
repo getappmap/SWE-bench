@@ -1,7 +1,4 @@
-import textwrap
-
-
-def format_instructions():
+def xml_format_instructions():
     return """
 For each change you want to make, generate a pair of tags called <original> and <modified>.
 

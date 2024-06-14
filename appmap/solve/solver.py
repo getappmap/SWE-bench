@@ -20,7 +20,8 @@ from appmap.solve.steps.step_generate import step_generate
 from appmap.solve.steps.step_list import step_list
 from appmap.solve.steps.step_plan import step_plan
 
-# Add pretest ... posttest to include those in the run.
+# pretest detects test cases by analysis. peektest looks at the test instance data.
+# Add pretest or peektest ... posttest to include those in the run.
 DEFAULT_STEPS = {
     "pretest": False,
     "peektest": False,
