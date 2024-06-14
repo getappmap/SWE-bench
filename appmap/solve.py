@@ -365,9 +365,16 @@ def extract_appmaps(instance, testbed):
         instance["repo"].split("/")[-1] + "-" + instance["version"]
     )
     if appmap_archive is not None:
-        print(f"AppMap archive: {appmap_archive}", flush=True)
-        appmap_archive.extract(testbed)
-        return appmap_archive.name
+        try:
+            print(f"AppMap archive: {appmap_archive}", flush=True)
+            appmap_archive.extract(testbed)
+            return appmap_archive.name
+        except:
+            print("Error extracting AppMaps; continuing without", flush=True)
+            import traceback
+
+            traceback.print_exc()
+            return None
 
 
 def split_runner_instances(

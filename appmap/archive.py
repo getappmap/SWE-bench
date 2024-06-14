@@ -61,15 +61,19 @@ class GithubArchive:
 
         self.dirname = self.name.removesuffix(".tar.xz")
         self.dirpath = os.path.join(ARCHIVE_DIR, self.dirname)
+        self.appmap_yml_path = os.path.join(self.dirpath, "appmap.yml")
+
+    @property
+    def is_unpacked(self):
+        return os.path.exists(self.appmap_yml_path)
 
     def extract(self, workdir: str) -> None:
-        if not os.path.exists(self.dirpath):
+        if not self.is_unpacked:
             with FileLock(self.dirpath + ".lock"):
                 self._download_archive()
         # Copy appmap.yml to workdir
-        src_appmap_yml = os.path.join(self.dirpath, "appmap.yml")
         dest_appmap_yml = os.path.join(workdir, "appmap.yml")
-        shutil.copy(src_appmap_yml, dest_appmap_yml)
+        shutil.copy(self.appmap_yml_path, dest_appmap_yml)
 
         # Ensure workdir/tmp exists
         tmp_dir = os.path.join(workdir, "tmp")
@@ -83,7 +87,7 @@ class GithubArchive:
         os.symlink(src_symlink, dest_symlink)
 
     def _download_archive(self) -> None:
-        if os.path.exists(self.dirpath):
+        if self.is_unpacked:
             return
         zip_path = self.dirpath + ".zip"
         url = self.artifact.download()
@@ -94,14 +98,14 @@ class GithubArchive:
         assert os.path.exists(tarpath)
         os.remove(zip_path)
 
-        os.makedirs(self.dirpath)
+        os.makedirs(self.dirpath, exist_ok=True)
         os.system(f"tar -xf {tarpath} -C {self.dirpath}")
-        assert os.path.exists(os.path.join(self.dirpath, "appmap.yml"))
         os.remove(tarpath)
         appmaps = glob.glob(
             os.path.join(self.dirpath, "tmp/appmap/**/*.appmap.json"), recursive=True
         )
         print(f"Extracted {len(appmaps)} appmaps", flush=True)
+        assert self.is_unpacked
 
     def __str__(self) -> str:
         return f"GithubArchive({self.artifact.name})"
