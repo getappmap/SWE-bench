@@ -208,6 +208,7 @@ MAP_VERSION_TO_INSTALL_SEABORN.update(
                 "pandas==2.1.0",
                 "pillow==10.0.0",
                 "pyparsing==3.0.9",
+                "pytest",
                 "python-dateutil==2.8.2",
                 "pytz==2023.3.post1",
                 "scipy==1.11.2",
