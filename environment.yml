@@ -20,4 +20,5 @@ dependencies:
     - sentencepiece
     - protobuf
     - pygithub
+    - unidiff
   - conda-forge::gh
