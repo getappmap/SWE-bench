@@ -7,6 +7,7 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
+from appmap.solve.patch import clean_patch
 from appmap.solve.run_command import run_command
 from appmap.solve.is_test_file import is_test_file
 
@@ -276,9 +277,10 @@ class Solver:
 
         print(f"[solver] ({self.instance_id}) Files changed: {self.files_changed}")
 
-        diff_command = f"git diff -- {' '.join(self.files_changed)}"
+        diff_command = f"git diff"
         diff = run_command(self.log_dir, diff_command, fail_on_error=True)
         if diff:
+            diff = clean_patch(diff)
             diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
             with open(diff_file, "w") as f:
                 f.write(diff)
