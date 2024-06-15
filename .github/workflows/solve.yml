@@ -135,6 +135,7 @@ jobs:
       - prepare-matrix
     runs-on: ${{ inputs.runner || 'swe-bench-ubuntu-latest' }}
     strategy:
+      fail-fast: false
       matrix:
         index: ${{ fromJson(needs['prepare-matrix'].outputs.matrix) }}
     defaults:
