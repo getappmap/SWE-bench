@@ -4,6 +4,7 @@ import subprocess
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 
 from ..format_instructions import format_instructions
+from ..patch import clean_patch
 from ..run_navie_command import run_navie_command
 from ..run_command import run_command
 
@@ -34,7 +35,9 @@ def step_posttest(
 
     # Run the diff command
     diff_command = f"git diff"
-    file_diff = run_command(posttest_log_dir, diff_command, fail_on_error=True)
+    file_diff = clean_patch(
+        run_command(posttest_log_dir, diff_command, fail_on_error=True)
+    )
     print(f"[posttest] ({instance_id}) Current project diff:")
     print(file_diff)
     diff_file = os.path.join(posttest_log_dir, "solve.patch")
@@ -189,7 +192,9 @@ only present in the file/content to help you identify which line has the lint er
 
     print(f"[posttest] ({instance_id}) Changes applied:")
 
-    file_diff = run_command(posttest_log_dir, diff_command, fail_on_error=True)
+    file_diff = clean_patch(
+        run_command(posttest_log_dir, diff_command, fail_on_error=True)
+    )
     print(file_diff)
     repair_diff_file = os.path.join(posttest_log_dir, "solve_repair.patch")
     with open(repair_diff_file, "w") as f:
