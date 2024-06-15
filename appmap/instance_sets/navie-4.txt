@@ -312,7 +312,6 @@ sympy__sympy-12489
 sympy__sympy-12529
 sympy__sympy-12798
 sympy__sympy-12812
-sympy__sympy-12906
 sympy__sympy-12945
 sympy__sympy-12977
 sympy__sympy-13001
