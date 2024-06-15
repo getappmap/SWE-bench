@@ -130,6 +130,7 @@ def worker_init(data: dict):
     assert data_dict.retries is not None
 
     output_file = abspath(data_dict.output)
+    appmap_command = abspath(data_dict.appmap_command)
 
     try:
         with TestbedContextManager(
@@ -249,7 +250,7 @@ def worker_init(data: dict):
                                 log_dir,
                                 testbed,
                                 data_dict.path_conda,
-                                data_dict.appmap_command,
+                                appmap_command,
                                 data_dict.lint_command,
                                 attempt_number,
                                 data_dict.steps,

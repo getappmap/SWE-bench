@@ -276,7 +276,7 @@ class Solver:
 
         print(f"[solver] ({self.instance_id}) Files changed: {self.files_changed}")
 
-        diff_command = f"git diff"
+        diff_command = f"git diff -- {' '.join(self.files_changed)}"
         diff = run_command(self.log_dir, diff_command, fail_on_error=True)
         if diff:
             diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
