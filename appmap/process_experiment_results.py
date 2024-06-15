@@ -126,6 +126,7 @@ def main():
         solve_logs, os.path.join(target_directory, "solve_steps"), dirs_exist_ok=True
     )
     print(f"Processed results ({count}) written to {target_directory}.")
+    os.makedirs(os.path.join(target_directory, "results"), exist_ok=True)
     generate_reports(args.experiments, split, f"{date}_{args.model_name}")
     print(f"Reports generated. Remember to add a README to {target_directory}")
 
