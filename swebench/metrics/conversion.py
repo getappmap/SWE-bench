@@ -1,6 +1,7 @@
 import json, os
 
 from swebench.metrics.constants import (
+    ERROR_TO_ERROR,
     FAIL_TO_PASS,
     FAIL_TO_FAIL,
     PASS_TO_PASS,
@@ -13,6 +14,7 @@ from swebench.metrics.getters import (
     log_path_to_sms,
     test_failed,
     test_passed,
+    test_errored,
 )
 from swebench.metrics.log_parsers import MAP_REPO_TO_PARSER
 
@@ -46,6 +48,7 @@ def convert_log_to_ground_truth(
         FAIL_TO_FAIL: [],
         PASS_TO_PASS: [],
         PASS_TO_FAIL: [],
+        ERROR_TO_ERROR: [],
     }
 
     for test, status in sm_after.items():
@@ -59,6 +62,10 @@ def convert_log_to_ground_truth(
                 status_ground_truth[PASS_TO_FAIL].append(test)
             elif test_failed(test, sm_before):
                 status_ground_truth[FAIL_TO_FAIL].append(test)
+        if status == TestStatus.ERROR.value:
+            if test_errored(test, sm_before):
+                print(f"ERROR_TO_ERROR, test: {test}")
+                status_ground_truth[ERROR_TO_ERROR].append(test)
 
     if save_dir is not None:
         results_file = f"{inst_file_name.split('.')[0]}.json"
