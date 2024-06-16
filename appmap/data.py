@@ -4,7 +4,7 @@ from pathlib import Path
 datasets_dir = Path(__file__).parent / "datasets"
 
 
-def load_data(dataset_name, split) -> Dataset:
+def load_data(dataset_name) -> Dataset:
     dataset_dir = datasets_dir / dataset_name.replace("/", "__")
     dataset = None
     if Path(dataset_dir).exists():
@@ -14,4 +14,4 @@ def load_data(dataset_name, split) -> Dataset:
         Path.mkdir(dataset_dir, parents=True)
         dataset.save_to_disk(str(dataset_dir))
 
-    return dataset[split]
+    return dataset

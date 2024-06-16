@@ -470,7 +470,7 @@ def solve_instances(instances: Dataset, args):
 
 
 def main(args):
-    dataset = load_data(args.instances_path, args.split)
+    dataset = load_data(args.instances_path)[args.split]
     solve_instances(dataset, args)
 
 
