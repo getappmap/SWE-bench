@@ -3,6 +3,7 @@ import glob
 import json
 import os
 import shutil
+import tarfile
 from zipfile import ZipFile
 
 
@@ -54,7 +55,34 @@ def unzip_files(zip_files, temp_dir):
         print(f"Extracting {zip_file} to {temp_subdir}")
         with ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(temp_subdir)
+
         unzipped_dirs.append(temp_subdir)
+
+        # Check for the existence of a single tar.xz file in the temp directory
+        tar_xz_files = [f for f in os.listdir(temp_subdir) if f.endswith(".tar.xz")]
+        if len(tar_xz_files) == 0:
+            pass
+        elif len(tar_xz_files) == 1:
+            print(f"Extracting contents from {tar_xz_files[0]}")
+            tar_xz_file = tar_xz_files[0]
+            tar_xz_path = os.path.join(temp_subdir, tar_xz_file)
+            # Extract predictions.jsonl and logs from the tar.xz file
+            print(f"Extracting contents from {tar_xz_path}")
+            with tarfile.open(tar_xz_path, "r:xz") as tar:
+                predictions_path = os.path.join(temp_subdir, "predictions.jsonl")
+                with open(predictions_path, "wb") as f:
+                    f.write(tar.extractfile("predictions.jsonl").read())
+
+                logs_dir = os.path.join(temp_subdir, "logs")
+                os.makedirs(logs_dir, exist_ok=True)
+                for member in tar.getmembers():
+                    if member.name.startswith("logs/"):
+                        member.name = member.name[len("logs/") :]
+                        tar.extract(member, path=logs_dir)
+            os.remove(tar_xz_path)
+        else:
+            print(f"WARNING Found {len(tar_xz_files)} tar.xz files in {temp_subdir}.")
+
     return unzipped_dirs
 
 
