@@ -123,6 +123,8 @@ test_failed = lambda case, sm: case not in sm or any(
     [sm[case] == status for status in [TestStatus.FAILED.value, TestStatus.ERROR.value]]
 )
 
+test_errored = lambda case, sm: case in sm and sm[case] == TestStatus.ERROR.value
+
 
 def get_eval_refs(data_path_or_name):
     decode_keys = False
