@@ -20,6 +20,7 @@ from swebench.harness.constants import (
     INSTALL_TIMEOUT,
     KEY_INSTANCE_ID,
     KEY_MODEL,
+    MAP_REPO_TO_GH_ORG,
     MAP_REPO_TO_INSTALL,
     MAP_REPO_TO_TEST_FRAMEWORK,
     MAP_REPO_VERSION_TO_CONDA_LINK,
@@ -399,8 +400,9 @@ class TestbedContextManager:
 
                 # Clone github per repo/version
                 repo_path = os.path.join(self.testbed, env_name)
+                gh_org = MAP_REPO_TO_GH_ORG.get(repo, "swe-bench")
                 if not os.path.exists(repo_path):
-                    clone_to(repo, repo_path)
+                    clone_to(repo, repo_path, gh_org=gh_org)
                     self.log.write(f"Cloned {repo} to {repo_path}")
                 else:
                     self.log.write(f"Repo for {repo_prefix} version {version} exists: {repo_path}; skipping")
@@ -427,12 +429,19 @@ class TestbedContextManager:
             # Get setup reference instance
             setup_ref_instance = version_to_setup_ref[version]
 
+            # Bail early if this is set, to make it obvious.
+            if os.environ.get("PIP_REQUIRE_VIRTUALENV"):
+                raise RuntimeError(
+                    "You must unset PIP_REQUIRE_VIRTUALENV to create a conda environmnt"
+                )
+
             # Create conda environment according to install instructinos
             pkgs = install["packages"] if "packages" in install else ""
+            python_pkg = "libpython-static" if "static_python" in install else "python"
             if pkgs == "requirements.txt":
                 # Create environment
-                cmd = f"{exec_cmd} create -n {env_name} python={install['python']} -y"
-                self.log.write(f"Creating environment {env_name}")
+                cmd = f"{exec_cmd} create -c conda-forge -n {env_name} {python_pkg}={install['python']} -y"
+                self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                 self.exec(cmd.split(" "))
 
                 # Install dependencies
@@ -451,8 +460,8 @@ class TestbedContextManager:
                     )
 
                     # `conda create` based installation
-                    cmd = f"{exec_cmd} create -c conda-forge -n {env_name} python={install['python']} -y"
-                    self.log.write(f"Creating environment {env_name}")
+                    cmd = f"{exec_cmd} create -c conda-forge -n {env_name} {python_pkg}={install['python']} -y"
+                    self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                     self.exec(cmd.split(" "))
 
                     # Install dependencies
@@ -472,15 +481,15 @@ class TestbedContextManager:
 
                     # `conda env create` based installation
                     cmd = f"{exec_cmd} env create --file {path_to_reqs}"
-                    self.log.write(f"Creating environment {env_name}")
+                    self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                     self.exec(cmd.split(" "))
 
                     # Remove environment.yml
                 os.remove(path_to_reqs)
             else:
                 # Create environment + install dependencies
-                cmd = f"{exec_cmd} create -n {env_name} python={install['python']} {pkgs} -y"
-                self.log.write(f"Creating environment {env_name}")
+                cmd = f"{exec_cmd} create -n {env_name} {python_pkg}={install['python']} {pkgs} -y"
+                self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                 self.exec(cmd.split(" "))
 
             arch = platform.machine()
@@ -826,7 +835,7 @@ class TaskEnvContextManager:
         """
         try:
             # Run test command for task instance
-            test_cmd = f"{self.cmd_activate} && printenv && {test_cmd_override or instance['test_cmd']}"
+            test_cmd = f"{self.cmd_activate} && {test_cmd_override or instance['test_cmd']}"
             with open(self.log_file, "a") as f:
                 f.write(f"Test Script: {test_cmd};\n")
 

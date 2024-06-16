@@ -170,6 +170,7 @@ def parse_log_sympy(log):
 
 
 parse_log_astroid = parse_log_pytest
+parse_log_django_oscar = parse_log_pytest
 parse_log_flask = parse_log_pytest
 parse_log_marshmallow = parse_log_pytest
 parse_log_matplotlib = parse_log_pytest
@@ -190,6 +191,7 @@ parse_log_sphinx = parse_log_pytest_v2
 MAP_REPO_TO_PARSER = {
     "astropy/astropy": parse_log_astropy,
     "django/django": parse_log_django,
+    "django-oscar/django-oscar": parse_log_django_oscar,
     "marshmallow-code/marshmallow": parse_log_marshmallow,
     "matplotlib/matplotlib": parse_log_matplotlib,
     "mwaskom/seaborn": parse_log_seaborn,
