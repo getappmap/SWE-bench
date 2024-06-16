@@ -18,7 +18,7 @@ from swebench.harness.constants import (
     KEY_PREDICTION,
 )
 from swebench.harness.engine_evaluation import main as eval_engine
-from swebench.harness.utils import get_instances
+from swebench.harness.utils import datetime_serializer, get_instances
 from swebench.metrics.getters import get_eval_refs
 
 logging.basicConfig(
@@ -187,7 +187,7 @@ def main(
 
                 # Save predictions to file
                 with open(file_path, "w") as f:
-                    json.dump(repo_version_predictions, f, indent=4)
+                    json.dump(repo_version_predictions, f, indent=4, default=datetime_serializer)
 
                 eval_args.append(args)
                 temp_dirs.append(testbed_model_repo_version_dir)

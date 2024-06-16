@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import json
 import os
 import random
@@ -22,7 +23,7 @@ from swebench.harness.context_manager import (
     TaskEnvContextManager,
     TestbedContextManager,
 )
-from swebench.harness.utils import DotDict, split_instances
+from swebench.harness.utils import DotDict, split_instances, datetime_serializer
 
 
 def output_results(instance, output_file, patch_data):
@@ -36,7 +37,7 @@ def output_results(instance, output_file, patch_data):
 
     with FileLock(f"{output_file}.lock"):
         with open(output_file, "a+") as f:
-            f.write(json.dumps(instance) + "\n")
+            f.write(json.dumps(instance, default=datetime_serializer) + "\n")
 
 
 def solve_instance(

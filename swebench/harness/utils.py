@@ -452,3 +452,9 @@ def has_attribute_or_import_error(log_before):
         if any([(x in lines_1 or x in lines_2) for x in ['error', 'fail']]):
             return True
     return False
+
+
+def datetime_serializer(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()  # Or modify this to serialize in your preferred format
+    raise TypeError("Type not serializable")
