@@ -20,6 +20,7 @@ from swebench.harness.constants import (
     INSTALL_TIMEOUT,
     KEY_INSTANCE_ID,
     KEY_MODEL,
+    MAP_REPO_TO_GH_ORG,
     MAP_REPO_TO_INSTALL,
     MAP_REPO_TO_TEST_FRAMEWORK,
     MAP_REPO_VERSION_TO_CONDA_LINK,
@@ -399,8 +400,9 @@ class TestbedContextManager:
 
                 # Clone github per repo/version
                 repo_path = os.path.join(self.testbed, env_name)
+                gh_org = MAP_REPO_TO_GH_ORG.get(repo, "swe-bench")
                 if not os.path.exists(repo_path):
-                    clone_to(repo, repo_path)
+                    clone_to(repo, repo_path, gh_org=gh_org)
                     self.log.write(f"Cloned {repo} to {repo_path}")
                 else:
                     self.log.write(f"Repo for {repo_prefix} version {version} exists: {repo_path}; skipping")
@@ -429,11 +431,25 @@ class TestbedContextManager:
 
             # Create conda environment according to install instructinos
             pkgs = install["packages"] if "packages" in install else ""
+            setup_install = install.get("setup_install")
+
+            def before_install():
+                # Override the user's setting of PIP_REQUIRE_VIRTUALENV. It's not needed in a
+                # conda-managed environment, and will cause failures below.
+                cmd = f"{exec_cmd} env config vars set PIP_REQUIRE_VIRTUALENV=false"
+                self.exec(cmd.split(" "))
+                if setup_install is not None:
+                    setup_install(self, path_activate, env_name)
+
             if pkgs == "requirements.txt":
                 # Create environment
-                cmd = f"{exec_cmd} create -n {env_name} python={install['python']} -y"
-                self.log.write(f"Creating environment {env_name}")
+                cmd = (
+                    f"{exec_cmd} create -c conda-forge -n {env_name} python={install['python']} -y"
+                )
+                self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                 self.exec(cmd.split(" "))
+
+                before_install()
 
                 # Install dependencies
                 path_to_reqs = get_requirements(setup_ref_instance, self.testbed)
@@ -452,8 +468,10 @@ class TestbedContextManager:
 
                     # `conda create` based installation
                     cmd = f"{exec_cmd} create -c conda-forge -n {env_name} python={install['python']} -y"
-                    self.log.write(f"Creating environment {env_name}")
+                    self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                     self.exec(cmd.split(" "))
+
+                    before_install()
 
                     # Install dependencies
                     cmd = f"{exec_cmd} env update -f {path_to_reqs}"
@@ -472,7 +490,7 @@ class TestbedContextManager:
 
                     # `conda env create` based installation
                     cmd = f"{exec_cmd} env create --file {path_to_reqs}"
-                    self.log.write(f"Creating environment {env_name}")
+                    self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                     self.exec(cmd.split(" "))
 
                     # Remove environment.yml
@@ -480,7 +498,10 @@ class TestbedContextManager:
             else:
                 # Create environment + install dependencies
                 cmd = f"{exec_cmd} create -n {env_name} python={install['python']} {pkgs} -y"
-                self.log.write(f"Creating environment {env_name}")
+
+                before_install()
+
+                self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                 self.exec(cmd.split(" "))
 
             arch = platform.machine()
@@ -826,7 +847,7 @@ class TaskEnvContextManager:
         """
         try:
             # Run test command for task instance
-            test_cmd = f"{self.cmd_activate} && printenv && {test_cmd_override or instance['test_cmd']}"
+            test_cmd = f"{self.cmd_activate} && {test_cmd_override or instance['test_cmd']}"
             with open(self.log_file, "a") as f:
                 f.write(f"Test Script: {test_cmd};\n")
 

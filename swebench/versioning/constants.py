@@ -19,6 +19,7 @@ MAP_REPO_TO_VERSION_PATHS = {
     "scikit-learn/scikit-learn": ["sklearn/__init__.py"],
     "sphinx-doc/sphinx": ["sphinx/__init__.py"],
     "sympy/sympy": ["sympy/release.py", "sympy/__init__.py"],
+    "django-oscar/django-oscar": ["oscar/__init__.py", "src/oscar/__init__.py"],
 }
 
 # Cosntants - Task Instance Version Regex Pattern
@@ -38,6 +39,7 @@ MAP_REPO_TO_VERSION_PATTERNS = {
         "scikit-learn/scikit-learn",
         "sphinx-doc/sphinx",
         "sympy/sympy",
+        "django-oscar/django-oscar",
     ]
 }
 MAP_REPO_TO_VERSION_PATTERNS.update(

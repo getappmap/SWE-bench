@@ -23,16 +23,14 @@ def build_task_manager(
     verbose,
 ):
     testbed = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
-    dev_dataset = load_data(instances_path, "dev")
-    test_dataset = load_data(instances_path, "test")
+    datasets = load_data(instances_path)
 
-    instance = next(
-        (inst for inst in test_dataset if inst["instance_id"] == instance_id), None
-    )
-    if not instance:
-        instance = next(
-            (inst for inst in dev_dataset if inst["instance_id"] == instance_id), None
-        )
+    instance = None
+    for _, split in datasets.items():
+        g = (i for i in split if i["instance_id"] == instance_id)
+        instance = next(g, None)
+        if instance is not None:
+            break
 
     if not instance:
         raise ValueError(

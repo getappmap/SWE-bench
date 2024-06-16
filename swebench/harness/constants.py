@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import partial
 
 MAP_VERSION_TO_INSTALL_SKLEARN = {
     k: {
@@ -75,7 +76,7 @@ MAP_VERSION_TO_INSTALL_FLASK.update(
 
 DJANGO_DEFAULTS = {
     "use_pytest": False,
-    "appmap":"""
+    "appmap": """
 appmap_dir: tmp/appmap
 language: python
 name: django
@@ -92,7 +93,8 @@ packages:
 }
 
 MAP_VERSION_TO_INSTALL_DJANGO = {
-    k: {**DJANGO_DEFAULTS,
+    k: {
+        **DJANGO_DEFAULTS,
         "python": "3.5",
         "packages": "requirements.txt",
         "install": "python setup.py install",
@@ -102,8 +104,7 @@ MAP_VERSION_TO_INSTALL_DJANGO = {
 
 MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
-        k: {**DJANGO_DEFAULTS,
-            "python": "3.5", "install": "python setup.py install"}
+        k: {**DJANGO_DEFAULTS, "python": "3.5", "install": "python setup.py install"}
         for k in ["1.4", "1.5", "1.6"]
     }
 )
@@ -153,15 +154,46 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
 )
 for k in ["2.2", "3.0", "3.1"]:
     MAP_VERSION_TO_INSTALL_DJANGO[k].update(
-        {"env_vars_test": { "LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8" }}
+        {"env_vars_test": {"LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8"}}
     )
+
+
+def _setup_django_oscar_install(uwsgi_version, mgr, path_activate, env_name):
+    cmd = [
+        "bash",
+        "-c",
+        f". {path_activate} {env_name} && conda install -y uwsgi={uwsgi_version}",
+    ]
+    mgr.exec(cmd)
+
+
+MAP_VERSION_TO_INSTALL_DJANGO_OSCAR = {
+    k: {
+        "python": "3.8",
+        "setup_install": partial(_setup_django_oscar_install, "2.0.19"),
+        "packages": "requirements.txt",
+        "install": "python -m pip install -e .[test]",
+    }
+    for k in ["2.1", "3.0", "3.1", "3.2"]
+}
+
+MAP_VERSION_TO_INSTALL_DJANGO_OSCAR.update(
+    {
+        k: {
+            "python": "3.8",
+            "setup_install": partial(_setup_django_oscar_install, "==2.0.18"),
+            "packages": "requirements.txt",
+            "install": "python -m pip install -e .[test]",
+        }
+        for k in ["2.0"]
+    }
+)
 
 MAP_VERSION_TO_INSTALL_REQUESTS = {
     k: {"python": "3.9", "packages": "pytest", "install": "python -m pip install ."}
-    for k in
-        ["0.7", "0.8", "0.9", "0.11", "0.13", "0.14", "1.1", "1.2", "2.0", "2.2"] + \
-        ["2.3", "2.4", "2.5", "2.7", "2.8", "2.9", "2.10", "2.11", "2.12", "2.17"] + \
-        ["2.18", "2.19", "2.22", "2.26", "2.25", "2.27", "3.0"]
+    for k in ["0.7", "0.8", "0.9", "0.11", "0.13", "0.14", "1.1", "1.2", "2.0", "2.2"]
+    + ["2.3", "2.4", "2.5", "2.7", "2.8", "2.9", "2.10", "2.11", "2.12", "2.17"]
+    + ["2.18", "2.19", "2.22", "2.26", "2.25", "2.27", "3.0"]
 }
 
 MAP_VERSION_TO_INSTALL_SEABORN = {
@@ -216,58 +248,134 @@ MAP_VERSION_TO_INSTALL_SEABORN.update(
                 "tzdata==2023.1",
                 "zipp==3.16.2",
             ],
-        } for k in ["0.12", "0.13"]
+        }
+        for k in ["0.12", "0.13"]
     }
 )
 
 MAP_VERSION_TO_INSTALL_PYTEST = {
-    k: {
-        "python": "3.9",
-        "install": "pip install -e .[testing]"
-    } for k in [
-        '4.4','4.5','4.6','5.0','5.1','5.2','5.3','5.4',
-        '6.0','6.2','6.3','7.0','7.1','7.2','7.4','8.0'
+    k: {"python": "3.9", "install": "pip install -e .[testing]"}
+    for k in [
+        "4.4",
+        "4.5",
+        "4.6",
+        "5.0",
+        "5.1",
+        "5.2",
+        "5.3",
+        "5.4",
+        "6.0",
+        "6.2",
+        "6.3",
+        "7.0",
+        "7.1",
+        "7.2",
+        "7.4",
+        "8.0",
     ]
 }
 MAP_VERSION_TO_INSTALL_PYTEST["4.4"]["pip_packages"] = [
-    "atomicwrites==1.4.1", "attrs==23.1.0", "more-itertools==10.1.0",
-    "pluggy==0.13.1", "py==1.11.0", "setuptools==68.0.0", "six==1.16.0",]
+    "atomicwrites==1.4.1",
+    "attrs==23.1.0",
+    "more-itertools==10.1.0",
+    "pluggy==0.13.1",
+    "py==1.11.0",
+    "setuptools==68.0.0",
+    "six==1.16.0",
+]
 MAP_VERSION_TO_INSTALL_PYTEST["4.5"]["pip_packages"] = [
-    "atomicwrites==1.4.1", "attrs==23.1.0", "more-itertools==10.1.0",
-    "pluggy==0.11.0", "py==1.11.0", "setuptools==68.0.0", "six==1.16.0", "wcwidth==0.2.6"]
+    "atomicwrites==1.4.1",
+    "attrs==23.1.0",
+    "more-itertools==10.1.0",
+    "pluggy==0.11.0",
+    "py==1.11.0",
+    "setuptools==68.0.0",
+    "six==1.16.0",
+    "wcwidth==0.2.6",
+]
 MAP_VERSION_TO_INSTALL_PYTEST["4.6"]["pip_packages"] = [
-    "atomicwrites==1.4.1", "attrs==23.1.0", "more-itertools==10.1.0",
-    "packaging==23.1", "pluggy==0.13.1", "py==1.11.0", "six==1.16.0", "wcwidth==0.2.6"]
+    "atomicwrites==1.4.1",
+    "attrs==23.1.0",
+    "more-itertools==10.1.0",
+    "packaging==23.1",
+    "pluggy==0.13.1",
+    "py==1.11.0",
+    "six==1.16.0",
+    "wcwidth==0.2.6",
+]
 for k in ["5.0", "5.1", "5.2"]:
     MAP_VERSION_TO_INSTALL_PYTEST[k]["pip_packages"] = [
-        "atomicwrites==1.4.1", "attrs==23.1.0", "more-itertools==10.1.0",
-        "packaging==23.1", "pluggy==0.13.1", "py==1.11.0", "wcwidth==0.2.6"]
+        "atomicwrites==1.4.1",
+        "attrs==23.1.0",
+        "more-itertools==10.1.0",
+        "packaging==23.1",
+        "pluggy==0.13.1",
+        "py==1.11.0",
+        "wcwidth==0.2.6",
+    ]
 MAP_VERSION_TO_INSTALL_PYTEST["5.3"]["pip_packages"] = [
-    "attrs==23.1.0", "more-itertools==10.1.0", "packaging==23.1",
-    "pluggy==0.13.1", "py==1.11.0", "wcwidth==0.2.6"]
+    "attrs==23.1.0",
+    "more-itertools==10.1.0",
+    "packaging==23.1",
+    "pluggy==0.13.1",
+    "py==1.11.0",
+    "wcwidth==0.2.6",
+]
 MAP_VERSION_TO_INSTALL_PYTEST["5.4"]["pip_packages"] = [
-    "py==1.11.0", "packaging==23.1", "attrs==23.1.0",
-    "more-itertools==10.1.0", "pluggy==0.13.1"]
+    "py==1.11.0",
+    "packaging==23.1",
+    "attrs==23.1.0",
+    "more-itertools==10.1.0",
+    "pluggy==0.13.1",
+]
 MAP_VERSION_TO_INSTALL_PYTEST["6.0"]["pip_packages"] = [
-    "attrs==23.1.0", "iniconfig==2.0.0", "more-itertools==10.1.0",
-    "packaging==23.1", "pluggy==0.13.1", "py==1.11.0", "toml==0.10.2"]
+    "attrs==23.1.0",
+    "iniconfig==2.0.0",
+    "more-itertools==10.1.0",
+    "packaging==23.1",
+    "pluggy==0.13.1",
+    "py==1.11.0",
+    "toml==0.10.2",
+]
 for k in ["6.2", "6.3"]:
     MAP_VERSION_TO_INSTALL_PYTEST[k]["pip_packages"] = [
-        "attrs==23.1.0", "iniconfig==2.0.0", "packaging==23.1",
-        "pluggy==0.13.1", "py==1.11.0", "toml==0.10.2"]
+        "attrs==23.1.0",
+        "iniconfig==2.0.0",
+        "packaging==23.1",
+        "pluggy==0.13.1",
+        "py==1.11.0",
+        "toml==0.10.2",
+    ]
 MAP_VERSION_TO_INSTALL_PYTEST["7.0"]["pip_packages"] = [
-    "attrs==23.1.0", "iniconfig==2.0.0", "packaging==23.1",
-    "pluggy==0.13.1", "py==1.11.0"]
+    "attrs==23.1.0",
+    "iniconfig==2.0.0",
+    "packaging==23.1",
+    "pluggy==0.13.1",
+    "py==1.11.0",
+]
 for k in ["7.1", "7.2"]:
     MAP_VERSION_TO_INSTALL_PYTEST[k]["pip_packages"] = [
-        "attrs==23.1.0", "iniconfig==2.0.0", "packaging==23.1",
-        "pluggy==0.13.1", "py==1.11.0", "tomli==2.0.1"]
+        "attrs==23.1.0",
+        "iniconfig==2.0.0",
+        "packaging==23.1",
+        "pluggy==0.13.1",
+        "py==1.11.0",
+        "tomli==2.0.1",
+    ]
 MAP_VERSION_TO_INSTALL_PYTEST["7.4"]["pip_packages"] = [
-    "iniconfig==2.0.0", "packaging==23.1", "pluggy==1.3.0",
-    "exceptiongroup==1.1.3", "tomli==2.0.1"]
+    "iniconfig==2.0.0",
+    "packaging==23.1",
+    "pluggy==1.3.0",
+    "exceptiongroup==1.1.3",
+    "tomli==2.0.1",
+]
 MAP_VERSION_TO_INSTALL_PYTEST["8.0"]["pip_packages"] = [
-    "iniconfig==2.0.0", "packaging==23.1", "pluggy==1.3.0",
-    "exceptiongroup==1.1.3", "tomli==2.0.1"]
+    "iniconfig==2.0.0",
+    "packaging==23.1",
+    "pluggy==1.3.0",
+    "exceptiongroup==1.1.3",
+    "tomli==2.0.1",
+]
 
 MAP_VERSION_TO_INSTALL_MATPLOTLIB = {
     k: {
@@ -291,7 +399,7 @@ MAP_VERSION_TO_INSTALL_MATPLOTLIB = {
         ],
         "arch_specific_packages": {
             "aarch64": "gxx_linux-aarch64 gcc_linux-aarch64 make",
-        }
+        },
     }
     for k in ["3.5", "3.6", "3.7"]
 }
@@ -303,7 +411,7 @@ MAP_VERSION_TO_INSTALL_MATPLOTLIB.update(
             "install": "python -m pip install -e .",
             "arch_specific_packages": {
                 "aarch64": "gxx_linux-aarch64 gcc_linux-aarch64 make",
-            }
+            },
         }
         for k in ["3.1", "3.2", "3.3", "3.4"]
     }
@@ -316,7 +424,7 @@ MAP_VERSION_TO_INSTALL_MATPLOTLIB.update(
             "install": "python -m pip install -e .",
             "arch_specific_packages": {
                 "aarch64": "gxx_linux-aarch64 gcc_linux-aarch64 make",
-            }
+            },
         }
         for k in ["3.0"]
     }
@@ -328,7 +436,7 @@ MAP_VERSION_TO_INSTALL_MATPLOTLIB.update(
             "install": "python setup.py build; python setup.py install",
             "arch_specific_packages": {
                 "aarch64": "gxx_linux-aarch64 gcc_linux-aarch64 make",
-            }
+            },
         }
         for k in ["2.0", "2.1", "2.2", "1.0", "1.1", "1.2", "1.3", "1.4", "1.5"]
     }
@@ -344,46 +452,52 @@ MAP_VERSION_TO_INSTALL_SPHINX = {
             "aarch64": "gxx_linux-aarch64 gcc_linux-aarch64 make",
             "x86_64": "gxx_linux-64 gcc_linux-64 make",
         },
-        "use_pytest": False
-    } for k in
-        ["1.5", "1.6", "1.7", "1.8", "2.0", "2.1", "2.2", "2.3", "2.4", "3.0"] + \
-        ["3.1", "3.2", "3.3", "3.4", "3.5", "4.0", "4.1", "4.2", "4.3", "4.4"] + \
-        ["4.5", "5.0", "5.1", "5.2", "5.3", "6.0", "6.2", "7.0", "7.1", "7.2"]
+        "use_pytest": False,
+    }
+    for k in ["1.5", "1.6", "1.7", "1.8", "2.0", "2.1", "2.2", "2.3", "2.4", "3.0"]
+    + ["3.1", "3.2", "3.3", "3.4", "3.5", "4.0", "4.1", "4.2", "4.3", "4.4"]
+    + ["4.5", "5.0", "5.1", "5.2", "5.3", "6.0", "6.2", "7.0", "7.1", "7.2"]
 }
 for k in ["3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "4.0", "4.1", "4.2", "4.3", "4.4"]:
-    MAP_VERSION_TO_INSTALL_SPHINX[k][
-        "pre_install"
-    ].extend([
-        "sed -i 's/Jinja2>=2.3/Jinja2<3.0/' setup.py",
-        "sed -i 's/sphinxcontrib-applehelp/sphinxcontrib-applehelp<=1.0.7/' setup.py",
-        "sed -i 's/sphinxcontrib-devhelp/sphinxcontrib-devhelp<=1.0.5/' setup.py",
-        "sed -i 's/sphinxcontrib-qthelp/sphinxcontrib-qthelp<=1.0.6/' setup.py",
-        "sed -i 's/alabaster>=0.7,<0.8/alabaster>=0.7,<0.7.12/' setup.py",
-        'sed -i "s/\'packaging\',/\'packaging\', \'markupsafe<=2.0.1\',/" setup.py',
-    ])
+    MAP_VERSION_TO_INSTALL_SPHINX[k]["pre_install"].extend(
+        [
+            "sed -i 's/Jinja2>=2.3/Jinja2<3.0/' setup.py",
+            "sed -i 's/sphinxcontrib-applehelp/sphinxcontrib-applehelp<=1.0.7/' setup.py",
+            "sed -i 's/sphinxcontrib-devhelp/sphinxcontrib-devhelp<=1.0.5/' setup.py",
+            "sed -i 's/sphinxcontrib-qthelp/sphinxcontrib-qthelp<=1.0.6/' setup.py",
+            "sed -i 's/alabaster>=0.7,<0.8/alabaster>=0.7,<0.7.12/' setup.py",
+            "sed -i \"s/'packaging',/'packaging', 'markupsafe<=2.0.1',/\" setup.py",
+        ]
+    )
     if k in ["4.2", "4.3", "4.4"]:
-        MAP_VERSION_TO_INSTALL_SPHINX[k]["pre_install"].extend([
-            "sed -i 's/sphinxcontrib-htmlhelp>=2.0.0/sphinxcontrib-htmlhelp>=2.0.0,<=2.0.4/' setup.py",
-            "sed -i 's/sphinxcontrib-serializinghtml>=1.1.5/sphinxcontrib-serializinghtml>=1.1.5,<=1.1.9/' setup.py",
-        ])
+        MAP_VERSION_TO_INSTALL_SPHINX[k]["pre_install"].extend(
+            [
+                "sed -i 's/sphinxcontrib-htmlhelp>=2.0.0/sphinxcontrib-htmlhelp>=2.0.0,<=2.0.4/' setup.py",
+                "sed -i 's/sphinxcontrib-serializinghtml>=1.1.5/sphinxcontrib-serializinghtml>=1.1.5,<=1.1.9/' setup.py",
+            ]
+        )
     elif k == "4.1":
-        MAP_VERSION_TO_INSTALL_SPHINX[k]["pre_install"].extend([
-            (
-                "grep -q 'sphinxcontrib-htmlhelp>=2.0.0' setup.py && "
-                "sed -i 's/sphinxcontrib-htmlhelp>=2.0.0/sphinxcontrib-htmlhelp>=2.0.0,<=2.0.4/' setup.py || "
-                "sed -i 's/sphinxcontrib-htmlhelp/sphinxcontrib-htmlhelp<=2.0.4/' setup.py"
-            ),
-            (
-                "grep -q 'sphinxcontrib-serializinghtml>=1.1.5' setup.py && "
-                "sed -i 's/sphinxcontrib-serializinghtml>=1.1.5/sphinxcontrib-serializinghtml>=1.1.5,<=1.1.9/' setup.py || "
-                "sed -i 's/sphinxcontrib-serializinghtml/sphinxcontrib-serializinghtml<=1.1.9/' setup.py"
-            )
-        ])
+        MAP_VERSION_TO_INSTALL_SPHINX[k]["pre_install"].extend(
+            [
+                (
+                    "grep -q 'sphinxcontrib-htmlhelp>=2.0.0' setup.py && "
+                    "sed -i 's/sphinxcontrib-htmlhelp>=2.0.0/sphinxcontrib-htmlhelp>=2.0.0,<=2.0.4/' setup.py || "
+                    "sed -i 's/sphinxcontrib-htmlhelp/sphinxcontrib-htmlhelp<=2.0.4/' setup.py"
+                ),
+                (
+                    "grep -q 'sphinxcontrib-serializinghtml>=1.1.5' setup.py && "
+                    "sed -i 's/sphinxcontrib-serializinghtml>=1.1.5/sphinxcontrib-serializinghtml>=1.1.5,<=1.1.9/' setup.py || "
+                    "sed -i 's/sphinxcontrib-serializinghtml/sphinxcontrib-serializinghtml<=1.1.9/' setup.py"
+                ),
+            ]
+        )
     else:
-        MAP_VERSION_TO_INSTALL_SPHINX[k]["pre_install"].extend([
-            "sed -i 's/sphinxcontrib-htmlhelp/sphinxcontrib-htmlhelp<=2.0.4/' setup.py",
-            "sed -i 's/sphinxcontrib-serializinghtml/sphinxcontrib-serializinghtml<=1.1.9/' setup.py",
-        ])
+        MAP_VERSION_TO_INSTALL_SPHINX[k]["pre_install"].extend(
+            [
+                "sed -i 's/sphinxcontrib-htmlhelp/sphinxcontrib-htmlhelp<=2.0.4/' setup.py",
+                "sed -i 's/sphinxcontrib-serializinghtml/sphinxcontrib-serializinghtml<=1.1.9/' setup.py",
+            ]
+        )
 
 
 MAP_VERSION_TO_INSTALL_ASTROPY = {
@@ -419,7 +533,7 @@ MAP_VERSION_TO_INSTALL_ASTROPY = {
             "cython==3.0.10",
             "extension_helpers==1.1.1",
         ],
-        "appmap" : """
+        "appmap": """
 appmap_dir: tmp/appmap
 language: python
 name: astropy
@@ -445,11 +559,10 @@ MAP_VERSION_TO_INSTALL_SYMPY = {
         "packages": "mpmath flake8",
         "pip_packages": ["mpmath==1.3.0", "flake8-comprehensions"],
         "install": "pip install -e .",
-        "use_pytest": False
+        "use_pytest": False,
     }
-    for k in
-        ["0.7", "1.0", "1.1", "1.10", "1.11", "1.12", "1.2", "1.4", "1.5", "1.6"] + \
-        ["1.7", "1.8", "1.9"]
+    for k in ["0.7", "1.0", "1.1", "1.10", "1.11", "1.12", "1.2", "1.4", "1.5", "1.6"]
+    + ["1.7", "1.8", "1.9"]
 }
 MAP_VERSION_TO_INSTALL_SYMPY.update(
     {
@@ -458,7 +571,7 @@ MAP_VERSION_TO_INSTALL_SYMPY.update(
             "packages": "requirements.txt",
             "install": "pip install -e .",
             "pip_packages": ["mpmath==1.3.0"],
-            "use_pytest": False
+            "use_pytest": False,
         }
         for k in ["1.13"]
     }
@@ -468,15 +581,29 @@ MAP_VERSION_TO_INSTALL_PYLINT = {
     k: {"python": "3.9", "packages": "requirements.txt", "install": "pip install -e ."}
     for k in ["2.10", "2.11", "2.13", "2.14", "2.15", "2.16", "2.17", "2.8", "2.9", "3.0"]
 }
-MAP_VERSION_TO_INSTALL_PYLINT.update({
-    k: {**MAP_VERSION_TO_INSTALL_PYLINT[k], "pip_packages": [
-        "gitpython==3.1.43",
-    ]} for k in ['2.14', '2.13']})
+MAP_VERSION_TO_INSTALL_PYLINT.update(
+    {
+        k: {
+            **MAP_VERSION_TO_INSTALL_PYLINT[k],
+            "pip_packages": [
+                "gitpython==3.1.43",
+            ],
+        }
+        for k in ["2.14", "2.13"]
+    }
+)
 
-MAP_VERSION_TO_INSTALL_PYLINT.update({
-    k: {**MAP_VERSION_TO_INSTALL_PYLINT[k], "pip_packages": [
-        "astroid==3.0.0a9",
-    ]} for k in ['3.0']})
+MAP_VERSION_TO_INSTALL_PYLINT.update(
+    {
+        k: {
+            **MAP_VERSION_TO_INSTALL_PYLINT[k],
+            "pip_packages": [
+                "astroid==3.0.0a9",
+            ],
+        }
+        for k in ["3.0"]
+    }
+)
 
 MAP_VERSION_TO_INSTALL_XARRAY = {
     k: {
@@ -504,8 +631,21 @@ MAP_VERSION_TO_INSTALL_SQLFLUFF = {
         "install": "pip install -e .",
     }
     for k in [
-        '0.10', '0.11', '0.12', '0.13', '0.4', '0.6', '0.8', '0.9',
-        '1.1', '1.2', '1.3', '1.4', '2.0', '2.1', '2.2'
+        "0.10",
+        "0.11",
+        "0.12",
+        "0.13",
+        "0.4",
+        "0.6",
+        "0.8",
+        "0.9",
+        "1.1",
+        "1.2",
+        "1.3",
+        "1.4",
+        "2.0",
+        "2.1",
+        "2.2",
     ]
 }
 
@@ -515,21 +655,40 @@ MAP_VERSION_TO_INSTALL_PYVISTA = {
         "install": "pip install -e .",
         "pip_packages": ["pytest"],
     }
-    for k in ['0.20', '0.21', '0.22', '0.23']
+    for k in ["0.20", "0.21", "0.22", "0.23"]
 }
-MAP_VERSION_TO_INSTALL_PYVISTA.update({
-    k: {
-        "python": "3.9",
-        "packages": "requirements.txt",
-        "install": "pip install -e .",
-        "pip_packages": ["pytest"],
+MAP_VERSION_TO_INSTALL_PYVISTA.update(
+    {
+        k: {
+            "python": "3.9",
+            "packages": "requirements.txt",
+            "install": "pip install -e .",
+            "pip_packages": ["pytest"],
+        }
+        for k in [
+            "0.24",
+            "0.25",
+            "0.26",
+            "0.27",
+            "0.28",
+            "0.29",
+            "0.30",
+            "0.31",
+            "0.32",
+            "0.33",
+            "0.34",
+            "0.35",
+            "0.36",
+            "0.37",
+            "0.38",
+            "0.39",
+            "0.40",
+            "0.41",
+            "0.42",
+            "0.43",
+        ]
     }
-    for k in [
-        '0.24', '0.25', '0.26', '0.27', '0.28', '0.29', '0.30', '0.31',
-        '0.32', '0.33', '0.34', '0.35', '0.36', '0.37', '0.38', '0.39',
-        '0.40', '0.41', '0.42', '0.43'
-    ]
-})
+)
 
 MAP_VERSION_TO_INSTALL_ASTROID = {
     k: {
@@ -537,20 +696,31 @@ MAP_VERSION_TO_INSTALL_ASTROID = {
         "install": "pip install -e .",
         "pip_packages": ["pytest"],
     }
-    for k in ['2.10', '2.12', '2.13', '2.14', '2.15', '2.5', '2.6', '2.7', '2.9', '3.0']
+    for k in ["2.10", "2.12", "2.13", "2.14", "2.15", "2.5", "2.6", "2.7", "2.9", "3.0"]
 }
 for k in ["2.5", "2.6"]:
     MAP_VERSION_TO_INSTALL_ASTROID[k]["pip_packages"] = [
-        "lazy_object_proxy==1.9.0", "wrapt==1.12.1"]
+        "lazy_object_proxy==1.9.0",
+        "wrapt==1.12.1",
+    ]
 for k in ["2.9", "2.10"]:
     MAP_VERSION_TO_INSTALL_ASTROID[k]["pip_packages"] = [
-        "lazy_object_proxy==1.9.0", "wrapt==1.13.3",
-        "typing-extensions==4.8.0", "setuptools==68.0.0"]
+        "lazy_object_proxy==1.9.0",
+        "wrapt==1.13.3",
+        "typing-extensions==4.8.0",
+        "setuptools==68.0.0",
+    ]
 for k in ["2.12", "2.13", "2.14", "2.15"]:
     MAP_VERSION_TO_INSTALL_ASTROID[k]["pip_packages"] = [
-        "lazy_object_proxy==1.9.0", "wrapt==1.15.0", "typing-extensions==4.8.0"]
+        "lazy_object_proxy==1.9.0",
+        "wrapt==1.15.0",
+        "typing-extensions==4.8.0",
+    ]
 MAP_VERSION_TO_INSTALL_ASTROID["2.7"]["pip_packages"] = [
-    "lazy_object_proxy==1.9.0", "wrapt==1.12.1", "typing-extensions==4.8.0"]
+    "lazy_object_proxy==1.9.0",
+    "wrapt==1.12.1",
+    "typing-extensions==4.8.0",
+]
 MAP_VERSION_TO_INSTALL_ASTROID["3.0"]["pip_packages"] = ["typing-extensions==4.8.0"]
 
 
@@ -559,7 +729,7 @@ MAP_VERSION_TO_INSTALL_MARSHMALLOW = {
         "python": "3.9",
         "install": "pip install -e '.[dev]'",
     }
-    for k in ['2.18', '2.19', '2.20', '3.0', '3.12', '3.19', '3.9']
+    for k in ["2.18", "2.19", "2.20", "3.0", "3.12", "3.19", "3.9"]
 }
 
 MAP_VERSION_TO_INSTALL_PVLIB = {
@@ -567,35 +737,32 @@ MAP_VERSION_TO_INSTALL_PVLIB = {
         "python": "3.9",
         "install": "pip install -e .[all]",
         "packages": "pandas scipy",
-        "pip_packages": ["jupyter", "ipython", "matplotlib", "pytest", "flake8"]
+        "pip_packages": ["jupyter", "ipython", "matplotlib", "pytest", "flake8"],
     }
-    for k in ['0.5', '0.6', '0.7', '0.8', '0.9']
+    for k in ["0.5", "0.6", "0.7", "0.8", "0.9"]
 }
 
 MAP_VERSION_TO_INSTALL_PYDICOM = {
-    k: {
-        "python": "3.6",
-        "install": "pip install -e .",
-        "packages": "numpy"
-    }
-    for k in ['1.2', '1.3', '1.4', '2.0', '2.1', '2.2', '2.3']
+    k: {"python": "3.6", "install": "pip install -e .", "packages": "numpy"}
+    for k in ["1.2", "1.3", "1.4", "2.0", "2.1", "2.2", "2.3"]
 }
-MAP_VERSION_TO_INSTALL_PYDICOM.update({
-    k: {**MAP_VERSION_TO_INSTALL_PYDICOM[k], "python": "3.8"}
-    for k in ['1.4', '2.0']})
-MAP_VERSION_TO_INSTALL_PYDICOM.update({
-    k: {**MAP_VERSION_TO_INSTALL_PYDICOM[k], "python": "3.9"}
-    for k in ['2.1', '2.2']})
-MAP_VERSION_TO_INSTALL_PYDICOM.update({
-    k: {**MAP_VERSION_TO_INSTALL_PYDICOM[k], "python": "3.10"}
-    for k in ['2.3']})
+MAP_VERSION_TO_INSTALL_PYDICOM.update(
+    {k: {**MAP_VERSION_TO_INSTALL_PYDICOM[k], "python": "3.8"} for k in ["1.4", "2.0"]}
+)
+MAP_VERSION_TO_INSTALL_PYDICOM.update(
+    {k: {**MAP_VERSION_TO_INSTALL_PYDICOM[k], "python": "3.9"} for k in ["2.1", "2.2"]}
+)
+MAP_VERSION_TO_INSTALL_PYDICOM.update(
+    {k: {**MAP_VERSION_TO_INSTALL_PYDICOM[k], "python": "3.10"} for k in ["2.3"]}
+)
 
-MAP_VERSION_TO_INSTALL_HUMANEVAL= {k: { "python": "3.9" } for k in ['1.0']}
+MAP_VERSION_TO_INSTALL_HUMANEVAL = {k: {"python": "3.9"} for k in ["1.0"]}
 
 # Constants - Task Instance Instllation Environment
 MAP_VERSION_TO_INSTALL = {
     "astropy/astropy": MAP_VERSION_TO_INSTALL_ASTROPY,
     "django/django": MAP_VERSION_TO_INSTALL_DJANGO,
+    "django-oscar/django-oscar": MAP_VERSION_TO_INSTALL_DJANGO_OSCAR,
     "matplotlib/matplotlib": MAP_VERSION_TO_INSTALL_MATPLOTLIB,
     "marshmallow-code/marshmallow": MAP_VERSION_TO_INSTALL_MARSHMALLOW,
     "mwaskom/seaborn": MAP_VERSION_TO_INSTALL_SEABORN,
@@ -618,11 +785,16 @@ MAP_VERSION_TO_INSTALL = {
 # Constants - Repository Specific Installation Instructions
 MAP_REPO_TO_INSTALL = {}
 
+MAP_REPO_TO_GH_ORG = {
+    "django-oscar/django-oscar": "land-of-apps",
+}
+
 # Constants - Task Instance Test Frameworks
-TEST_PYTEST = "pytest --no-header -rA --tb=no -p no:cacheprovider -v"
+TEST_PYTEST = "pytest --no-header -rA --tb=short -p no:cacheprovider -v"
 MAP_REPO_TO_TEST_FRAMEWORK = {
     "astropy/astropy": f"{TEST_PYTEST} -Wi",
     "django/django": "./tests/runtests.py --verbosity 2",
+    "django-oscar/django-oscar": f"{TEST_PYTEST} --sqlite",
     "marshmallow-code/marshmallow": TEST_PYTEST,
     "matplotlib/matplotlib": TEST_PYTEST,
     "mwaskom/seaborn": "pytest --no-header -rA",
@@ -645,10 +817,14 @@ MAP_REPO_TO_TEST_FRAMEWORK = {
 # Constants - Task Instance Requirements File Paths
 MAP_REPO_TO_REQS_PATHS = {
     "django/django": ["tests/requirements/py3.txt"],
-    "matplotlib/matplotlib": ["requirements/dev/dev-requirements.txt", "requirements/testing/travis_all.txt"],
+    "django-oscar/django-oscar": ["docs/requirements.txt"],
+    "matplotlib/matplotlib": [
+        "requirements/dev/dev-requirements.txt",
+        "requirements/testing/travis_all.txt",
+    ],
     "pallets/flask": ["requirements/dev.txt"],
     "pylint-dev/pylint": ["requirements_test_min.txt", "requirements_test.txt"],
-    "pyvista/pyvista": ["requirements_test.txt", 'requirements.txt'],
+    "pyvista/pyvista": ["requirements_test.txt", "requirements.txt"],
     "sqlfluff/sqlfluff": ["requirements_dev.txt"],
     "sympy/sympy": ["requirements-dev.txt"],
 }
@@ -676,6 +852,7 @@ TESTS_FAILED = ">>>>> Some Tests Failed"
 TESTS_PASSED = ">>>>> All Tests Passed"
 TESTS_TIMEOUT = ">>>>> Tests Timed Out"
 
+
 # Constants - Patch Types
 class PatchType(Enum):
     PATCH_GOLD = "gold"
@@ -688,8 +865,21 @@ class PatchType(Enum):
     def __str__(self):
         return self.value
 
+
 # Constants - Miscellaneous
-NON_TEST_EXTS = [".json", ".png", "csv", ".txt", ".md", ".jpg", ".jpeg", ".pkl", ".yml", ".yaml", ".toml"]
+NON_TEST_EXTS = [
+    ".json",
+    ".png",
+    "csv",
+    ".txt",
+    ".md",
+    ".jpg",
+    ".jpeg",
+    ".pkl",
+    ".yml",
+    ".yaml",
+    ".toml",
+]
 SWE_BENCH_URL_RAW = "https://raw.githubusercontent.com/"
 
 # Constants - Repo/Version Mapped to Appropriate Conda Link

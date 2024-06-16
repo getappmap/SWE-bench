@@ -13,8 +13,9 @@ on:
         default: princeton-nlp/SWE-bench_Lite
         type: choice
         options:
-          - princeton-nlp/SWE-bench_Lite
-          - princeton-nlp/SWE-bench
+        - princeton-nlp/SWE-bench_Lite
+        - princeton-nlp/SWE-bench
+        - apotterri/django-oscar
       runner:
         description: "Runner type"
         required: true
@@ -27,11 +28,12 @@ on:
       split:
         description: "Dataset split"
         required: true
-        default: test
+        default: train
         type: choice
         options:
           - dev
           - test
+          - train
       retries:
         description: "Number of retries to perform on each instance until a patch is found"
         required: false
