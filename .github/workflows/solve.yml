@@ -210,6 +210,7 @@ jobs:
             --temp_dir "${{ runner.temp }}" \
             --path_conda $(conda info --base) \
             --num_runners "${NUM_RUNNERS:-1}" \
+            --num_workers "${NUM_WORKERS:-6}" \
             --runner_index "${{ matrix.index }}" \
             --verbose \
             $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
