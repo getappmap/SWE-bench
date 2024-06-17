@@ -1,10 +1,11 @@
 import argparse
 import json
 import os
+from pathlib import Path
 import sys
+from os.path import abspath
 
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = os.path.dirname(abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
 from appmap.solve.patch import clean_patch
@@ -47,6 +48,8 @@ class Solver:
         steps=None,
         temperature=0.0,
     ):
+        if Path(instances_path).exists():
+            instances_path = abspath(instances_path)
         self.instances_path = instances_path
         self.instance_id = instance_id
         self.issue_file = issue_file
@@ -67,7 +70,7 @@ class Solver:
         if not os.path.isfile(self.issue_file):
             raise FileNotFoundError(f"File '{self.issue_file}' not found.")
 
-        self.work_dir = os.path.dirname(os.path.abspath(self.issue_file))
+        self.work_dir = os.path.dirname(abspath(self.issue_file))
         self.plan_file = os.path.join(self.work_dir, "plan.md")
         self.solution_file = os.path.join(self.work_dir, "solution.md")
         self.apply_file = os.path.join(self.work_dir, "apply.md")
@@ -366,6 +369,8 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
+    if Path(args.instances_path).exists():
+        args.instances_path = abspath(args.instances_path)
 
     if args.directory:
         os.chdir(args.directory)
