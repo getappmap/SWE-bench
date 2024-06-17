@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import partial
 
 MAP_VERSION_TO_INSTALL_SKLEARN = {
     k: {
@@ -156,17 +157,37 @@ for k in ["2.2", "3.0", "3.1"]:
         {"env_vars_test": {"LANG": "en_US.UTF-8", "LC_ALL": "en_US.UTF-8"}}
     )
 
+
+def _setup_django_oscar_install(uwsgi_version, mgr, path_activate, env_name):
+    cmd = [
+        "bash",
+        "-c",
+        f". {path_activate} {env_name} && conda install -y uwsgi={uwsgi_version}",
+    ]
+    mgr.exec(cmd)
+
+
 MAP_VERSION_TO_INSTALL_DJANGO_OSCAR = {
     k: {
         "python": "3.8",
-        # django-oscar depends on uwsgi. It has a native extension which links to libpython3.8.a,
-        # only present in the libpython-static package.
-        "static_python": True,
+        "setup_install": partial(_setup_django_oscar_install, "==2.0.19"),
         "packages": "requirements.txt",
         "install": "python -m pip install -e .[test]",
     }
-    for k in ["2.0", "2.1", "3.0", "3.1", "3.2"]
+    for k in ["2.1", "3.0", "3.1", "3.2"]
 }
+
+MAP_VERSION_TO_INSTALL_DJANGO_OSCAR.update(
+    {
+        k: {
+            "python": "3.8",
+            "setup_install": partial(_setup_django_oscar_install, "==2.0.18"),
+            "packages": "requirements.txt",
+            "install": "python -m pip install -e .[test]",
+        }
+        for k in ["2.0"]
+    }
+)
 
 MAP_VERSION_TO_INSTALL_REQUESTS = {
     k: {"python": "3.9", "packages": "pytest", "install": "python -m pip install ."}

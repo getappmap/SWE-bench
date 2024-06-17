@@ -429,20 +429,27 @@ class TestbedContextManager:
             # Get setup reference instance
             setup_ref_instance = version_to_setup_ref[version]
 
-            # Bail early if this is set, to make it obvious.
-            if os.environ.get("PIP_REQUIRE_VIRTUALENV"):
-                raise RuntimeError(
-                    "You must unset PIP_REQUIRE_VIRTUALENV to create a conda environmnt"
-                )
-
             # Create conda environment according to install instructinos
             pkgs = install["packages"] if "packages" in install else ""
-            python_pkg = "libpython-static" if "static_python" in install else "python"
+            setup_install = install.get("setup_install")
+
+            def before_install():
+                # Override the user's setting of PIP_REQUIRE_VIRTUALENV. It's not needed in a
+                # conda-managed environment, and will cause failures below.
+                cmd = f"{exec_cmd} env config vars set PIP_REQUIRE_VIRTUALENV=false"
+                self.exec(cmd.split(" "))
+                if setup_install is not None:
+                    setup_install(self, path_activate, env_name)
+
             if pkgs == "requirements.txt":
                 # Create environment
-                cmd = f"{exec_cmd} create -c conda-forge -n {env_name} {python_pkg}={install['python']} -y"
+                cmd = (
+                    f"{exec_cmd} create -c conda-forge -n {env_name} python={install['python']} -y"
+                )
                 self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                 self.exec(cmd.split(" "))
+
+                before_install()
 
                 # Install dependencies
                 path_to_reqs = get_requirements(setup_ref_instance, self.testbed)
@@ -460,9 +467,11 @@ class TestbedContextManager:
                     )
 
                     # `conda create` based installation
-                    cmd = f"{exec_cmd} create -c conda-forge -n {env_name} {python_pkg}={install['python']} -y"
+                    cmd = f"{exec_cmd} create -c conda-forge -n {env_name} python={install['python']} -y"
                     self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                     self.exec(cmd.split(" "))
+
+                    before_install()
 
                     # Install dependencies
                     cmd = f"{exec_cmd} env update -f {path_to_reqs}"
@@ -488,7 +497,10 @@ class TestbedContextManager:
                 os.remove(path_to_reqs)
             else:
                 # Create environment + install dependencies
-                cmd = f"{exec_cmd} create -n {env_name} {python_pkg}={install['python']} {pkgs} -y"
+                cmd = f"{exec_cmd} create -n {env_name} python={install['python']} {pkgs} -y"
+
+                before_install()
+
                 self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                 self.exec(cmd.split(" "))
 
