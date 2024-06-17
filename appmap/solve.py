@@ -631,6 +631,9 @@ if __name__ == "__main__":
         help="(Optional) The amount to increase the temperature by on each iteration",
     )
     args = parser.parse_args()
+    if Path(args.instances_path).exists():
+        args.instances_path = abspath(args.instances_path)
+
     if args.appmaps:
         if isinstance(args.appmaps, bool):
             appmap_path = None
