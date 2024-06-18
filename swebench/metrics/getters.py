@@ -147,6 +147,7 @@ def get_eval_refs(data_path_or_name):
     if decode_keys:
         for datum in data:
             for key in ["PASS_TO_PASS", "FAIL_TO_PASS"]:
-                datum[key] = json.loads(datum[key])
+                if isinstance(datum[key], str):
+                    datum[key] = json.loads(datum[key])
     return {d[KEY_INSTANCE_ID]: d for d in data}
 
