@@ -67,7 +67,7 @@ def main(
     log_suffix: str,
     skip_existing: bool,
     timeout: int,
-    verbose: bool,
+    verbose: int,
     num_processes: int = -1,
     reuse_env: bool = False,
 ):
@@ -231,7 +231,11 @@ if __name__ == "__main__":
     parser.add_argument("--log_suffix", type=str, help="(Optional) Suffix to append to log file names", default=None)
     parser.add_argument("--skip_existing", action="store_true", help="(Optional) Skip existing logs")
     parser.add_argument("--timeout", type=int, help="(Optional) Timeout in seconds (default: 900)", default=900)
-    parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
+    parser.add_argument(
+        "--verbose",
+        action="count",
+        help="(Optional) Verbose mode, specify multiple times for more output",
+    )
     parser.add_argument("--num_processes", type=int, help="(Optional) Number of processes to use.", default=-1)
     parser.add_argument(
         "--reuse-env",
@@ -239,5 +243,5 @@ if __name__ == "__main__":
         action="store_true",
     )
     args = parser.parse_args()
-    logger.propagate = args.verbose
+    logger.propagate = args.verbose > 0
     main(**vars(args))

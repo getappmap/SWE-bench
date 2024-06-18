@@ -297,7 +297,10 @@ if __name__ == "__main__":
         help="(Optional) Timeout (seconds) for testing script execution",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="(Optional) Verbose mode"
+        "--verbose",
+        action="count",
+        default=0,
+        help="(Optional)Verbose mode, specify multiple times for more verbose output",
     )
     parser.add_argument(
         "--num_workers", type=int, default=None, help="(Optional) Number of workers"
