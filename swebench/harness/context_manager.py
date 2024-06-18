@@ -160,7 +160,7 @@ class TestbedContextManager:
         temp_dir: str = None,
         testbed: str = None,
         timeout: int = None,
-        verbose: bool = False,
+        verbose: int = 0,
         keep: bool = False,
         suffix: str = "",
     ):
@@ -174,7 +174,7 @@ class TestbedContextManager:
             conda_link(str): URL to conda installation to use
             path_conda (str): Path to conda installation
             testbed (str): Path to testbed directory
-            verbose (bool): Whether to show logs
+            verbose (int): Whether to show logs
             timeout (int): Timeout for actions
             temp_dir (str): Path to temporary directory
         """
@@ -596,7 +596,7 @@ class TaskEnvContextManager:
         venv: str,
         log_dir: str,
         conda_path: str,
-        verbose: bool = False,
+        verbose: int = 0,
         timeout: int = None,
         is_eval: bool = False,
         log_suffix: str = None,
@@ -610,13 +610,16 @@ class TaskEnvContextManager:
             venv (str): Name of conda environment (should exist in conda_path)
             log_dir (str): Path to log directory
             conda_path (str): Path to conda installation
-            verbose (bool): Whether to show logs
+            verbose (int): Whether to show logs
             timeout (int): Timeout for actions
             is_eval (bool): Whether this is for evaluating a model on SWE Bench
                 (Mainly for logging purposes)
         """
-        if verbose:
-            logger_taskenv.setLevel(logging.INFO)
+        if verbose > 0:
+            if verbose == 1:
+                logger_taskenv.setLevel(logging.INFO)
+            else:
+                logger_taskenv.setLevel(logging.DEBUG)
         self.instance = instance
         self.conda_path = conda_path
         self.conda_cache_dir = os.path.join(self.conda_path, "cache")
@@ -625,6 +628,7 @@ class TaskEnvContextManager:
         self.testbed = testbed
         self.testbed_name = testbed.split("/")[-1]
         self.venv = venv
+        self.verbose = verbose
 
         # Log file naming
         log_file_name = (
@@ -856,8 +860,9 @@ class TaskEnvContextManager:
             if "env_vars_test" in specifications:
                 self.exec.subprocess_args["env"].update(specifications["env_vars_test"])
 
+            tee = self.verbose > 1
             out_test = self.exec(
-                ["bash", "-c", test_cmd], timeout=self.timeout, check=False, tee=True
+                ["bash", "-c", test_cmd], timeout=self.timeout, check=False, tee=tee
             )
 
             # Unset environment variables if provided

@@ -539,7 +539,10 @@ if __name__ == "__main__":
         help="Number of times to try and create a code update for each test instance",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="(Optional) Verbose mode"
+        "--verbose",
+        action="count",
+        default=0,
+        help="(Optional) Verbose mode, specify multiple times for more output",
     )
     parser.add_argument(
         "--num_workers",
