@@ -4,6 +4,10 @@ run-name: Mapping ${{ inputs.projectFilter }} (${{ inputs.comment }})
 on:
   workflow_dispatch:
     inputs:
+      instances:
+        description: 'Instances to map'
+        required: true
+        default: 'princeton-nlp/SWE-bench'
       projectFilter:
         description: 'Project or instance to filter for'
         required: true
@@ -32,6 +36,7 @@ jobs:
 
     - name: Display Input Values
       run: |
+        echo "Instances: ${{ github.event.inputs.instances }}"
         echo "Project Filter: ${{ github.event.inputs.projectFilter }}"
         echo "AppMap Max Events: ${{ github.event.inputs.appmapMaxEvents }}"
         echo "AppMap Max Time: ${{ github.event.inputs.appmapMaxTime }}"
@@ -62,11 +67,15 @@ jobs:
         conda env create -f environment.yml
 
     - name: Make Appmaps
+      env:
+        INSTANCES: ${{ inputs.instances }}
+        APPMAP_MAX_TIME: ${{ inputs.appmapMaxTime }}
+        APPMAP_MAX_EVENTS: ${{ inputs.appmapMaxEvents }} 
       run: |
           source /home/runner/.bashrc
           conda activate swe-bench
           conda info
-          APPMAP_MAX_TIME=${{ github.event.inputs.appmapMaxTime }} APPMAP_MAX_EVENTS=${{ github.event.inputs.appmapMaxEvents }} ./appmap/make_appmaps-github-actions.sh --filter ${{ github.event.inputs.projectFilter }}
+          ./swe_appmap/make_appmaps-github-actions.sh --filter ${{ inputs.projectFilter }}
 
     - name: Get Artifact Name
       id: get-artifact-name
