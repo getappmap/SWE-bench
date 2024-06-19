@@ -89,6 +89,7 @@ packages:
   - utils.datastructures
   - utils.regex_helper
   - utils.translation
+
 """,
 }
 
@@ -166,9 +167,26 @@ def _setup_django_oscar_install(uwsgi_version, mgr, path_activate, env_name):
     ]
     mgr.exec(cmd)
 
+DJANGO_OSCAR_DEFAULTS = {
+    "appmap": """
+appmap_dir: tmp/appmap
+language: python
+name: django-oscar
+packages:
+- path: oscar
+  exclude:
+  - core.application.OscarConfigMixin.get_permissions
+  - core.application.OscarConfigMixin.get_url_decorator
+  - views.decorators.permissions_required
+  - apps.dashboard.nav.Node.has_children
+  - apps.dashboard.nav.Node.add_child
+
+""",
+}
 
 MAP_VERSION_TO_INSTALL_DJANGO_OSCAR = {
     k: {
+        **DJANGO_OSCAR_DEFAULTS,
         "python": "3.8",
         "setup_install": partial(_setup_django_oscar_install, "==2.0.19"),
         "packages": "requirements.txt",
@@ -180,6 +198,7 @@ MAP_VERSION_TO_INSTALL_DJANGO_OSCAR = {
 MAP_VERSION_TO_INSTALL_DJANGO_OSCAR.update(
     {
         k: {
+            **DJANGO_OSCAR_DEFAULTS,
             "python": "3.8",
             "setup_install": partial(_setup_django_oscar_install, "==2.0.18"),
             "packages": "requirements.txt",
