@@ -15,7 +15,7 @@ from textwrap import dedent
 
 from datasets import Dataset
 
-from appmap.solve.solver import DEFAULT_STEPS
+from swe_appmap.solve.solver import DEFAULT_STEPS
 
 from data import load_data
 from filelock import FileLock
@@ -212,9 +212,7 @@ def worker_init(data: dict):
                                 instance,
                                 f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
                             ):
-                                print(
-                                    f"[solve] ({instance_id}) Error resetting task environment"
-                                )
+                                print(f"[solve] ({instance_id}) Error resetting task environment")
                                 return
 
                             print(
@@ -224,14 +222,10 @@ def worker_init(data: dict):
                                 instance,
                                 f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
                             ):
-                                print(
-                                    f"[solve] ({instance_id}) Error installing environment"
-                                )
+                                print(f"[solve] ({instance_id}) Error installing environment")
                                 return
 
-                            instance["appmap_archive"] = extract_appmaps(
-                                instance, testbed
-                            )
+                            instance["appmap_archive"] = extract_appmaps(instance, testbed)
 
                             # In case this is a re-run, delete any existing patch files
                             issue_dir = (
@@ -325,9 +319,7 @@ def worker_init(data: dict):
                                 / str(iteration)
                                 / "lint_repair"
                             )
-                            patch_data["lint_repair"] = (
-                                True if lint_repair_dir.exists() else False
-                            )
+                            patch_data["lint_repair"] = True if lint_repair_dir.exists() else False
 
                             # Same with test repair
                             test_repair_dir = (
@@ -337,9 +329,7 @@ def worker_init(data: dict):
                                 / str(iteration)
                                 / "test_repair"
                             )
-                            patch_data["test_repair"] = (
-                                True if test_repair_dir.exists() else False
-                            )
+                            patch_data["test_repair"] = True if test_repair_dir.exists() else False
 
                             output_results(instance, output_file, patch_data)
                         else:
@@ -383,9 +373,7 @@ def extract_appmaps(instance, testbed):
             return None
 
 
-def split_runner_instances(
-    instances: list, num_runners: int, runner_index: int
-) -> list:
+def split_runner_instances(instances: list, num_runners: int, runner_index: int) -> list:
     """
     Split a list of instances into multiple groups based on the number of runners and the index of the runner.
 
@@ -410,16 +398,12 @@ def split_runner_instances(
 def solve_instances(instances: Dataset, args):
     instance_set_path = None
     if args.instance_set:
-        instance_set_path = (
-            Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
-        )
+        instance_set_path = Path(__file__).parent / "instance_sets" / f"{args.instance_set}.txt"
         with open(instance_set_path) as f:
             print(f"Using instance set: {instance_set_path}")
             instance_set = list(map(str.strip, f))
             instances = [
-                instance
-                for instance in instances
-                if instance["instance_id"] in instance_set
+                instance for instance in instances if instance["instance_id"] in instance_set
             ]
     if args.filter:
         print(f"Filtering instances by regex: {args.filter}")
@@ -432,9 +416,7 @@ def solve_instances(instances: Dataset, args):
         else:
             instances = random.sample(instances, k=args.random_count)
     if len(instances) == 0:
-        print(
-            f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})"
-        )
+        print(f"No instances selected (instance set: {instance_set_path}, filter: {args.filter})")
         sys.exit(1)
 
     if args.num_runners > 1:
@@ -442,9 +424,7 @@ def solve_instances(instances: Dataset, args):
         # long-running projects
         random.Random(args.seed).shuffle(instances)
         print(f"Splitting {len(instances)} instances across {args.num_runners} runners")
-        instances = split_runner_instances(
-            instances, args.num_runners, args.runner_index
-        )
+        instances = split_runner_instances(instances, args.num_runners, args.runner_index)
         print(f"{len(instances)} instances scheduled for this runner:")
         for instance in instances:
             print(f"- {instance['instance_id']}")
@@ -495,12 +475,8 @@ if __name__ == "__main__":
         help="path or huggingface name of task instances dataset",
         default="princeton-nlp/SWE-bench_Lite",
     )
-    parser.add_argument(
-        "--split", type=str, default="test", help="Dataset split to use"
-    )
-    parser.add_argument(
-        "--log_dir", type=str, help="Path to log directory", default="logs"
-    )
+    parser.add_argument("--split", type=str, default="test", help="Dataset split to use")
+    parser.add_argument("--log_dir", type=str, help="Path to log directory", default="logs")
     parser.add_argument(
         "--conda_link",
         type=str,
@@ -518,9 +494,7 @@ if __name__ == "__main__":
         type=str,
         help="(Optional) Path to miniconda3 or anaconda installation",
     )
-    parser.add_argument(
-        "--testbed", type=str, help="(Optional) Path to testbed directory"
-    )
+    parser.add_argument("--testbed", type=str, help="(Optional) Path to testbed directory")
     parser.add_argument(
         "--temp_dir",
         type=str,
@@ -599,9 +573,7 @@ if __name__ == "__main__":
         default=0,
         help="Index of the runner to use",
     )
-    parser.add_argument(
-        "--instance_set", type=str, help="(Optional) Name of instance set"
-    )
+    parser.add_argument("--instance_set", type=str, help="(Optional) Name of instance set")
     parser.add_argument(
         "--seed",
         type=int,
@@ -647,7 +619,7 @@ if __name__ == "__main__":
 
         # Don't load the ArchiveFinder unless appmap support is activated, because the
         # 'github' dependency is hard to install on some systems.
-        from appmap.archive import ArchiveFinder
+        from swe_appmap.archive import ArchiveFinder
 
         appmap_finder = ArchiveFinder(appmap_path)
     else:

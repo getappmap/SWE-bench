@@ -6,7 +6,7 @@ import os
 import re
 from typing import Optional
 
-from appmap.report.server import serve_reports
+from swe_appmap.report.server import serve_reports
 
 
 def load_jsonl(jsonl_path: str) -> list[dict]:
@@ -51,7 +51,9 @@ def make_details(title: str, content: str, open: bool = False) -> str:
     title = title.replace("_", " ").capitalize()
     if "\n" not in content and len(content) < 80:
         return f"{title}: {content}<br>\n"
-    return f"<details{' open' if open else ''}><summary>{title}</summary>\n\n{content}\n</details>\n\n"
+    return (
+        f"<details{' open' if open else ''}><summary>{title}</summary>\n\n{content}\n</details>\n\n"
+    )
 
 
 def read_files(dir: str) -> dict[str, str]:
@@ -91,9 +93,7 @@ def make_solution_report(solve_log_dir: str) -> str:
 
     for name in ORDER:
         if name in files:
-            report += make_details(
-                name, format_field(files.pop(name), name), open_by_default(name)
-            )
+            report += make_details(name, format_field(files.pop(name), name), open_by_default(name))
 
     for name, content in files.items():
         report += make_details(name, format_code(content))
@@ -218,9 +218,7 @@ if __name__ == "__main__":
         default="predictions.jsonl",
         type=str,
     )
-    parser.add_argument(
-        "--log_dir", type=str, help="Path to log directory", default="logs"
-    )
+    parser.add_argument("--log_dir", type=str, help="Path to log directory", default="logs")
     parser.add_argument(
         "--output",
         help="Path to output directory",

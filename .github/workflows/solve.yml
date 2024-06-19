@@ -10,11 +10,12 @@ on:
       dataset:
         description: "Dataset name"
         required: true
-        default: princeton-nlp/SWE-bench_Lite
+        default: swe_appmap/datasets/django-oscar
         type: choice
         options:
-          - princeton-nlp/SWE-bench_Lite
-          - princeton-nlp/SWE-bench
+        - princeton-nlp/SWE-bench_Lite
+        - princeton-nlp/SWE-bench
+        - swe_appmap/datasets/django-oscar
       runner:
         description: "Runner type"
         required: true
@@ -200,7 +201,7 @@ jobs:
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          python appmap/solve.py \
+          python swe_appmap/solve.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
             --split ${SWE_SPLIT:-dev} \
             --filter "${SWE_FILTER:-marshmallow-1343}" \
@@ -296,7 +297,7 @@ jobs:
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           conda info
-          python appmap/report.py \
+          python swe_appmap/report.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
             --split ${SWE_SPLIT:-test}
 

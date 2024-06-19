@@ -1,6 +1,6 @@
 import os
 import sys
-from appmap.archive import ArchiveFinder
+from swe_appmap.archive import ArchiveFinder
 from swebench.collect.make_lite.get_unique_repo_versions import load_dataset
 
 
@@ -41,12 +41,8 @@ def main(dataset_path, appmap_dir):
     missing_archives = verify_appmap_archives(repo_versions, appmap_dir)
 
     if missing_archives:
-        print(
-            "Missing appmap archives for the following repo-versions (sorted by instance count):"
-        )
-        for repo_version, count in sorted(
-            missing_archives, key=lambda x: x[1], reverse=True
-        ):
+        print("Missing appmap archives for the following repo-versions (sorted by instance count):")
+        for repo_version, count in sorted(missing_archives, key=lambda x: x[1], reverse=True):
             print(f"{repo_version}: {count} instances")
         # Print total count
         sum_count = sum(count for _, count in missing_archives)

@@ -7,7 +7,7 @@ import os
 thisdir = Path(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(thisdir.parent.parent.as_posix())
 
-from appmap.solve.steps.erase_test_changes import erase_test_changes
+from swe_appmap.solve.steps.erase_test_changes import erase_test_changes
 
 
 @pytest.fixture

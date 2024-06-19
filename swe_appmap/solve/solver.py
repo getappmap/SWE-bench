@@ -8,18 +8,18 @@ from os.path import abspath
 SCRIPT_DIR = os.path.dirname(abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
-from appmap.solve.patch import clean_patch
-from appmap.solve.run_command import run_command
-from appmap.solve.is_test_file import is_test_file
+from swe_appmap.solve.patch import clean_patch
+from swe_appmap.solve.run_command import run_command
+from swe_appmap.solve.is_test_file import is_test_file
 
-from appmap.solve.steps.read_test_directives import read_test_directives
-from appmap.solve.steps.step_posttest import step_posttest
-from appmap.solve.steps.step_pretest import build_task_manager, step_pretest
-from appmap.solve.steps.step_lint_repair import step_lint_repair
-from appmap.solve.steps.step_apply import step_apply
-from appmap.solve.steps.step_generate import step_generate
-from appmap.solve.steps.step_list import step_list
-from appmap.solve.steps.step_plan import step_plan
+from swe_appmap.solve.steps.read_test_directives import read_test_directives
+from swe_appmap.solve.steps.step_posttest import step_posttest
+from swe_appmap.solve.steps.step_pretest import build_task_manager, step_pretest
+from swe_appmap.solve.steps.step_lint_repair import step_lint_repair
+from swe_appmap.solve.steps.step_apply import step_apply
+from swe_appmap.solve.steps.step_generate import step_generate
+from swe_appmap.solve.steps.step_list import step_list
+from swe_appmap.solve.steps.step_plan import step_plan
 
 # Add pretest ... posttest to include those in the run.
 DEFAULT_STEPS = {
@@ -104,7 +104,9 @@ class Solver:
 
         for file in self.files:
             if not os.path.isfile(file):
-                print(f"[solver] ({self.instance_id}) WARN: File '{file}' from files.json does not exist.")
+                print(
+                    f"[solver] ({self.instance_id}) WARN: File '{file}' from files.json does not exist."
+                )
                 self.files.remove(file)
 
         if len(self.files) == 0:
@@ -164,9 +166,7 @@ class Solver:
             self.test_succeeded_files = read_test_directives(task_manager.instance)
 
         test_succeeded_files_str = ", ".join(self.test_succeeded_files)
-        print(
-            f"[solver] ({self.instance_id}) Test succeeded files: {test_succeeded_files_str}"
-        )
+        print(f"[solver] ({self.instance_id}) Test succeeded files: {test_succeeded_files_str}")
 
     def plan(self):
         step_plan(
@@ -242,9 +242,7 @@ class Solver:
             return
 
         if not self.files_changed or len(self.files_changed) == 0:
-            print(
-                f"[solver] ({self.instance_id}) No files changed. Skipping posttest step."
-            )
+            print(f"[solver] ({self.instance_id}) No files changed. Skipping posttest step.")
             return
 
         # At this point, some files have changed, and some tests succeeded.
@@ -302,12 +300,8 @@ class Solver:
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Solve software issue described in a file."
-    )
-    parser.add_argument(
-        "issue_file", type=str, help="File containing the issue description"
-    )
+    parser = argparse.ArgumentParser(description="Solve software issue described in a file.")
+    parser.add_argument("issue_file", type=str, help="File containing the issue description")
 
     parser.add_argument(
         "--instances-path",
@@ -327,21 +321,15 @@ def parse_arguments():
         help="Working directory of the project to modify",
         default=None,
     )
-    parser.add_argument(
-        "--log-dir", type=str, help="Directory to store logs", default="logs"
-    )
+    parser.add_argument("--log-dir", type=str, help="Directory to store logs", default="logs")
     parser.add_argument(
         "--path-conda",
         type=str,
         help="Path to the conda installation",
         default="conda",
     )
-    parser.add_argument(
-        "--format-command", type=str, help="Format command to use", default=None
-    )
-    parser.add_argument(
-        "--lint-command", type=str, help="Lint command to use", default=None
-    )
+    parser.add_argument("--format-command", type=str, help="Format command to use", default=None)
+    parser.add_argument("--lint-command", type=str, help="Lint command to use", default=None)
     parser.add_argument(
         "--appmap-command", type=str, help="AppMap command to use", default="appmap"
     )
@@ -414,9 +402,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if not posttest_succeeded:
-        print(
-            f"[solver] Changed {len(files_changed)} files for {issue_name}, but posttest failed."
-        )
+        print(f"[solver] Changed {len(files_changed)} files for {issue_name}, but posttest failed.")
         sys.exit(1)
 
     if len(files_changed) > 0:

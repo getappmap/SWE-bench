@@ -8,7 +8,7 @@ from typing import Optional, Union
 
 from datasets import DatasetDict, load_dataset, load_from_disk
 
-from appmap.archive import Archive, ArchiveFinder
+from swe_appmap.archive import Archive, ArchiveFinder
 from swebench.harness.utils import clone_to
 from subprocess import PIPE, Popen
 import json
@@ -203,9 +203,9 @@ def main(
 
         processed_by_id = {i["instance_id"]: i for i in processed}
 
-        processed_dataset = dataset.filter(
-            lambda i: i["instance_id"] in processed_by_id
-        ).map(lambda i: processed_by_id[i["instance_id"]])
+        processed_dataset = dataset.filter(lambda i: i["instance_id"] in processed_by_id).map(
+            lambda i: processed_by_id[i["instance_id"]]
+        )
 
         output_ds_path = output / (dataset_name + ".navie")
         processed_dataset.save_to_disk(output_ds_path.as_posix())
@@ -240,17 +240,13 @@ if __name__ == "__main__":
         help="path to appmap binary",
         default="~/.appmap/bin/appmap",
     )
-    parser.add_argument(
-        "--filter", type=str, help="filter to apply to the instance list"
-    )
+    parser.add_argument("--filter", type=str, help="filter to apply to the instance list")
     parser.add_argument(
         "--all",
         action="store_true",
         help="process all instances (not only those with appmaps)",
     )
-    parser.add_argument(
-        "--overwrite", action="store_true", help="overwrite existing files"
-    )
+    parser.add_argument("--overwrite", action="store_true", help="overwrite existing files")
     # parser.add_argument(
     #     "--verbose", action="store_true", help="(Optional) Verbose mode"
     # )

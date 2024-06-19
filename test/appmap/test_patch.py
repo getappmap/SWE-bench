@@ -6,7 +6,7 @@ import os
 thisdir = Path(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(thisdir.parent.parent.as_posix())
 
-from appmap.solve.patch import clean_patch
+from swe_appmap.solve.patch import clean_patch
 
 SETUP_PATCH = """diff --git a/setup.py b/setup.py
 index c0a9c2b0d..579fdee60 100644

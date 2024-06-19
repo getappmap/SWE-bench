@@ -1,6 +1,6 @@
 import re
 
-from appmap.solve.steps.test_files_to_modules import test_files_to_modules
+from swe_appmap.solve.steps.test_files_to_modules import test_files_to_modules
 
 
 DATA_FILE_EXTS = [
@@ -71,9 +71,7 @@ def read_test_directives(instance: dict) -> list:
     diff_pat = r"diff --git a/.* b/(.*)"
     test_patch = instance["test_patch"]
     directives = re.findall(diff_pat, test_patch)
-    directives = [
-        d for d in directives if not any(d.endswith(ext) for ext in NON_TEST_EXTS)
-    ]
+    directives = [d for d in directives if not any(d.endswith(ext) for ext in NON_TEST_EXTS)]
 
     if instance["repo"] == "django/django":
         directives = test_files_to_modules(directives)

@@ -7,7 +7,7 @@ export PYTHONPATH=$PROJECT_ROOT:$PYTHONPATH
 
 INSTANCES="princeton-nlp/SWE-bench"
 
-python $PROJECT_ROOT/appmap/make_appmaps.py \
+python $PROJECT_ROOT/swe_appmap/make_appmaps.py \
     --instances_path "$INSTANCES" \
     --log_dir "appmap_logs" \
     --appmap_archive_dir appmaps \

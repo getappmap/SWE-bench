@@ -1,7 +1,7 @@
 
 import yaml
 
-from appmap.solve.steps.step_generate import format_search_context
+from swe_appmap.solve.steps.step_generate import format_search_context
 from ..run_navie_command import run_navie_command
 
 
@@ -49,7 +49,7 @@ or explanations.
         command=appmap_command,
         input_path=terms_question,
         output_path=terms_output,
-        log_path=terms_log
+        log_path=terms_log,
     )
 
     with open(terms_output, "r") as f:

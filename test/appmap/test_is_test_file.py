@@ -6,7 +6,7 @@ import os
 thisdir = Path(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(thisdir.parent.parent.as_posix())
 
-from appmap.solve.is_test_file import is_test_file
+from swe_appmap.solve.is_test_file import is_test_file
 
 
 def test_is_test_file():
