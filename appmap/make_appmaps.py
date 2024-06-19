@@ -322,13 +322,13 @@ if __name__ == "__main__":
         help="(Optional) Keep temporary directories after running",
     )
     parser.add_argument(
-        "--show-instances",
+        "--show_instances",
         nargs="?",
         const="*",
         help="(Optional) Show instances that match version",
     )
     parser.add_argument(
-        "--reuse-env",
+        "--reuse_env",
         help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",
         action="store_true",
     )
