@@ -5,7 +5,7 @@ PROJECT_ROOT=$(git rev-parse --show-toplevel)
 # add it to python path
 export PYTHONPATH=$PROJECT_ROOT:$PYTHONPATH
 
-INSTANCES="princeton-nlp/SWE-bench_Lite"
+INSTANCES="${INSTANCES:-princeton-nlp/SWE-bench_Lite}"
 
 python $PROJECT_ROOT/appmap/make_appmaps.py \
     --instances_path "$INSTANCES" \
@@ -15,5 +15,5 @@ python $PROJECT_ROOT/appmap/make_appmaps.py \
     --num_workers 1 \
     --verbose \
     --path_conda $(conda info --base) \
-    --appmap-bin /home/swe-bench/appmap-js/packages/cli/built/cli.js \
+    --appmap_bin "$PROJECT_ROOT"/submodules/appmap-js/packages/cli/built/cli.js \
     "$@"
