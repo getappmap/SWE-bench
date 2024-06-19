@@ -898,8 +898,8 @@ class TaskEnvContextManager:
         # Install a working commit for now, but maybe switch to pytest-shard at some point?
         self.exec(["bash", "-c", f"{self.cmd_activate} && pip install git+https://github.com/mark-adams/pytest-test-groups.git@946d59a99193c3ed2362ae80ba59588b60312611"])
         for i in range(1, 100):
-            test_cmd = f"{test_cmd}  --test-group-count 100 --test-group {i}"
-            self.run_tests_task(task_instance, test_cmd)
+            test_group_cmd = f"{test_cmd}  --test-group-count 100 --test-group {i}"
+            self.run_tests_task(task_instance, test_group_cmd)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         os.chdir(self.cwd)
