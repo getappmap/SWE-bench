@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   run:
-    runs-on: SWE-Bench_Larger
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
