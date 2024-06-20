@@ -7,10 +7,15 @@ on:
       instances:
         description: 'Instances to map'
         required: true
-        default: 'princeton-nlp/SWE-bench'
-      projectFilter:
-        description: 'Project or instance to filter for'
+        default: 'apotterri/django-oscar'
+      idFilter:
+        description: 'Filter for instance ids'
         required: true
+        default: "django-oscar"
+      versionFilter:
+        description: 'Filter for instance versions'
+        required: true
+        default: ".*"
       appmapMaxEvents:
         description: 'Max Events per AppMap'
         required: true
@@ -37,7 +42,8 @@ jobs:
     - name: Display Input Values
       run: |
         echo "Instances: ${{ github.event.inputs.instances }}"
-        echo "Project Filter: ${{ github.event.inputs.projectFilter }}"
+        echo "ID Filter: ${{ github.event.inputs.idFilter }}"
+        echo "Version Filter: ${{ github.event.inputs.versionFilter }}"
         echo "AppMap Max Events: ${{ github.event.inputs.appmapMaxEvents }}"
         echo "AppMap Max Time: ${{ github.event.inputs.appmapMaxTime }}"
 
@@ -68,14 +74,17 @@ jobs:
 
     - name: Make Appmaps
       env:
-        INSTANCES: ${{ inputs.instances }}
         APPMAP_MAX_TIME: ${{ inputs.appmapMaxTime }}
         APPMAP_MAX_EVENTS: ${{ inputs.appmapMaxEvents }} 
       run: |
           source /home/runner/.bashrc
           conda activate swe-bench
           conda info
-          ./swe_appmap/make_appmaps-github-actions.sh --filter ${{ inputs.projectFilter }}
+          ./swe_appmap/make_appmaps-github-actions.sh \
+          --instances_path ${{ inputs.instances }} \
+           $(test -n "${{ inputs.idFilter }}" && echo --id_filter "${{ inputs.idFilter }}") \
+           $(test -n "${{ inputs.versionFilter }}" && echo --version_filter "${{ inputs.versionFilter }}")
+
 
     - name: Get Artifact Name
       id: get-artifact-name
@@ -98,8 +107,8 @@ jobs:
 
     # If the build fails leave a terminal open for 5 minutes 
     # we can investigate if needed
-    - name: Setup upterm session
-      uses: owenthereal/action-upterm@v1
-      if: ${{ failure() }}
-      with:
-        wait-timeout-minutes: 5
+    # - name: Setup upterm session
+    #   uses: owenthereal/action-upterm@v1
+    #   if: ${{ failure() }}
+    #   with:
+    #     wait-timeout-minutes: 5
