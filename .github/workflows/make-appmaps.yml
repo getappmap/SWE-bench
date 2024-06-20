@@ -1,5 +1,5 @@
 name: Make AppMaps
-run-name: Mapping ${{ inputs.projectFilter }} (${{ inputs.comment }})
+run-name: Mapping ${{ inputs.instances }}-${{ inputs.versionFilter }} (${{ inputs.comment }})
 
 on:
   workflow_dispatch:
@@ -8,9 +8,14 @@ on:
         description: 'Instances to map'
         required: true
         default: 'princeton-nlp/SWE-bench'
-      projectFilter:
-        description: 'Project or instance to filter for'
+      idFilter:
+        description: 'Filter for instance ids'
         required: true
+        default: ".*"
+      versionFilter:
+        description: 'Filter for instance versions, only one will be uploaded'
+        required: true
+        default: '0.0'
       appmapMaxEvents:
         description: 'Max Events per AppMap'
         required: true
@@ -37,7 +42,8 @@ jobs:
     - name: Display Input Values
       run: |
         echo "Instances: ${{ github.event.inputs.instances }}"
-        echo "Project Filter: ${{ github.event.inputs.projectFilter }}"
+        echo "ID Filter: ${{ github.event.inputs.idFilter }}"
+        echo "Version Filter: ${{ github.event.inputs.versionFilter }}"
         echo "AppMap Max Events: ${{ github.event.inputs.appmapMaxEvents }}"
         echo "AppMap Max Time: ${{ github.event.inputs.appmapMaxTime }}"
 
@@ -68,14 +74,18 @@ jobs:
 
     - name: Make Appmaps
       env:
-        INSTANCES: ${{ inputs.instances }}
         APPMAP_MAX_TIME: ${{ inputs.appmapMaxTime }}
         APPMAP_MAX_EVENTS: ${{ inputs.appmapMaxEvents }} 
       run: |
           source /home/runner/.bashrc
           conda activate swe-bench
           conda info
-          ./swe_appmap/make_appmaps-github-actions.sh --filter ${{ inputs.projectFilter }}
+          set -o noglob
+          ./appmap/make_appmaps-github-actions.sh \
+          --instances_path ${{ inputs.instances }} \
+           $(test -n "${{ inputs.idFilter }}" && echo --id_filter "${{ inputs.idFilter }}") \
+           $(test -n "${{ inputs.versionFilter }}" && echo --version_filter "${{ inputs.versionFilter }}")
+
 
     - name: Get Artifact Name
       id: get-artifact-name
