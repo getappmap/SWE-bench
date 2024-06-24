@@ -3,7 +3,7 @@ import subprocess
 
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 
-from ..format_instructions import format_instructions
+from ...navie.format_instructions import xml_format_instructions
 from ..run_navie_command import run_navie_command
 from ..run_command import run_command
 
@@ -145,7 +145,7 @@ Fix the test errors in any of the provided <file>, without changing the intended
 
 ## Output format
 
-{format_instructions()}
+{xml_format_instructions()}
 
 In the <original> and <modified> tags, do not emit line numbers. The line numbers are
 only present in the file/content to help you identify which line has the lint error.
