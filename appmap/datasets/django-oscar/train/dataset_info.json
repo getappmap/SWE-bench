@@ -1,0 +1,106 @@
+{
+  "builder_name": "json",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "json",
+  "dataset_size": 391146,
+  "description": "",
+  "download_checksums": {
+    "/Users/ajp/src/applandinc/SWE-bench/django-oscar-tasks.json": {
+      "num_bytes": 405676,
+      "checksum": null
+    }
+  },
+  "download_size": 405676,
+  "features": {
+    "repo": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "pull_number": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "instance_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "issue_numbers": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "base_commit": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "patch": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "test_patch": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "problem_statement": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "hints_text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "created_at": {
+      "dtype": "timestamp[ns, tz=UTC]",
+      "_type": "Value"
+    },
+    "version": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ERROR_TO_ERROR": {
+      "feature": {
+        "dtype": "null",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "FAIL_TO_PASS": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "PASS_TO_PASS": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "environment_setup_commit": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 796822,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 391146,
+      "num_examples": 23,
+      "dataset_name": "json"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

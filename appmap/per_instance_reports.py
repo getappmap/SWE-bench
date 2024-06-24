@@ -227,7 +227,13 @@ if __name__ == "__main__":
         default="reports",
         type=str,
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="(Optional) Be verbose, specify multiple times for more output",
+    )
 
     parser.add_argument(
         "--serve", type=int, nargs="?", help="Serve reports", const=54711, dest="port"

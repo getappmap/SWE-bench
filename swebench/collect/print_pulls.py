@@ -17,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def log_all_pulls(repo: Repo, output: str):
+def log_all_pulls(repo: Repo, output: str, start_page: int):
     """
     Iterate over all pull requests in a repository and log them to a file
 
@@ -26,12 +26,12 @@ def log_all_pulls(repo: Repo, output: str):
         output (str): output file name
     """
     with open(output, "w") as output:
-        for pull in repo.get_all_pulls():
+        for pull in repo.get_all_pulls(start_page=start_page):
             setattr(pull, "resolved_issues", repo.extract_resolved_issues(pull))
             print(json.dumps(obj2dict(pull)), end="\n", flush=True, file=output)
 
 
-def main(repo_name: str, output: str, token: Optional[str] = None):
+def main(repo_name: str, output: str, token: Optional[str] = None, start_page: int = 1):
     """
     Logic for logging all pull requests in a repository
 
@@ -44,7 +44,7 @@ def main(repo_name: str, output: str, token: Optional[str] = None):
         token = os.environ["GITHUB_TOKEN"]
     owner, repo = repo_name.split("/")
     repo = Repo(owner, repo, token=token)
-    log_all_pulls(repo, output)
+    log_all_pulls(repo, output, start_page)
 
 
 if __name__ == "__main__":
@@ -52,5 +52,6 @@ if __name__ == "__main__":
     parser.add_argument("repo_name", type=str, help="Name of the repository")
     parser.add_argument("output", type=str, help="Output file name")
     parser.add_argument("--token", type=str, help="GitHub token")
+    parser.add_argument("--start_page", type=int, default=1, help="(Optional) start page")
     args = parser.parse_args()
     main(**vars(args))

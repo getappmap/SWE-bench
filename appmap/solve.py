@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import json
 import os
 import random
@@ -22,7 +23,7 @@ from swebench.harness.context_manager import (
     TaskEnvContextManager,
     TestbedContextManager,
 )
-from swebench.harness.utils import DotDict, split_instances
+from swebench.harness.utils import DotDict, split_instances, datetime_serializer
 
 
 def output_results(instance, output_file, patch_data):
@@ -36,7 +37,7 @@ def output_results(instance, output_file, patch_data):
 
     with FileLock(f"{output_file}.lock"):
         with open(output_file, "a+") as f:
-            f.write(json.dumps(instance) + "\n")
+            f.write(json.dumps(instance, default=datetime_serializer) + "\n")
 
 
 def solve_instance(
@@ -470,7 +471,7 @@ def solve_instances(instances: Dataset, args):
 
 
 def main(args):
-    dataset = load_data(args.instances_path, args.split)
+    dataset = load_data(args.instances_path)[args.split]
     solve_instances(dataset, args)
 
 
@@ -538,7 +539,10 @@ if __name__ == "__main__":
         help="Number of times to try and create a code update for each test instance",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="(Optional) Verbose mode"
+        "--verbose",
+        action="count",
+        default=0,
+        help="(Optional) Verbose mode, specify multiple times for more output",
     )
     parser.add_argument(
         "--num_workers",
@@ -630,6 +634,9 @@ if __name__ == "__main__":
         help="(Optional) The amount to increase the temperature by on each iteration",
     )
     args = parser.parse_args()
+    if Path(args.instances_path).exists():
+        args.instances_path = abspath(args.instances_path)
+
     if args.appmaps:
         if isinstance(args.appmaps, bool):
             appmap_path = None

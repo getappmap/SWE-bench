@@ -39,13 +39,15 @@ def _find_version_in_text(text: str, instance: dict) -> str:
     for pattern in MAP_REPO_TO_VERSION_PATTERNS[instance["repo"]]:
         matches = re.search(pattern, text)
         if matches is not None:
-            print(instance['repo'])
+            logger.debug(instance["repo"])
             if instance['repo'] == 'pyvista/pyvista':
                 text = matches.group(0)
                 text = text.split('=')[-1].strip() if '=' in text else text.strip()
                 text = '.'.join(text.split(','))
                 return text
             return str(matches.group(1)).replace(" ", "")
+        else:
+            logger.debug(f"{pattern} didn't match {text}")
 
 
 def get_version(instance, is_build=False, path_repo=None):
@@ -84,16 +86,24 @@ def get_version(instance, is_build=False, path_repo=None):
                 instance["base_commit"],
                 path_to_version,
             )
-            init_text = requests.get(url).text
-        version = _find_version_in_text(init_text, instance)
-        if version is not None:
-            if "." in version:
-                version = keep_major_minor(version, ".")
-            if "," in version:
-                version = keep_major_minor(version, ",")
-            version = re.sub(r"[^0-9\.]", "", version)
-            return version
-    return version
+            resp = requests.get(url)
+            if resp.status_code == 200:
+                init_text = resp.text
+                break
+            else:
+                logger.debug(f"GET {url} failed, {resp}")
+    if init_text is None:
+        logger.warn(f"No matches for {paths_to_version} {instance['base_commit']}")
+        return None
+    version = _find_version_in_text(init_text, instance)
+    if version is not None:
+        if "." in version:
+            version = keep_major_minor(version, ".")
+        if "," in version:
+            version = keep_major_minor(version, ",")
+        version = re.sub(r"[^0-9\.]", "", version)
+        return version
+    return None
 
 
 def map_version_to_task_instances(task_instances: list) -> dict:

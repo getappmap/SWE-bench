@@ -19,7 +19,7 @@ from swebench.harness.context_manager import (
     TaskEnvContextManager,
     TestbedContextManager,
 )
-from swebench.harness.utils import DotDict, split_instances
+from swebench.harness.utils import DotDict, datetime_serializer, split_instances
 from swebench.metrics.getters import get_eval_refs
 
 faulthandler.register(signal.SIGUSR1)
@@ -196,26 +196,19 @@ def main(args):
 
     task_instances = list(get_eval_refs(args.instances_path).values())
 
-    # filter by optional filter
-    if args.filter and args.filter != "*":
-        task_instances = [
-            task_instance
-            for task_instance in task_instances
-            if args.filter in task_instance["instance_id"]
-        ]
-        if args.show_instances:
+    def generate_by_pattern(p, k):
+        return (task_instance for task_instance in task_instances if p.search(task_instance[k]))
 
-            def filter_keys(dicts):
-                keys_to_keep = ["instance_id", "version", "environment_setup_commit"]
-                ret = filter(
-                    lambda d: fnmatch.fnmatchcase(d["version"], args.show_instances),
-                    [{k: v for k, v in d.items() if k in keys_to_keep} for d in dicts],
-                )
-                return sorted(ret, key=lambda d: d["instance_id"])
+    # filter by id
+    if args.id_filter:
+        task_instances = list(generate_by_pattern(re.compile(args.id_filter), "instance_id"))
+    if args.version_filter:
+        task_instances = list(generate_by_pattern(re.compile(args.version_filter), "version"))
 
-            json.dump(filter_keys(task_instances), indent=2, fp=sys.stdout)
-            print()
-            sys.exit(0)
+    if args.show_only:
+        json.dump(task_instances, indent=2, fp=sys.stdout, default=datetime_serializer)
+        print()
+        sys.exit(0)
 
     # group by repo-version
     rv_groups = itertools.groupby(task_instances, lambda x: (x["repo"], x["version"]))
@@ -297,7 +290,10 @@ if __name__ == "__main__":
         help="(Optional) Timeout (seconds) for testing script execution",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="(Optional) Verbose mode"
+        "--verbose",
+        action="count",
+        default=0,
+        help="(Optional)Verbose mode, specify multiple times for more verbose output",
     )
     parser.add_argument(
         "--num_workers", type=int, default=None, help="(Optional) Number of workers"
@@ -309,23 +305,24 @@ if __name__ == "__main__":
         default="~/.appmap/bin/appmap",
     )
     parser.add_argument(
-        "--filter",
+        "--id_filter",
         type=str,
-        help="(Optional) Filter to apply to task instances",
+        help="(Optional) Filter for task instance ids",
     )
+    parser.add_argument("--version_filter", type=str, help="(Optional) Filter for task versions")
+
     parser.add_argument(
         "--keep",
         action="store_true",
         help="(Optional) Keep temporary directories after running",
     )
     parser.add_argument(
-        "--show-instances",
-        nargs="?",
-        const="*",
-        help="(Optional) Show instances that match version",
+        "--show_only",
+        action="store_true",
+        help="(Optional) Only show instances that the filters, then exit",
     )
     parser.add_argument(
-        "--reuse-env",
+        "--reuse_env",
         help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",
         action="store_true",
     )

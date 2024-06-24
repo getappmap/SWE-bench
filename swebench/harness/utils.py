@@ -228,7 +228,7 @@ def get_test_directives(instance: dict) -> list:
     return directives
 
 
-def clone_repo(repo_name: str, path: str, token: str = None) -> bool:
+def clone_repo(repo_name: str, path: str, token: str = None, gh_org:str = "swe-bench") -> bool:
     """
     Wrapper for cloning repo from swe-bench organization
 
@@ -242,8 +242,9 @@ def clone_repo(repo_name: str, path: str, token: str = None) -> bool:
     try:
         if token is None:
             token = os.environ.get("GITHUB_TOKEN", "git")
+        print(f"token: {token[0:3]}")
         repo_url = (
-            f"https://{token}@github.com/swe-bench/"
+            f"https://{token}@github.com/{gh_org}/"
             + repo_name.replace("/", "__")
             + ".git"
         )
@@ -254,15 +255,16 @@ def clone_repo(repo_name: str, path: str, token: str = None) -> bool:
         return False
 
 
-def clone_to(repo, repo_path):
+def clone_to(repo, repo_path, gh_org:str = "swe-bench"):
     """
     Clone repository through a base clone to repo_path
     """
+    print(f"clone_to, repo: {repo} repo_path: {repo_path}")
     base_path = os.path.join(gettempdir(), "git-repos", repo)
     # clone repo to basepath if not exists, under a file lock
     with FileLock(base_path + ".lock"):
         if not os.path.exists(base_path):
-            clone_repo(repo, base_path)
+            clone_repo(repo, base_path, gh_org=gh_org)
     Repo.clone_from(base_path, repo_path)
 
 
@@ -450,3 +452,9 @@ def has_attribute_or_import_error(log_before):
         if any([(x in lines_1 or x in lines_2) for x in ['error', 'fail']]):
             return True
     return False
+
+
+def datetime_serializer(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()  # Or modify this to serialize in your preferred format
+    raise TypeError("Type not serializable")

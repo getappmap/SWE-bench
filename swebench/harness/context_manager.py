@@ -20,6 +20,7 @@ from swebench.harness.constants import (
     INSTALL_TIMEOUT,
     KEY_INSTANCE_ID,
     KEY_MODEL,
+    MAP_REPO_TO_GH_ORG,
     MAP_REPO_TO_INSTALL,
     MAP_REPO_TO_TEST_FRAMEWORK,
     MAP_REPO_VERSION_TO_CONDA_LINK,
@@ -159,7 +160,7 @@ class TestbedContextManager:
         temp_dir: str = None,
         testbed: str = None,
         timeout: int = None,
-        verbose: bool = False,
+        verbose: int = 0,
         keep: bool = False,
         suffix: str = "",
     ):
@@ -173,7 +174,7 @@ class TestbedContextManager:
             conda_link(str): URL to conda installation to use
             path_conda (str): Path to conda installation
             testbed (str): Path to testbed directory
-            verbose (bool): Whether to show logs
+            verbose (int): Whether to show logs
             timeout (int): Timeout for actions
             temp_dir (str): Path to temporary directory
         """
@@ -399,8 +400,9 @@ class TestbedContextManager:
 
                 # Clone github per repo/version
                 repo_path = os.path.join(self.testbed, env_name)
+                gh_org = MAP_REPO_TO_GH_ORG.get(repo, "swe-bench")
                 if not os.path.exists(repo_path):
-                    clone_to(repo, repo_path)
+                    clone_to(repo, repo_path, gh_org=gh_org)
                     self.log.write(f"Cloned {repo} to {repo_path}")
                 else:
                     self.log.write(f"Repo for {repo_prefix} version {version} exists: {repo_path}; skipping")
@@ -429,11 +431,25 @@ class TestbedContextManager:
 
             # Create conda environment according to install instructinos
             pkgs = install["packages"] if "packages" in install else ""
+            setup_install = install.get("setup_install")
+
+            def before_install():
+                # Override the user's setting of PIP_REQUIRE_VIRTUALENV. It's not needed in a
+                # conda-managed environment, and will cause failures below.
+                cmd = f"{exec_cmd} env config vars set PIP_REQUIRE_VIRTUALENV=false"
+                self.exec(cmd.split(" "))
+                if setup_install is not None:
+                    setup_install(self, path_activate, env_name)
+
             if pkgs == "requirements.txt":
                 # Create environment
-                cmd = f"{exec_cmd} create -n {env_name} python={install['python']} -y"
-                self.log.write(f"Creating environment {env_name}")
+                cmd = (
+                    f"{exec_cmd} create -c conda-forge -n {env_name} python={install['python']} -y"
+                )
+                self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                 self.exec(cmd.split(" "))
+
+                before_install()
 
                 # Install dependencies
                 path_to_reqs = get_requirements(setup_ref_instance, self.testbed)
@@ -452,8 +468,10 @@ class TestbedContextManager:
 
                     # `conda create` based installation
                     cmd = f"{exec_cmd} create -c conda-forge -n {env_name} python={install['python']} -y"
-                    self.log.write(f"Creating environment {env_name}")
+                    self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                     self.exec(cmd.split(" "))
+
+                    before_install()
 
                     # Install dependencies
                     cmd = f"{exec_cmd} env update -f {path_to_reqs}"
@@ -472,7 +490,7 @@ class TestbedContextManager:
 
                     # `conda env create` based installation
                     cmd = f"{exec_cmd} env create --file {path_to_reqs}"
-                    self.log.write(f"Creating environment {env_name}")
+                    self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                     self.exec(cmd.split(" "))
 
                     # Remove environment.yml
@@ -480,7 +498,10 @@ class TestbedContextManager:
             else:
                 # Create environment + install dependencies
                 cmd = f"{exec_cmd} create -n {env_name} python={install['python']} {pkgs} -y"
-                self.log.write(f"Creating environment {env_name}")
+
+                before_install()
+
+                self.log.write(f"Creating environment {env_name}, cmd: {cmd}")
                 self.exec(cmd.split(" "))
 
             arch = platform.machine()
@@ -575,7 +596,7 @@ class TaskEnvContextManager:
         venv: str,
         log_dir: str,
         conda_path: str,
-        verbose: bool = False,
+        verbose: int = 0,
         timeout: int = None,
         is_eval: bool = False,
         log_suffix: str = None,
@@ -589,13 +610,16 @@ class TaskEnvContextManager:
             venv (str): Name of conda environment (should exist in conda_path)
             log_dir (str): Path to log directory
             conda_path (str): Path to conda installation
-            verbose (bool): Whether to show logs
+            verbose (int): Whether to show logs
             timeout (int): Timeout for actions
             is_eval (bool): Whether this is for evaluating a model on SWE Bench
                 (Mainly for logging purposes)
         """
-        if verbose:
-            logger_taskenv.setLevel(logging.INFO)
+        if verbose > 0:
+            if verbose == 1:
+                logger_taskenv.setLevel(logging.INFO)
+            else:
+                logger_taskenv.setLevel(logging.DEBUG)
         self.instance = instance
         self.conda_path = conda_path
         self.conda_cache_dir = os.path.join(self.conda_path, "cache")
@@ -604,6 +628,7 @@ class TaskEnvContextManager:
         self.testbed = testbed
         self.testbed_name = testbed.split("/")[-1]
         self.venv = venv
+        self.verbose = verbose
 
         # Log file naming
         log_file_name = (
@@ -826,7 +851,7 @@ class TaskEnvContextManager:
         """
         try:
             # Run test command for task instance
-            test_cmd = f"{self.cmd_activate} && printenv && {test_cmd_override or instance['test_cmd']}"
+            test_cmd = f"{self.cmd_activate} && {test_cmd_override or instance['test_cmd']}"
             with open(self.log_file, "a") as f:
                 f.write(f"Test Script: {test_cmd};\n")
 
@@ -835,8 +860,9 @@ class TaskEnvContextManager:
             if "env_vars_test" in specifications:
                 self.exec.subprocess_args["env"].update(specifications["env_vars_test"])
 
+            tee = self.verbose > 1
             out_test = self.exec(
-                ["bash", "-c", test_cmd], timeout=self.timeout, check=False, tee=True
+                ["bash", "-c", test_cmd], timeout=self.timeout, check=False, tee=tee
             )
 
             # Unset environment variables if provided
@@ -872,8 +898,8 @@ class TaskEnvContextManager:
         # Install a working commit for now, but maybe switch to pytest-shard at some point?
         self.exec(["bash", "-c", f"{self.cmd_activate} && pip install git+https://github.com/mark-adams/pytest-test-groups.git@946d59a99193c3ed2362ae80ba59588b60312611"])
         for i in range(1, 100):
-            test_cmd = f"{test_cmd}  --test-group-count 100 --test-group {i}"
-            self.run_tests_task(task_instance, test_cmd)
+            test_group_cmd = f"{test_cmd}  --test-group-count 100 --test-group {i}"
+            self.run_tests_task(task_instance, test_group_cmd)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         os.chdir(self.cwd)

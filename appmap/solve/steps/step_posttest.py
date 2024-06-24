@@ -61,7 +61,7 @@ def step_posttest(
         f"[posttest] ({instance_id}) Test command for {instance['repo']} is {test_cmd}"
     )
 
-    test_command = f"{task_manager.cmd_activate} && printenv && {test_cmd} "
+    test_command = f"{task_manager.cmd_activate} && {test_cmd} "
     test_files_str = " ".join(test_files)
 
     print(

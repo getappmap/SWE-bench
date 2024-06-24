@@ -100,13 +100,16 @@ if __name__ == "__main__":
         type=str,
         default="test",
         help="Name of split to get evaluation results for (should be parent folder, e.g. 'test', 'dev')",
-        choices=["test", "dev"],
+        choices=["test", "dev", "train"],
     )
     parser.add_argument(
         "--save_results", default=True, action="store_true", help="Save results to file"
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="Show intermediate messages"
+        "--verbose",
+        action="count",
+        default=0,
+        help="Show intermediate messages, specify multiple times for more output",
     )
     parser.add_argument(
         "--output", type=str, default="results.csv", help="Path to output file"

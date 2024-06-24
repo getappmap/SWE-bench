@@ -196,7 +196,12 @@ if __name__ == "__main__":
     parser.add_argument("--testbed", type=str, help="(Optional) Path to testbed directory")
     parser.add_argument("--temp_dir", type=str, help="(Optional) Path to temporary directory for storing virtual envs")
     parser.add_argument("--timeout", type=int, default=None, help="(Optional) Timeout (seconds) for testing script execution")
-    parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
+    parser.add_argument(
+        "--verbose",
+        action="count",
+        default=0,
+        help="(Optional) Verbose mode, specify multiple times for more output",
+    )
     parser.add_argument(
         "--reuse-env",
         help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",

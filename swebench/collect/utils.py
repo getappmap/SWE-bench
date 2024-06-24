@@ -107,6 +107,7 @@ class Repo:
         per_page: int = 100,
         num_pages: Optional[int] = None,
         quiet: bool = False,
+        start_page: int = 1,
         **kwargs,
     ) -> list:
         """
@@ -119,7 +120,7 @@ class Repo:
             quiet (bool): whether to print progress
             **kwargs: keyword arguments to pass to API function
         """
-        page = 1
+        page = start_page
         args = {
             "owner": self.owner,
             "repo": self.name,
@@ -196,6 +197,7 @@ class Repo:
         sort: str = "created",
         state: str = "closed",
         quiet: str = False,
+        start_page: int = 1,
     ) -> list:
         """
         Wrapper for API call to get all PRs from repo
@@ -216,6 +218,7 @@ class Repo:
             sort=sort,
             state=state,
             quiet=quiet,
+            start_page=start_page,
         )
         return pulls
 

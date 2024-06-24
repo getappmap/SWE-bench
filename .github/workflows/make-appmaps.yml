@@ -1,12 +1,21 @@
 name: Make AppMaps
-run-name: Mapping ${{ inputs.projectFilter }} (${{ inputs.comment }})
+run-name: Mapping ${{ inputs.instances }}-${{ inputs.versionFilter }} (${{ inputs.comment }})
 
 on:
   workflow_dispatch:
     inputs:
-      projectFilter:
-        description: 'Project or instance to filter for'
+      instances:
+        description: 'Instances to map'
         required: true
+        default: 'princeton-nlp/SWE-bench'
+      idFilter:
+        description: 'Filter for instance ids'
+        required: true
+        default: ".*"
+      versionFilter:
+        description: 'Filter for instance versions, only one will be uploaded'
+        required: true
+        default: '0.0'
       appmapMaxEvents:
         description: 'Max Events per AppMap'
         required: true
@@ -25,14 +34,16 @@ permissions:
 
 jobs:
   run:
-    runs-on: SWE-Bench_Larger
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
     - name: Display Input Values
       run: |
-        echo "Project Filter: ${{ github.event.inputs.projectFilter }}"
+        echo "Instances: ${{ github.event.inputs.instances }}"
+        echo "ID Filter: ${{ github.event.inputs.idFilter }}"
+        echo "Version Filter: ${{ github.event.inputs.versionFilter }}"
         echo "AppMap Max Events: ${{ github.event.inputs.appmapMaxEvents }}"
         echo "AppMap Max Time: ${{ github.event.inputs.appmapMaxTime }}"
 
@@ -62,11 +73,19 @@ jobs:
         conda env create -f environment.yml
 
     - name: Make Appmaps
+      env:
+        APPMAP_MAX_TIME: ${{ inputs.appmapMaxTime }}
+        APPMAP_MAX_EVENTS: ${{ inputs.appmapMaxEvents }} 
       run: |
           source /home/runner/.bashrc
           conda activate swe-bench
           conda info
-          APPMAP_MAX_TIME=${{ github.event.inputs.appmapMaxTime }} APPMAP_MAX_EVENTS=${{ github.event.inputs.appmapMaxEvents }} ./appmap/make_appmaps-github-actions.sh --filter ${{ github.event.inputs.projectFilter }}
+          set -o noglob
+          ./appmap/make_appmaps-github-actions.sh \
+          --instances_path ${{ inputs.instances }} \
+           $(test -n "${{ inputs.idFilter }}" && echo --id_filter "${{ inputs.idFilter }}") \
+           $(test -n "${{ inputs.versionFilter }}" && echo --version_filter "${{ inputs.versionFilter }}")
+
 
     - name: Get Artifact Name
       id: get-artifact-name

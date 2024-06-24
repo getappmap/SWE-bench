@@ -1,6 +1,8 @@
 import argparse, os
 
 from multiprocessing import Pool, cpu_count
+import re
+import sys
 from swebench.harness.constants import PatchType
 from swebench.harness.context_manager import TaskEnvContextManager, TestbedContextManager
 from swebench.harness.utils import get_instances, split_instances, DotDict
@@ -97,6 +99,7 @@ def setup_testbed(data: dict):
         timeout=data_dict.timeout,
         verbose=data_dict.verbose,
         suffix=data_dict.suffix,
+        keep=data_dict.keep,
     ) as tcm:
         distributed_task_list = tcm.get_distributed_tasks()
         for task_list in distributed_task_list:
@@ -114,7 +117,7 @@ def setup_testbed(data: dict):
         pool.join()
 
 
-def main(args):
+def main(args) -> int:
     """
     Splits task instances into multiple groups if num_workers > 1
     """
@@ -122,6 +125,17 @@ def main(args):
         args.num_workers = cpu_count()
 
     task_instances = list(get_eval_refs(args.instances_path).values())
+    id_pattern = re.compile(args.id_filter)
+    version_pattern = re.compile(args.version_filter)
+    task_instances = [
+        i
+        for i in task_instances
+        if (id_pattern.search(i["instance_id"]) and version_pattern.search(i["version"]))
+    ]
+    if len(task_instances) == 0:
+        print(f"no instances matched {args.id_filter} and {args.version_filter}")
+        return 1
+
     task_instances_groups = split_instances(task_instances, args.num_workers)
 
     data_groups = [
@@ -139,12 +153,13 @@ def main(args):
 
     if args.num_workers == 1:
         setup_testbed(data_groups[0])
-        return
+        return 0
 
     pool = Pool(processes=args.num_workers)
     pool.map(setup_testbed, data_groups)
     pool.close()
     pool.join()
+    return 0
 
 
 if __name__ == "__main__":
@@ -157,13 +172,27 @@ if __name__ == "__main__":
     parser.add_argument("--testbed", type=str, help="(Optional) Path to testbed directory")
     parser.add_argument("--temp_dir", type=str, help="(Optional) Path to temporary directory for storing virtual envs")
     parser.add_argument("--timeout", type=int, default=None, help="(Optional) Timeout (seconds) for testing script execution")
-    parser.add_argument("--verbose", action="store_true", help="(Optional) Verbose mode")
+    parser.add_argument(
+        "--verbose",
+        action="count",
+        help="(Optional) Verbose mode, specify multiple times for more output",
+    )
+    parser.add_argument("--keep", action="store_true", help="(Optional) Keep testbed")
     parser.add_argument("--num_workers", type=int, default=None, help="(Optional) Number of workers")
     parser.add_argument(
         "--reuse-env",
         help="Reuse environments instead of creating a new one per-instance (can lead to clobbering in CI!)",
         action="store_true",
     )
+    parser.add_argument(
+        "--id_filter", type=str, default=".*", help="(Optiona)Regex to filter instances id"
+    )
+    parser.add_argument(
+        "--version_filter",
+        type=str,
+        default=".*",
+        help="(Optiona)Regex to filter instance versions",
+    )
     args = parser.parse_args()
     validate_args(args)
-    main(args)
+    sys.exit(main(args))

@@ -13,12 +13,13 @@ on:
         default: princeton-nlp/SWE-bench_Lite
         type: choice
         options:
-          - princeton-nlp/SWE-bench_Lite
-          - princeton-nlp/SWE-bench
+        - princeton-nlp/SWE-bench_Lite
+        - princeton-nlp/SWE-bench
+        - apotterri/django-oscar
       runner:
         description: "Runner type"
         required: true
-        default: swe-bench-ubuntu-latest
+        default: ubuntu-latest
         type: choice
         options:
           - swe-bench-ubuntu-latest
@@ -27,11 +28,12 @@ on:
       split:
         description: "Dataset split"
         required: true
-        default: test
+        default: train
         type: choice
         options:
           - dev
           - test
+          - train
       retries:
         description: "Number of retries to perform on each instance until a patch is found"
         required: false
@@ -78,7 +80,7 @@ jobs:
           echo "steps: ${{ github.event.inputs.steps }}"
           echo "instance_set: ${{ github.event.inputs.instance_set }}"
   build-appmap-js:
-    runs-on: SWE-Bench_Larger
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -133,7 +135,7 @@ jobs:
     needs:
       - build-appmap-js
       - prepare-matrix
-    runs-on: ${{ inputs.runner || 'swe-bench-ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -210,6 +212,7 @@ jobs:
             --temp_dir "${{ runner.temp }}" \
             --path_conda $(conda info --base) \
             --num_runners "${NUM_RUNNERS:-1}" \
+            --num_workers "${NUM_WORKERS:-6}" \
             --runner_index "${{ matrix.index }}" \
             --verbose \
             $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
