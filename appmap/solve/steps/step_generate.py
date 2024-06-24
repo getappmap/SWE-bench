@@ -1,7 +1,7 @@
 import yaml
 from ..run_command import run_command
 from ..run_navie_command import run_navie_command
-from ..format_instructions import format_instructions
+from ...navie.format_instructions import xml_format_instructions
 
 from .erase_test_changes import erase_test_changes_from_file
 
@@ -75,7 +75,7 @@ Avoid refactorings that will affect multiple parts of the codebase.
 
 ## Output format
 
-{format_instructions()}
+{xml_format_instructions()}
 """
         )
     generate_question = os.path.join(work_dir, "generate.txt")

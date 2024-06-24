@@ -1,7 +1,7 @@
 from ..log import log_diff, log_lint, log_command
 from ..run_command import run_command
 from ..run_navie_command import run_navie_command
-from ..format_instructions import format_instructions
+from ...navie.format_instructions import xml_format_instructions
 
 
 import os
@@ -214,7 +214,8 @@ def step_lint_repair(
         ]
 
         with open(repair_question, "w") as f:
-            f.write(f"""@generate /noformat /noterms
+            f.write(
+                f"""@generate /noformat /noterms
                     
 <lint-errors>
 """
@@ -277,13 +278,12 @@ the symbol from the correct module.
 
 ## Output format
 
-{format_instructions()}
+{xml_format_instructions()}
 
 In the <original> and <modified> tags, do not emit line numbers. The line numbers are
 only present in the file/content to help you identify which line has the lint error.
 """
             )
-
 
         # Plan the repair
         print(f"[lint-repair] ({instance_id}) Generating code to repair {file}")
