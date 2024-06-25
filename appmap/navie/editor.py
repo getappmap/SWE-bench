@@ -38,7 +38,7 @@ class Editor:
             clean_content = clean_content[:100] + "..."
         self.log(f"{action}: {clean_content}")
 
-    def ask(self, question, prompt=None, cache=True):
+    def ask(self, question, prompt=None, context=None, cache=True):
         self._log_action("Asking", question)
 
         work_dir = self._work_dir("ask")
@@ -50,14 +50,16 @@ class Editor:
                 explanation = f.read()
 
             if save_cache:
-                self._save_cache(work_dir, question, "question", prompt, "prompt")
+                self._save_cache(
+                    work_dir, question, "question", prompt, "prompt", context, "context"
+                )
 
             print(f"  Output is available at {output_file}")
 
             return explanation
 
         if cache and self._all_cache_valid(
-            work_dir, question, "question", prompt, "prompt"
+            work_dir, question, "question", prompt, "prompt", context, "context"
         ):
             print("  Using cached answer")
             return read_output(False)
@@ -72,8 +74,18 @@ class Editor:
         else:
             prompt_file = None
 
+        if context:
+            context_file = os.path.join(work_dir, "ask.context.md")
+            with open(context_file, "w") as f:
+                f.write(context)
+        else:
+            context_file = None
+
         Client(work_dir, self.temperature, self.token_limit, self.log).ask(
-            question_file, output_file, prompt_file=prompt_file
+            question_file,
+            output_file,
+            prompt_file=prompt_file,
+            context_file=context_file,
         )
 
         return read_output(True)
