@@ -78,7 +78,7 @@ jobs:
           echo "steps: ${{ github.event.inputs.steps }}"
           echo "instance_set: ${{ github.event.inputs.instance_set }}"
   build-appmap-js:
-    runs-on: SWE-Bench_Larger
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -134,6 +134,7 @@ jobs:
       - build-appmap-js
       - prepare-matrix
     runs-on: ${{ inputs.runner || 'swe-bench-ubuntu-latest' }}
+    environment: fireworks
     strategy:
       fail-fast: false
       matrix:
