@@ -6,7 +6,7 @@ on:
       filter:
         description: "Instance filter regex"
         required: false
-        default: "django-1[67]"
+        default: "(django__django-12915|django__django-11001)"
       dataset:
         description: "Dataset name"
         required: true
@@ -18,7 +18,7 @@ on:
       runner:
         description: "Runner type"
         required: true
-        default: swe-bench-ubuntu-latest
+        default: ubuntu-latest
         type: choice
         options:
           - swe-bench-ubuntu-latest
@@ -55,6 +55,7 @@ on:
         description: "Instance set to select a subset of instances"
         type: string
         required: false
+        default: "lite-challenge-subset"
 
   pull_request:
     types: [opened, synchronize, labeled]
