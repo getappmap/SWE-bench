@@ -193,6 +193,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+          APPMAP_NAVIE_MODEL: ${{ vars.APPMAP_NAVIE_MODEL }}
           SWE_DATASET: ${{ inputs.dataset }}
           SWE_SPLIT: ${{ inputs.split }}
           SWE_FILTER: ${{ inputs.filter }}
