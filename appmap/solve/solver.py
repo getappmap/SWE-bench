@@ -3,6 +3,8 @@ import json
 import os
 import sys
 
+from appmap.solve.steps.step_maketest import step_maketest
+
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
@@ -23,8 +25,9 @@ from appmap.solve.steps.step_plan import step_plan
 # pretest detects test cases by analysis. peektest looks at the test instance data.
 # Add pretest or peektest ... posttest to include those in the run.
 DEFAULT_STEPS = {
-    "pretest": False,
+    "pretest": True,
     "peektest": False,
+    "maketest": True,
     "plan": True,
     "list": True,
     "generate": True,
@@ -84,6 +87,9 @@ class Solver:
 
         if self.steps["peektest"]:
             self.peektest()
+
+        if self.steps["maketest"]:
+            self.maketest()
 
         if self.steps["plan"]:
             self.plan()
@@ -173,6 +179,32 @@ class Solver:
             f"[solver] ({self.instance_id}) Test succeeded files: {test_succeeded_files_str}"
         )
 
+    # Generate a test case to verify the solution.
+    def maketest(self):
+        tcm = build_task_manager(
+            self.instances_path,
+            self.instance_id,
+            self.work_dir,
+            self.conda_env,
+            self.log_dir,
+            self.conda_path,
+            timeout=30,
+            verbose=True,
+        )
+
+        maketest = step_maketest(
+            tcm,
+            self.log_dir,
+            self.appmap_command,
+            self.issue_file,
+            self.work_dir,
+        )
+        if maketest["test_file"]:
+            self.maketest_file = maketest["test_file"]
+            print(
+                f"[solver] ({self.instance_id}) Test case generated: {self.maketest_file}"
+            )
+
     def plan(self):
         step_plan(
             self.log_dir,
@@ -252,11 +284,6 @@ class Solver:
             )
             return
 
-        # At this point, some files have changed, and some tests succeeded.
-        # Re-run the tests to ensure that the changes did not break anything.
-        with open(self.plan_file, "r") as f:
-            plan = f.read()
-
         self.posttest_succeeded = step_posttest(
             self.work_dir,
             self.instances_path,
@@ -264,13 +291,38 @@ class Solver:
             self.conda_path,
             self.conda_env,
             self.appmap_command,
-            plan,
             self.load_file_content(),
             self.test_succeeded_files,
         )
 
         result_name = "posttest" if self.posttest_succeeded else "posttest_failed"
         self.load_file_changes(result_name)
+
+    def verify(self):
+        if not self.maketest_file:
+            print(
+                f"[solver] ({self.instance_id}) WARN: No test file generated. Skipping verification."
+            )
+            return
+
+        print(
+            f"[solver] ({self.instance_id}) Verifying solution using generated test {self.maketest_file}"
+        )
+
+        tcm = build_task_manager(
+            self.instances_path,
+            self.instance_id,
+            self.work_dir,
+            self.conda_env,
+            self.log_dir,
+            self.conda_path,
+            timeout=30,
+            verbose=True,
+        )
+
+        self.verify_succeeded = step_verify(
+            tcm, self.log_dir, self.work_dir, self.maketest_file
+        )
 
     def load_file_changes(self, result_name):
         print(f"[solver] ({self.instance_id}) Loading file changes")
@@ -387,6 +439,8 @@ if __name__ == "__main__":
             if step in steps:
                 steps[step] = True
 
+    steps_enabled = ", ".join([step for step, enabled in steps.items() if enabled])
+    print(f"[solver] Steps: {steps_enabled}")
     if args.log_dir:
         os.makedirs(args.log_dir, exist_ok=True)
 

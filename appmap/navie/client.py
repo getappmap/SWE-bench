@@ -196,6 +196,59 @@ or explanations.
         )
         self._execute(command, log_file)
 
+    def test(
+        self,
+        issue_file,
+        output_file,
+        file_list=[],
+        context_file=None,
+        prompt_file=None,
+    ):
+        log_file = os.path.join(self.work_dir, "test.log")
+        input_file = os.path.join(self.work_dir, "test.txt")
+
+        with open(issue_file, "r") as issue_f:
+            issue_content = issue_f.read()
+
+        with open(input_file, "w") as input_f:
+            question = ["@test /noformat"]
+            if context_file:
+                question.append("/nocontext")
+
+            input_f.write(
+                f"""{" ".join(question)}
+                             
+{issue_content}
+"""
+            )
+            for modify_file_name in file_list:
+                # If the file doesn't exist
+                if not os.path.exists(modify_file_name):
+                    print(f"File {modify_file_name} does not exist. Skipping.")
+                    continue
+
+                with open(modify_file_name, "r") as modify_f:
+                    modify_content = modify_f.read()
+                input_f.write(
+                    f"""
+<file>
+<path>{modify_file_name}</path>
+<content>
+{modify_content}
+</content>
+</file>
+"""
+                )
+
+        command = self._build_command(
+            input_path=input_file,
+            output_path=output_file,
+            context_path=context_file,
+            prompt_path=prompt_file,
+            log_file=log_file,
+        )
+        self._execute(command, log_file)
+
     def apply(self, solution_file, apply_file, all=True, file_name=None):
         log_file = os.path.join(self.work_dir, "apply.log")
         input_file = os.path.join(self.work_dir, "apply.txt")

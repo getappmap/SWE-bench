@@ -10,6 +10,8 @@ import os
 def step_list(log_dir, work_dir, instance_id, appmap_command, plan_file, temperature):
     print(f"[list] ({instance_id}) Detecting files to be modified")
 
+    # TODO: Migrate to the Navie Editor API.
+
     output_path = os.path.join(work_dir, "files.json")
     log_path = os.path.join(work_dir, "list-files.log")
     run_navie_command(

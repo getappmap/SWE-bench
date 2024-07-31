@@ -338,6 +338,65 @@ class Editor:
 
         return read_output(True)
 
+    def test(self, issue, context=None, auto_context=True, prompt=None, cache=True):
+        work_dir = self._work_dir("test")
+        issue_file = os.path.join(work_dir, "test.input.txt")
+        output_file = os.path.join(work_dir, "test.md")
+
+        if not context:
+            context = self._context
+
+        self._log_action("Generating a test case for", issue)
+
+        def read_output(save_cache):
+            with open(output_file, "r") as f:
+                self._generated_code = f.read()
+
+            if save_cache:
+                self._save_cache(
+                    work_dir, issue, "issue", context, "context", prompt, "prompt"
+                )
+
+            print(f"  Output is available at {output_file}")
+
+            return self._generated_code
+
+        if cache and self._all_cache_valid(
+            work_dir, issue, "issue", context, "context", prompt, "prompt"
+        ):
+            print("  Using cached test case")
+            return read_output(False)
+
+        if context:
+            context_file = os.path.join(work_dir, "test.context.yaml")
+            with open(context_file, "w") as f:
+                f.write(context)
+        else:
+            if not auto_context:
+                raise ValueError(
+                    "No context provided is available, and auto_context is disabled"
+                )
+            context_file = None
+
+        with open(issue_file, "w") as f:
+            f.write(issue)
+
+        if prompt:
+            prompt_file = os.path.join(work_dir, "test.prompt.md")
+            with open(prompt_file, "w") as f:
+                f.write(prompt)
+        else:
+            prompt_file = None
+
+        Client(work_dir, self.temperature, self.token_limit, self.log).test(
+            issue_file,
+            output_file,
+            context_file=context_file,
+            prompt_file=prompt_file,
+        )
+
+        return read_output(True)
+
     def apply(self, generated_code=None, all=True, file_name=None):
         work_dir = self._work_dir("apply_all")
         solution_file = os.path.join(work_dir, "apply_all.input.txt")

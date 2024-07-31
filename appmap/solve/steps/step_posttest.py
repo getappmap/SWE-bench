@@ -20,7 +20,6 @@ def step_posttest(
     conda_path,
     conda_env,
     appmap_command,
-    plan,
     file_content,
     test_files,
 ):
@@ -68,7 +67,6 @@ def step_posttest(
     print(
         f"[posttest] ({instance_id}) Running test command: {test_command} {test_files_str}"
     )
-    timeout = False
     try:
         test_response = task_manager.exec(
             ["bash", "-c", f"{test_command} {test_files_str}"],
@@ -76,7 +74,6 @@ def step_posttest(
             check=False,
         )
     except subprocess.TimeoutExpired:
-        timeout = True
         print(
             f"[posttest] ({instance_id}) Test command timed out: {test_command} {test_files_str}"
         )
