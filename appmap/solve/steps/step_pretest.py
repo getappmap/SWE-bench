@@ -3,7 +3,10 @@ import subprocess
 
 import yaml
 
+from appmap.solve.steps.count_appmaps import count_appmaps
+from appmap.solve.steps.index_appmaps import index_appmaps
 from appmap.solve.steps.read_test_directives import read_test_directives
+from appmap.solve.steps.run_test import run_test
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 from swebench.harness.context_manager import TaskEnvContextManager
 
@@ -91,66 +94,16 @@ def step_pretest(
     test_file_str = ", ".join(test_files)
     print(f"[pretest] ({instance_id}) Running test files: {test_file_str}")
 
-    instance = tcm.instance
-    test_cmd = MAP_REPO_TO_TEST_FRAMEWORK[instance["repo"]]
-
-    env = None
-    test_command = f"{tcm.cmd_activate} && "
-    if appmap_available:
-        test_command += f"appmap-python "
-        env = {
-            "APPMAP_DISPLAY_PARAMS": "false",
-            "APPMAP_MAX_EVENTS": "10000",
-            "APPMAP_MAX_TIME": "10",
-            "PYTHONUNBUFFERED": "1",
-        }
-    test_command += f"{test_cmd} "
-
-    def count_appmaps():
-        count = 0
-        for root, _, files in os.walk("tmp/appmap"):
-            for file in files:
-                if file.endswith(".appmap.json"):
-                    file_path = os.path.join(root, file)
-                    file_size = os.path.getsize(file_path)
-                    if 10 * 1024 <= file_size < 40 * 1024 * 1024:
-                        count += 1
-        return count
-
     # Run three of the files using conda activate and the test command (e.g. pytest)
     test_succeeded_files = []
     test_failed_files = []
     for test_file in test_files:
-        print(
-            f"[pretest] ({instance_id}) ({instance_id}) Running test command: {test_command} {test_file}"
-        )
-        test_output = None
-        timeout = False
-        try:
-            test_output = tcm.exec(
-                ["bash", "-c", f"{test_command} {test_file}"],
-                timeout=tcm.timeout,
-                check=False,
-                env=env,
-            )
-        except subprocess.TimeoutExpired:
-            print(
-                f"[pretest] ({instance_id}) Test command timed out: {test_command} {test_file}"
-            )
-            timeout = True
+        (succeeded,) = run_test(tcm, test_file, appmap_available)
 
-        if test_output and test_output.returncode == 0:
+        if succeeded:
             test_succeeded_files.append(test_file)
-            print(f"[pretest] ({instance_id}) Tests passed")
         else:
             test_failed_files.append(test_file)
-            if not timeout:
-                print(
-                    f"[pretest] ({instance_id}) Test command failed: {test_command} {test_file}"
-                )
-            print(
-                f"[pretest] ({instance_id}) Review {tcm.log_file} for more information"
-            )
 
         if len(test_succeeded_files) + len(test_failed_files) >= 3:
             print(f"[pretest] ({instance_id}) Ran 3 test files, stopping")
@@ -158,16 +111,7 @@ def step_pretest(
 
     appmap_count = count_appmaps()
     if appmap_count > 0:
-        print(f"[pretest] ({instance_id}) Generated {appmap_count} AppMap files")
-        print(f"[pretest] ({instance_id}) Indexing AppMap data")
-        try:
-            run_command(log_dir, command=f"{appmap_command} index", fail_on_error=True)
-        except RuntimeError as e:
-            print(
-                f"[pretest] ({instance_id}) AppMap data indexing failed: {e} {e.output}"
-            )
-        else:
-            print(f"[pretest] ({instance_id}) Index complete")
+        index_appmaps(instance_id, log_dir, appmap_command)
 
     if len(test_succeeded_files) == 0:
         print(f"[pretest] ({instance_id}) WARN: No tests succeeded in pretest.")
