@@ -101,11 +101,15 @@ class Solver:
 
         for file in self.files:
             if not os.path.isfile(file):
-                print(f"[solver] ({self.instance_id}) WARN: File '{file}' from files.json does not exist.")
+                print(
+                    f"[solver] ({self.instance_id}) WARN: File '{file}' from files.json does not exist."
+                )
                 self.files.remove(file)
 
         if len(self.files) == 0:
-            print(f"[solver] ({self.instance_id}) No files to change. Exiting without a solution.")
+            print(
+                f"[solver] ({self.instance_id}) No files to change. Exiting without a solution."
+            )
             return
 
         self.base_file_content = self.load_file_content()
@@ -121,7 +125,9 @@ class Solver:
             if len(self.files_changed) > 0:
                 break
 
-            print(f"[solver] ({self.instance_id}) No files changed. Retrying apply + generate.")
+            print(
+                f"[solver] ({self.instance_id}) No files changed. Retrying apply + generate."
+            )
 
         if self.lint_command:
             self.lint_repair()
@@ -131,6 +137,7 @@ class Solver:
         else:
             self.posttest_succeeded = True
 
+    # Run pass-to-pass test cases to characterize the existing code.
     def pretest(self):
         self.posttest_succeeded = False
         self.test_succeeded_files = step_pretest(
@@ -141,9 +148,9 @@ class Solver:
             self.conda_path,
             self.conda_env,
             self.appmap_command,
-            self.issue_file,
         )
 
+    # List the pass-to-pass test cases.
     def peektest(self):
         self.posttest_succeeded = False
 
