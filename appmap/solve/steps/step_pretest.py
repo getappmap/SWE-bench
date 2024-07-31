@@ -3,6 +3,7 @@ import subprocess
 
 import yaml
 
+from appmap.solve.steps.read_test_directives import read_test_directives
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 from swebench.harness.context_manager import TaskEnvContextManager
 
@@ -58,22 +59,10 @@ def step_pretest(
     conda_path,
     conda_env,
     appmap_command,
-    test_files,
 ):
     print(
-        f"[pretest] ({instance_id}) Running tests for {instance_id} using {conda_env}"
+        f"[pretest] ({instance_id}) Running tests for {instance_id} using {conda_env} in {conda_path}"
     )
-
-    appmap_available = False
-    # TODO: Think about re-enabling this.``
-    # try:
-    #     tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
-    #     appmap_available = True
-    # except RuntimeError:
-    #     appmap_available = False
-
-    test_file_str = ", ".join(test_files)
-    print(f"[pretest] ({instance_id}) Running test files: {test_file_str}")
 
     tcm = build_task_manager(
         instances_path,
@@ -85,6 +74,22 @@ def step_pretest(
         timeout=30,
         verbose=True,
     )
+
+    appmap_available = False
+    try:
+        tcm.exec(["bash", "-c", f"{tcm.cmd_activate} && pip install appmap"])
+        print(f"[pretest] ({instance_id}) appmap package installed to {conda_env}")
+        appmap_available = True
+    except RuntimeError:
+        print(
+            f"[pretest] ({instance_id}) appmap package installation to {conda_env} failed"
+        )
+        appmap_available = False
+
+    test_files = read_test_directives(tcm.instance)
+
+    test_file_str = ", ".join(test_files)
+    print(f"[pretest] ({instance_id}) Running test files: {test_file_str}")
 
     instance = tcm.instance
     test_cmd = MAP_REPO_TO_TEST_FRAMEWORK[instance["repo"]]
@@ -115,7 +120,6 @@ def step_pretest(
     # Run three of the files using conda activate and the test command (e.g. pytest)
     test_succeeded_files = []
     test_failed_files = []
-    appmap_count = 0
     for test_file in test_files:
         print(
             f"[pretest] ({instance_id}) ({instance_id}) Running test command: {test_command} {test_file}"
@@ -148,23 +152,13 @@ def step_pretest(
                 f"[pretest] ({instance_id}) Review {tcm.log_file} for more information"
             )
 
-        if appmap_available:
-            new_appmap_count = count_appmaps()
-            print(
-                f"[pretest] ({instance_id}) Generated {new_appmap_count - appmap_count} good AppMap data files"
-            )
-            appmap_count = new_appmap_count
-
-        if appmap_count >= 100:
-            print(
-                f"[pretest] ({instance_id}) Generated 100 good AppMap data files, stopping"
-            )
-            break
         if len(test_succeeded_files) + len(test_failed_files) >= 3:
             print(f"[pretest] ({instance_id}) Ran 3 test files, stopping")
             break
 
+    appmap_count = count_appmaps()
     if appmap_count > 0:
+        print(f"[pretest] ({instance_id}) Generated {appmap_count} AppMap files")
         print(f"[pretest] ({instance_id}) Indexing AppMap data")
         try:
             run_command(log_dir, command=f"{appmap_command} index", fail_on_error=True)
