@@ -131,7 +131,6 @@ def worker_init(data: dict):
 
     output_file = abspath(data_dict.output)
     appmap_command = abspath(data_dict.appmap_command)
-    no_clean = data_dict.no_clean
 
     try:
         with TestbedContextManager(
@@ -208,27 +207,26 @@ def worker_init(data: dict):
                                 f"[solve] ({instance_id}) Beginning solve attempt number {attempt_number + 1} of {retries}"
                             )
 
-                            if not no_clean:
-                                if not task_manager.reset_task_env(
-                                    instance,
-                                    f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
-                                ):
-                                    print(
-                                        f"[solve] ({instance_id}) Error resetting task environment"
-                                    )
-                                    return
-
+                            if not task_manager.reset_task_env(
+                                instance,
+                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
+                            ):
                                 print(
-                                    f"[solve] ({instance_id}) Installing environment for {instance_id}"
+                                    f"[solve] ({instance_id}) Error resetting task environment"
                                 )
-                                if not task_manager.run_install_task(
-                                    instance,
-                                    f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
-                                ):
-                                    print(
-                                        f"[solve] ({instance_id}) Error installing environment"
-                                    )
-                                    return
+                                return
+
+                            print(
+                                f"[solve] ({instance_id}) Installing environment for {instance_id}"
+                            )
+                            if not task_manager.run_install_task(
+                                instance,
+                                f"to prepare {instance_id} for solve attempt {attempt_number + 1}",
+                            ):
+                                print(
+                                    f"[solve] ({instance_id}) Error installing environment"
+                                )
+                                return
 
                             instance["appmap_archive"] = extract_appmaps(
                                 instance, testbed
@@ -542,11 +540,6 @@ if __name__ == "__main__":
         type=int,
         default=3,
         help="Number of times to try and create a code update for each test instance",
-    )
-    parser.add_argument(
-        "--no_clean",
-        action="store_true",
-        help="(Optional) Do not clean the testbed before running",
     )
     parser.add_argument(
         "--verbose", action="store_true", help="(Optional) Verbose mode"

@@ -3,26 +3,23 @@ import os
 import yaml
 from appmap.navie.editor import Editor
 from appmap.navie.fences import extract_fenced_content
-from appmap.solve.steps.count_appmaps import count_appmaps
-from appmap.solve.steps.index_appmaps import index_appmaps
 from appmap.solve.steps.run_test import run_test
 
 
-def step_maketest(
+def maketest(
     tcm,
-    log_dir,
-    appmap_command,
     issue_file,
     work_dir,
+    test_number,
 ):
     print(f"[maketest] Generating a test case to verify the solution to {issue_file}")
 
     with open(issue_file, "r") as f:
         issue_content = f.read()
 
-    work_dir = os.path.join(work_dir, "maketest")
+    work_dir = os.path.join(work_dir, "maketest", str(test_number))
 
-    test_to_modify_str = Editor(os.path.join(work_dir, "choosetest")).search(
+    test_to_modify_str = Editor(os.path.join(work_dir, "choose")).search(
         f"""Identify a single test case that is most related to the following issue:
                                   
 {issue_content}
@@ -56,7 +53,7 @@ Output the result as a YAML list of file paths, and nothing else.
     with open(test_to_modify, "r") as f:
         test_content = f.read()
 
-    navie = Editor(os.path.join(work_dir, "maketest"))
+    navie = Editor(os.path.join(work_dir, "generate"))
     navie.context(issue_content, exclude_pattern="test")
 
     test_prompt = f"""## Task
@@ -92,7 +89,6 @@ Output only the code, and nothing else.
 
     # Append a suffix to the test_to_modify file name.
     # Example: test_to_modify = "test.py", modified_file_name = "test_modified.py"
-    test_number = 1
     test_file = test_to_modify.replace(".py", f"_maketest_{test_number}.py")
 
     print(f"[maketest] Writing test case to {test_file}")
@@ -109,8 +105,75 @@ Output only the code, and nothing else.
 
     succeeded, test_error = run_test(tcm, test_file)
 
+    # Verify that the test_error indicates that the issue is being reproduced
+    fails_for_expected_reason = False
+    if succeeded:
+        print(f"[maketest] Test case {test_file} succeeded. This is unexpected!")
+    else:
+        print(
+            f"[maketest] Test case {test_file} failed. This is expected. Let's see if it failed for the right reason."
+        )
+
+        if "ERROR" in test_error:
+            error_lines = test_error.split("\n")
+            # Find everything after the first line that includes "ERROR", "FAIL", or "activate successful"
+            first_line_index_with_error = next(
+                i
+                for i, line in enumerate(error_lines)
+                if "ERROR" in line or "FAIL" in line or "activate successful" in line
+            )
+            test_error = "\n".join(error_lines[first_line_index_with_error:])
+
+        whyfailed = Editor(os.path.join(work_dir, "check")).ask(
+            f"""A test case has been created that is currently expected to fail due to a known issue.
+
+Examine the error message below to determine if the test case is failing for the expected reason.
+
+<error>
+{test_error}
+</error>
+
+<issue>
+{issue_content}
+</issue>  
+""",
+            context=[],
+            prompt="""## Output format
+            
+Emit a single word that indicates whether the test error is consistent with the described issue.
+
+- Emit "yes" if the test error is consistent with the described issue.
+- Emit "no" if the test error is NOT consistent with the described issue.
+""",
+        )
+
+        if whyfailed != "yes":
+            print(
+                f"[maketest] Test case {test_file} failed for an unexpected reason: {whyfailed}"
+            )
+        else:
+            fails_for_expected_reason = True
+            print(
+                f"[maketest] Test case {test_file} failed for the expected reason: {whyfailed}"
+            )
+
     return {
         "test_file": test_file,
         "succeeded": succeeded,
         "test_error": test_error,
+        "fails_for_expected_reason": fails_for_expected_reason,
     }
+
+
+def step_maketest(
+    tcm,
+    issue_file,
+    work_dir,
+):
+    # Try 3 times to generate a test that fails for the right reason
+    for i in range(3):
+        test_result = maketest(tcm, issue_file, work_dir, i + 1)
+        if test_result["fails_for_expected_reason"]:
+            return test_result["test_file"]
+
+    return None

@@ -21,7 +21,8 @@ from appmap.solve.steps.step_generate import step_generate
 from appmap.solve.steps.step_list import step_list
 from appmap.solve.steps.step_plan import step_plan
 
-# pretest detects test cases by analysis. peektest looks at the test instance data.;DEFAULT_STEPS = {
+# pretest detects test cases by analysis. peektest looks at the test instance data.
+DEFAULT_STEPS = {
     "pretest": False,
     "peektest": True,
     "maketest": True,
@@ -190,17 +191,18 @@ class Solver:
             verbose=True,
         )
 
-        maketest = step_maketest(
+        self.maketest_file = step_maketest(
             tcm,
-            self.log_dir,
-            self.appmap_command,
             self.issue_file,
             self.work_dir,
         )
-        if maketest["test_file"]:
-            self.maketest_file = maketest["test_file"]
+        if self.maketest_file:
             print(
                 f"[solver] ({self.instance_id}) Test case generated: {self.maketest_file}"
+            )
+        else:
+            print(
+                f"[solver] ({self.instance_id}) WARN: No test case generated. Skipping verification."
             )
 
     def plan(self):

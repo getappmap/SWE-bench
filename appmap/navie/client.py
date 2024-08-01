@@ -2,7 +2,7 @@ import os
 
 from appmap.navie.log_print import log_print
 
-EXCLUDE_PYTHON_TESTS_PATTERN = """(\\btesting\\b|\\btest\\b|\\btests\\b|\\btest_|_test\\.py$|\\.txt$|\\.html$|\\.rst$|\\.md$)"""
+# EXCLUDE_PYTHON_TESTS_PATTERN = """(\\btesting\\b|\\btest\\b|\\btests\\b|\\btest_|_test\\.py$|\\.txt$|\\.html$|\\.rst$|\\.md$)"""
 
 
 class Client:
