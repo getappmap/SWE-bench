@@ -11,7 +11,6 @@ sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
 from appmap.solve.patch import clean_patch
 from appmap.solve.run_command import run_command
-from appmap.solve.is_test_file import is_test_file
 
 from appmap.solve.steps.read_test_directives import read_test_directives
 from appmap.solve.steps.step_posttest import step_posttest
@@ -22,17 +21,15 @@ from appmap.solve.steps.step_generate import step_generate
 from appmap.solve.steps.step_list import step_list
 from appmap.solve.steps.step_plan import step_plan
 
-# pretest detects test cases by analysis. peektest looks at the test instance data.
-# Add pretest or peektest ... posttest to include those in the run.
-DEFAULT_STEPS = {
-    "pretest": True,
-    "peektest": False,
+# pretest detects test cases by analysis. peektest looks at the test instance data.;DEFAULT_STEPS = {
+    "pretest": False,
+    "peektest": True,
     "maketest": True,
     "plan": True,
     "list": True,
     "generate": True,
     "apply": True,
-    "posttest": False,
+    "posttest": True,
 }
 
 
@@ -123,6 +120,11 @@ class Solver:
 
         # Retry generate + apply in order to get a patch
         for i in range(2):
+            if i > 0:
+                print(
+                    f"[solver] ({self.instance_id}) No files changed. Retrying apply + generate."
+                )
+
             if self.steps["generate"]:
                 self.generate_code()
 
@@ -131,10 +133,6 @@ class Solver:
 
             if len(self.files_changed) > 0:
                 break
-
-            print(
-                f"[solver] ({self.instance_id}) No files changed. Retrying apply + generate."
-            )
 
         if self.lint_command:
             self.lint_repair()
@@ -208,7 +206,6 @@ class Solver:
     def plan(self):
         step_plan(
             self.log_dir,
-            self,
             self.issue_file,
             self.work_dir,
             self.instance_id,

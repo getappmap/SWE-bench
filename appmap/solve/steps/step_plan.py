@@ -11,7 +11,6 @@ import re
 
 def step_plan(
     log_dir,
-    args,
     issue_file,
     work_dir,
     instance_id,
