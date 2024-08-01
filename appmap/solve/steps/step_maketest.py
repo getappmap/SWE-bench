@@ -29,23 +29,22 @@ def maketest(
 Output the result as a YAML list of file paths, and nothing else.
 """,
     )
-    print(f"[maketest] Test case to modify: {test_to_modify_str}")
     tests_to_modify = extract_fenced_content(test_to_modify_str)
     if not tests_to_modify:
-        print(f"No test cases found to modify.")
+        print(f"No test cases found to modify in {test_to_modify_str}")
         return {succeeded: False, test_error: "No test cases found to modify"}
     if len(tests_to_modify) != 1:
-        print(f"Expected exactly one file, got {len(tests_to_modify)}")
+        print(f"Expected exactly one file, got {tests_to_modify_str}")
         return {succeeded: False, test_error: "Expected exactly one file"}
 
     tests_to_modify = yaml.safe_load(tests_to_modify[0])
     if not tests_to_modify:
-        print(f"No test cases found to modify.")
+        print(f"No test cases found to modify in {test_to_modify_str}")
         return {succeeded: False, test_error: "No test cases found to modify"}
 
     # Expect exactly one file
     if len(tests_to_modify) != 1:
-        print(f"Expected exactly one file, got {len(tests_to_modify)}")
+        print(f"Expected exactly one file, got {tests_to_modify_str}")
         return {succeeded: False, test_error: "Expected exactly one file"}
 
     test_to_modify = tests_to_modify[0]

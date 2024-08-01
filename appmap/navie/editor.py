@@ -37,14 +37,12 @@ class Editor:
     def set_context(self, context):
         self._context = context
 
-    def _log_action(self, action, content):
-        clean_content = re.sub(r"[\r\n\t\x0b\x0c]", " ", content)
-        clean_content = re.sub(r" +", " ", clean_content)
-        if len(clean_content) > 100:
-            clean_content = clean_content[:100] + "..."
-        self.log(f"{action}: {clean_content}")
+    def edit(self, filename, replace, search=None):
+        self._log_action("Editing", filename)
 
-    def ask(self, question, prompt=None, context=None, cache=True):
+        Client.edit(filename, replace, search=search)
+
+    def ask(self, question, prompt=None, context=None, cache=True, auto_context=True):
         self._log_action("Asking", question)
 
         work_dir = self._work_dir("ask")
@@ -73,19 +71,8 @@ class Editor:
         with open(question_file, "w") as f:
             f.write(question)
 
-        if prompt:
-            prompt_file = os.path.join(work_dir, "ask.prompt.md")
-            with open(prompt_file, "w") as f:
-                f.write(prompt)
-        else:
-            prompt_file = None
-
-        if context:
-            context_file = os.path.join(work_dir, "ask.context.yml")
-            with open(context_file, "w") as f:
-                f.write(yaml.dump(context))
-        else:
-            context_file = None
+        context_file = self._save_context(work_dir, "ask", context, auto_context)
+        prompt_file = self._save_prompt(work_dir, "ask", prompt)
 
         Client(work_dir, self.temperature, self.token_limit, self.log).ask(
             question_file,
@@ -135,7 +122,7 @@ class Editor:
         def read_output_and_list_files(save_cache):
             with open(output_file, "r") as f:
                 raw_context = f.read()
-                context = extract_fenced_content(raw_context)
+                context = yaml.load(extract_fenced_content(raw_context))
 
             if save_cache:
                 self._save_cache(
@@ -185,6 +172,7 @@ class Editor:
         prompt=None,
         list_files=True,
         cache=True,
+        auto_context=True,
     ):
         work_dir = self._work_dir("plan")
         issue_file = os.path.join(work_dir, "plan.input.txt")
@@ -223,20 +211,8 @@ class Editor:
         with open(issue_file, "w") as f:
             f.write(issue)
 
-        if context:
-            extension = context_file_extension or "yml"
-            context_file = os.path.join(work_dir, f"plan.context.{extension}")
-            with open(context_file, "w") as f:
-                f.write(yaml.dump(context))
-        else:
-            context_file = None
-
-        if prompt:
-            prompt_file = os.path.join(work_dir, "plan.prompt.md")
-            with open(prompt_file, "w") as f:
-                f.write(prompt)
-        else:
-            prompt_file = None
+        context_file = self._save_context(work_dir, "plan", context, auto_context)
+        prompt_file = self._save_prompt(work_dir, "plan", prompt)
 
         Client(work_dir, self.temperature, self.token_limit, self.log).plan(
             issue_file, output_file, context_file, prompt_file=prompt_file
@@ -345,26 +321,11 @@ class Editor:
             print("  Using cached generated code")
             return read_output(False)
 
-        if context:
-            context_file = os.path.join(work_dir, "generate.context.yaml")
-            with open(context_file, "w") as f:
-                f.write(yaml.dump(context))
-        else:
-            if not auto_context:
-                raise ValueError(
-                    "No context provided is available, and auto_context is disabled"
-                )
-            context_file = None
-
         with open(plan_file, "w") as f:
             f.write(plan)
 
-        if prompt:
-            prompt_file = os.path.join(work_dir, "generate.prompt.md")
-            with open(prompt_file, "w") as f:
-                f.write(prompt)
-        else:
-            prompt_file = None
+        context_file = self._save_context(work_dir, "generate", context, auto_context)
+        prompt_file = self._save_prompt(work_dir, "generate", prompt)
 
         Client(work_dir, self.temperature, self.token_limit, self.log).generate(
             plan_file,
@@ -376,7 +337,15 @@ class Editor:
 
         return read_output(True)
 
-    def search(self, query, format=None, context=None, prompt=None, cache=True):
+    def search(
+        self,
+        query,
+        format=None,
+        context=None,
+        prompt=None,
+        cache=True,
+        auto_context=True,
+    ):
         work_dir = self._work_dir("search")
         query_file = os.path.join(work_dir, "search.input.txt")
         output_file = os.path.join(work_dir, "search.yaml")
@@ -421,19 +390,8 @@ class Editor:
         with open(query_file, "w") as f:
             f.write(query)
 
-        if context:
-            context_file = os.path.join(work_dir, "search.context.yaml")
-            with open(context_file, "w") as f:
-                f.write(yaml.dump(context))
-        else:
-            context_file = None
-
-        if prompt:
-            prompt_file = os.path.join(work_dir, "search.prompt.md")
-            with open(prompt_file, "w") as f:
-                f.write(prompt)
-        else:
-            prompt_file = None
+        context_file = self._save_context(work_dir, "search", context, auto_context)
+        prompt_file = self._save_prompt(work_dir, "search", prompt)
 
         if format:
             format_file = os.path.join(work_dir, "search.format.txt")
@@ -481,26 +439,11 @@ class Editor:
             print("  Using cached test case")
             return read_output(False)
 
-        if context:
-            context_file = os.path.join(work_dir, "test.context.yaml")
-            with open(context_file, "w") as f:
-                f.write(yaml.dump(context))
-        else:
-            if not auto_context:
-                raise ValueError(
-                    "No context provided is available, and auto_context is disabled"
-                )
-            context_file = None
-
         with open(issue_file, "w") as f:
             f.write(issue)
 
-        if prompt:
-            prompt_file = os.path.join(work_dir, "test.prompt.md")
-            with open(prompt_file, "w") as f:
-                f.write(prompt)
-        else:
-            prompt_file = None
+        context_file = self._save_context(work_dir, "test", context, auto_context)
+        prompt_file = self._save_prompt(work_dir, "test", prompt)
 
         Client(work_dir, self.temperature, self.token_limit, self.log).test(
             issue_file,
@@ -511,38 +454,48 @@ class Editor:
 
         return read_output(True)
 
-    def apply(self, generated_code=None, all=True, file_name=None):
-        work_dir = self._work_dir("apply_all")
-        solution_file = os.path.join(work_dir, "apply_all.input.txt")
-        apply_file = os.path.join(work_dir, "apply_all.md")
+    def _log_action(self, action, content):
+        clean_content = re.sub(r"[\r\n\t\x0b\x0c]", " ", content)
+        clean_content = re.sub(r" +", " ", clean_content)
+        if len(clean_content) > 100:
+            clean_content = clean_content[:100] + "..."
+        self.log(f"{action}: {clean_content}")
 
-        if not generated_code:
-            if not self._generated_code:
-                raise ValueError("No generated code provided or generated")
-            generated_code = self._generated_code
+    def _save_context(self, work_dir, name, context, auto_context):
+        if context:
+            context_file = os.path.join(work_dir, f"{name}.context.yaml")
+            if not isinstance(context, str):
+                context = yaml.dump(context)
 
-        with open(solution_file, "w") as f:
-            f.write(generated_code)
+            with open(context_file, "w") as f:
+                f.write(context)
+        else:
+            if not auto_context:
+                raise ValueError(
+                    "No context provided is available, and auto_context is disabled"
+                )
+            context_file = None
 
-        Client(work_dir, self.temperature, self.token_limit, self.log).apply(
-            solution_file,
-            apply_file,
-            all=all,
-            file_name=file_name,
-        )
+        return context_file
 
-        with open(apply_file, "r") as f:
-            applied_code = f.read()
-        return applied_code
+    def _save_prompt(self, work_dir, name, prompt):
+        if prompt:
+            prompt_file = os.path.join(work_dir, f"{name}.prompt.md")
+            with open(prompt_file, "w") as f:
+                f.write(prompt)
+        else:
+            prompt_file = None
+
+        return prompt_file
 
     def _save_cache(self, work_dir, *contents):
         # Enumerate the contents in pairs. The first item is the content, and the second item is the content name.
         for i in range(0, len(contents), 2):
             content = contents[i]
-            if isinstance(content, list):
-                content = json.dumps(content)
             if content is None:
                 content = ""
+            if not isinstance(content, str):
+                content = json.dumps(content)
             content_name = contents[i + 1]
             cache_file = os.path.join(work_dir, f"{content_name}.cache")
             with open(cache_file, "w") as f:
@@ -553,10 +506,10 @@ class Editor:
         # Return true if all content caches are valid, otherwise return false.
         for i in range(0, len(contents), 2):
             content = contents[i]
-            if isinstance(content, list):
-                content = json.dumps(content)
             if content is None:
                 content = ""
+            if not isinstance(content, str):
+                content = json.dumps(content)
 
             content_name = contents[i + 1]
             if not self._is_cache_valid(work_dir, content, content_name):

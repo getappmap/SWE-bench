@@ -23,7 +23,7 @@ from appmap.solve.steps.step_plan import step_plan
 from appmap.solve.steps.step_verify import step_verify
 
 DEFAULT_STEPS = {
-    "peektest": True,
+    "peektest": False,
     "maketest": True,
     "plan": True,
     "list": True,
@@ -167,6 +167,7 @@ class Solver:
             self.task_manager,
             self.issue_file,
             self.work_dir,
+            3,  # TODO: Make configurable
         )
 
         self.extend_test_directives(maketest_files)
@@ -209,13 +210,9 @@ class Solver:
 
     def apply_changes(self):
         step_apply(
-            self.log_dir,
             self.work_dir,
             self.instance_id,
-            self.appmap_command,
             self.solution_file,
-            self.apply_file,
-            self.temperature,
         )
         self.load_file_changes("apply")
 
@@ -385,6 +382,8 @@ if __name__ == "__main__":
         for step in args.steps.split(","):
             if step in steps:
                 steps[step] = True
+    else:
+        steps = DEFAULT_STEPS
 
     steps_enabled = ", ".join([step for step, enabled in steps.items() if enabled])
     print(f"[solver] Steps: {steps_enabled}")

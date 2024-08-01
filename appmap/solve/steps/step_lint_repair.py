@@ -301,20 +301,22 @@ only present in the file/content to help you identify which line has the lint er
             f"[lint-repair] ({instance_id}) Code generated to repair source file in {repair_output}"
         )
 
-        with open(repair_apply_question, "w") as f:
-            f.write("@apply /all\n\n")
-            with open(repair_output, "r") as plan_fp:
-                f.write(plan_fp.read())
-
         print(f"[lint-repair] ({instance_id}) Applying changes to source files")
-        run_navie_command(
-            log_dir,
-            temperature=temperature,
-            command=appmap_command,
-            input_path=repair_apply_question,
-            output_path=repair_apply_output,
-            log_path=repair_apply_log,
-        )
+        with open(repair_output, "r") as f:
+            repair_output_content = f.read()
+
+        changes = extract_changes(solution_content)
+        repair_item = 1
+        for change in changes:
+            print(f"[lint-repair] ({instance_id}) Applying change: {change}")
+
+            work_dir = os.path.join(repair_dir, f"repair_{repair_item}")
+            Editor(work_dir).edit(
+                change.file,
+                change.modified,
+                search=change.original,
+            )
+            repair_item += 1
 
         post_fix_lint_errors_by_line_number = lint_file(context, file)
         post_file_diff = diff_file(context, file, "post")
