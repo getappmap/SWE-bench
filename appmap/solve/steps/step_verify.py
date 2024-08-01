@@ -1,5 +1,7 @@
 import os
 
+from appmap.navie.editor import Editor
+from appmap.navie.extract_changes import extract_changes
 from appmap.solve.steps.run_test import run_test
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 
@@ -8,6 +10,7 @@ from ..run_navie_command import run_navie_command
 from ..run_command import run_command
 
 from .erase_test_changes import erase_test_changes_from_file
+
 
 def repair_test(
     task_manager,
@@ -104,20 +107,17 @@ only present in the file/content to help you identify which line has the lint er
     )
 
     erase_test_changes_from_file(instance_id, repair_output)
+    with open(repair_output, "r") as f:
+        repair_output_content = f.read()
 
-    with open(repair_apply_prompt, "w") as f:
-        f.write("@apply /all\n\n")
-        with open(repair_output, "r") as plan_fp:
-            f.write(plan_fp.read())
-
-    print(f"[verify/repair] ({instance_id}) Applying changes to source files")
-    run_navie_command(
-        log_dir,
-        command=appmap_command,
-        input_path=repair_apply_prompt,
-        output_path=repair_apply_output,
-        log_path=repair_apply_log,
-    )
+    changes = extract_changes(repair_output_content)
+    for change in changes:
+        print(f"[verify/repair] ({instance_id}) Change: {change}")
+        Editor(os.path.join(repair_dir, "repair.log")).edit(
+            change.file,
+            change.modified,
+            search=change.original,
+        )
 
     print(f"[verify/repair] ({instance_id}) Changes applied:")
 

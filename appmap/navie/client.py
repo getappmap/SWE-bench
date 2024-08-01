@@ -16,6 +16,33 @@ class Client:
             "node /Users/kgilpin/source/appland/appmap-js/packages/cli/built/cli.js"
         )
 
+    def edit(self, file_path, replace, search=None):
+        log_file = os.path.join(self.work_dir, "edit.log")
+
+        env = self._prepare_env()
+        env_str = " ".join([f"{k}={v}" for k, v in env.items()])
+
+        cmd = f"{env_str} {self.appmap_command} edit"
+        if search:
+            cmd += f" -s {search}"
+        cmd += f" -r {replace} {file_path}"
+        cmd += f" > {log_file} 2>&1"
+        self._execute(cmd, log_file)
+
+    def compute_update(self, file_path, new_content_file, prompt_file=None):
+        file_slug = "".join([c if c.isalnum() else "_" for c in file_path]).strip("_")
+        log_file = os.path.join(self.work_dir, file_slug, "compute_update.log")
+        output_file = os.path.join(self.work_dir, file_slug, "compute_update.txt")
+
+        command = self._build_command(
+            input_path=file_path,
+            context_path=new_content_file,
+            output_path=output_file,
+            log_file=log_file,
+            prompt_path=prompt_file,
+        )
+        self._execute(command, log_file)
+
     def ask(self, question_file, output_file, context_file=None, prompt_file=None):
         log_file = os.path.join(self.work_dir, "ask.log")
         input_file = os.path.join(self.work_dir, "ask.txt")
@@ -304,32 +331,6 @@ or explanations.
             output_path=output_file,
             context_path=context_file,
             prompt_path=prompt_file,
-            log_file=log_file,
-        )
-        self._execute(command, log_file)
-
-    def apply(self, solution_file, apply_file, all=True, file_name=None):
-        log_file = os.path.join(self.work_dir, "apply.log")
-        input_file = os.path.join(self.work_dir, "apply.txt")
-
-        with open(solution_file, "r") as sol_f:
-            solution_content = sol_f.read()
-
-        if not all and not file_name:
-            raise ValueError("file_name must be provided when all is False")
-
-        with open(input_file, "w") as apply_f:
-            apply_option = "/all" if all else file_name
-            apply_f.write(
-                f"""@apply {apply_option}
-
-{solution_content}
-"""
-            )
-
-        command = self._build_command(
-            input_path=input_file,
-            output_path=apply_file,
             log_file=log_file,
         )
         self._execute(command, log_file)
