@@ -6,11 +6,11 @@ from appmap.solve.steps.test_files_to_modules import test_files_to_modules
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 
 
-def run_test(tcm, test_file, appmap=False):
+def run_test(tcm, test_file, appmap=False, files_to_directives=True):
     print(f"[run_test] Running test {test_file}")
 
     instance = tcm.instance
-    if instance["repo"] == "django/django":
+    if files_to_directives and instance["repo"] == "django/django":
         test_files = test_files_to_modules([test_file])
         test_files_str = ", ".join(test_files)
         print(f"[run_test] Converted django test file to module: {test_files_str}")

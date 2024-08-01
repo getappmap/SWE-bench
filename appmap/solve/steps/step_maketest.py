@@ -135,7 +135,7 @@ Examine the error message below to determine if the test case is failing for the
 
 <issue>
 {issue_content}
-</issue>  
+</issue>
 """,
             context=[],
             prompt="""## Output format
@@ -169,11 +169,18 @@ def step_maketest(
     tcm,
     issue_file,
     work_dir,
+    num_attempts,
 ):
-    # Try 3 times to generate a test that fails for the right reason
-    for i in range(3):
+    # Try N times to generate a test that fails for the right reason
+    test_files = []
+    for i in range(num_attempts):
         test_result = maketest(tcm, issue_file, work_dir, i + 1)
         if test_result["fails_for_expected_reason"]:
-            return test_result["test_file"]
+            test_files.append(test_result["test_file"])
 
-    return None
+    if len(test_files) == 0:
+        print(
+            f"[maketest] Failed to generate a test case that fails for the right reason"
+        )
+
+    return test_files

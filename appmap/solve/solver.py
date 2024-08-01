@@ -13,24 +13,23 @@ from appmap.solve.patch import clean_patch
 from appmap.solve.run_command import run_command
 
 from appmap.solve.steps.read_test_directives import read_test_directives
-from appmap.solve.steps.step_posttest import step_posttest
-from appmap.solve.steps.step_pretest import build_task_manager, step_pretest
+from appmap.solve.steps.step_verify import step_verify
+from appmap.solve.steps.build_task_manager import build_task_manager
 from appmap.solve.steps.step_lint_repair import step_lint_repair
 from appmap.solve.steps.step_apply import step_apply
 from appmap.solve.steps.step_generate import step_generate
 from appmap.solve.steps.step_list import step_list
 from appmap.solve.steps.step_plan import step_plan
+from appmap.solve.steps.step_verify import step_verify
 
-# pretest detects test cases by analysis. peektest looks at the test instance data.
 DEFAULT_STEPS = {
-    "pretest": False,
     "peektest": True,
     "maketest": True,
     "plan": True,
     "list": True,
     "generate": True,
     "apply": True,
-    "posttest": True,
+    "verify": True,
 }
 
 
@@ -74,15 +73,23 @@ class Solver:
         self.solution_file = os.path.join(self.work_dir, "solution.md")
         self.apply_file = os.path.join(self.work_dir, "apply.md")
         self.context_yaml_file = os.path.join(self.work_dir, "search_context.yml")
+
+        self.task_manager = build_task_manager(
+            self.instances_path,
+            self.instance_id,
+            self.work_dir,
+            self.conda_env,
+            self.log_dir,
+            self.conda_path,
+            timeout=30,
+            verbose=True,
+        )
+
         self.files = []
         self.files_changed = []
-        self.test_succeeded_files = None
-        self.posttest_succeeded = True
+        self.test_directives = []
 
     def solve(self):
-        if self.steps["pretest"]:
-            self.pretest()
-
         if self.steps["peektest"]:
             self.peektest()
 
@@ -138,72 +145,31 @@ class Solver:
         if self.lint_command:
             self.lint_repair()
 
-        if self.steps["posttest"]:
-            self.posttest()
+        if self.steps["verify"]:
+            self.verify()
         else:
-            self.posttest_succeeded = True
+            self.verify_succeeded = True
 
-    # Run pass-to-pass test cases to characterize the existing code.
-    def pretest(self):
-        self.posttest_succeeded = False
-        self.test_succeeded_files = step_pretest(
-            self.log_dir,
-            self.work_dir,
-            self.instances_path,
-            self.instance_id,
-            self.conda_path,
-            self.conda_env,
-            self.appmap_command,
-        )
-
-    # List the pass-to-pass test cases.
+    # Enumerate test cases that should be verified "still passing" with the valid solution.
+    # Note that some test cases may be *expected* to fail with a valid solution, so this is no
+    # more than a heuristic.
     def peektest(self):
-        self.posttest_succeeded = False
-
-        task_manager = build_task_manager(
-            self.instances_path,
-            self.instance_id,
-            self.work_dir,
-            self.conda_env,
-            self.log_dir,
-            self.conda_path,
-            timeout=30,
-            verbose=True,
-        )
-        with task_manager:
-            self.test_succeeded_files = read_test_directives(task_manager.instance)
-
-        test_succeeded_files_str = ", ".join(self.test_succeeded_files)
+        test_directives = read_test_directives(self.task_manager.instance)
         print(
-            f"[solver] ({self.instance_id}) Test succeeded files: {test_succeeded_files_str}"
+            f"""[solver] ({self.instance_id}) Named test directives: {", ".join(test_directives)}"""
         )
+
+        self.extend_test_directives(test_directives)
 
     # Generate a test case to verify the solution.
     def maketest(self):
-        tcm = build_task_manager(
-            self.instances_path,
-            self.instance_id,
-            self.work_dir,
-            self.conda_env,
-            self.log_dir,
-            self.conda_path,
-            timeout=30,
-            verbose=True,
-        )
-
-        self.maketest_file = step_maketest(
-            tcm,
+        maketest_files = step_maketest(
+            self.task_manager,
             self.issue_file,
             self.work_dir,
         )
-        if self.maketest_file:
-            print(
-                f"[solver] ({self.instance_id}) Test case generated: {self.maketest_file}"
-            )
-        else:
-            print(
-                f"[solver] ({self.instance_id}) WARN: No test case generated. Skipping verification."
-            )
+
+        self.extend_test_directives(maketest_files)
 
     def plan(self):
         step_plan(
@@ -267,61 +233,40 @@ class Solver:
         )
         self.load_file_changes("lint_repair")
 
-    def posttest(self):
-        assert self.test_succeeded_files is not None
-
-        if len(self.test_succeeded_files) == 0:
-            print(
-                f"[solver] ({self.instance_id}) WARN: No test succeeded files found. Skipping posttest step."
-            )
-            self.posttest_succeeded = True
-            return
+    def verify(self):
+        self.test_directives_succeeded = []
 
         if not self.files_changed or len(self.files_changed) == 0:
             print(
-                f"[solver] ({self.instance_id}) No files changed. Skipping posttest step."
+                f"[solver] ({self.instance_id}) No files changed. Skipping verify step."
             )
             return
 
-        self.posttest_succeeded = step_posttest(
-            self.work_dir,
-            self.instances_path,
-            self.instance_id,
-            self.conda_path,
-            self.conda_env,
-            self.appmap_command,
-            self.load_file_content(),
-            self.test_succeeded_files,
-        )
+        if len(self.test_directives) == 0:
+            print(
+                f"[solver] ({self.instance_id}) WARN: No test directives have been collected. Skipping verify step."
+            )
+            self.test_directives_succeeded = []
+        else:
+            print(
+                f"[solver] ({self.instance_id}) Verifying solution using test directives {self.test_directives}"
+            )
 
-        result_name = "posttest" if self.posttest_succeeded else "posttest_failed"
+            self.test_directives_succeeded = step_verify(
+                self.task_manager,
+                self.work_dir,
+                self.instance_id,
+                self.appmap_command,
+                self.load_file_content(),
+                self.test_directives,
+            )
+
+        result_name = "verify" if self.verify_succeeded() else "verify_failed"
+
         self.load_file_changes(result_name)
 
-    def verify(self):
-        if not self.maketest_file:
-            print(
-                f"[solver] ({self.instance_id}) WARN: No test file generated. Skipping verification."
-            )
-            return
-
-        print(
-            f"[solver] ({self.instance_id}) Verifying solution using generated test {self.maketest_file}"
-        )
-
-        tcm = build_task_manager(
-            self.instances_path,
-            self.instance_id,
-            self.work_dir,
-            self.conda_env,
-            self.log_dir,
-            self.conda_path,
-            timeout=30,
-            verbose=True,
-        )
-
-        self.verify_succeeded = step_verify(
-            tcm, self.log_dir, self.work_dir, self.maketest_file
-        )
+    def verify_succeeded(self):
+        return self.test_directives == self.test_directives_succeeded
 
     def load_file_changes(self, result_name):
         print(f"[solver] ({self.instance_id}) Loading file changes")
@@ -355,6 +300,9 @@ class Solver:
                 with open(file, "r") as f:
                     result[file] = f.read()
         return result
+
+    def extend_test_directives(self, test_directives):
+        self.test_directives = list(set(self.test_directives + test_directives))
 
 
 def parse_arguments():
@@ -463,15 +411,15 @@ if __name__ == "__main__":
     )
     solver.solve()
     files_changed = solver.files_changed
-    posttest_succeeded = solver.posttest_succeeded
+    verify_succeeded = solver.verify_succeeded()
 
     if len(files_changed) == 0:
         print(f"[solver] WARN: No files changed for {issue_name}.")
         sys.exit(1)
 
-    if not posttest_succeeded:
+    if not verify_succeeded:
         print(
-            f"[solver] Changed {len(files_changed)} files for {issue_name}, but posttest failed."
+            f"[solver] Changed {len(files_changed)} files for {issue_name}, but verify failed."
         )
         sys.exit(1)
 
