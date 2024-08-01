@@ -169,13 +169,13 @@ def worker_init(data: dict):
                     )
                     attempt_number = 0
 
-                    # There are four “quality” levels of the solution proposal, in increasing order.
+                    # “Quality” levels of the solution proposal, in increasing order.
                     # - `apply` applying the suggested patch(es) worked, and there are file changes resulting.
                     # - `lint_repair` the patch(es) have been linted, and any resulting problems (if any) have been fixed
-                    # - `posttest_failed` the patch(es) have been run against the posttest test cases, but there are test failures that couldn’t be fixed
-                    # - `posttest` the patch(es) pass the posttest test cases
+                    # - `verify_failed` the patch(es) have been run against the test cases, but there are test failures that couldn’t be fixed
+                    # - `verify` the patch(es) have been run against the test cases, and there are no test failures
                     # Not all “quality levels” may be available for a given run. For example, there may be no lint command,
-                    # and posttest may be disabled. In that case `apply` is the highest possible quality.
+                    # and verify may be disabled. In that case `apply` is the highest possible quality.
                     # The "highest possibly quality" is the first one in the list, since the list is reversed.
 
                     step_args = (
@@ -188,9 +188,9 @@ def worker_init(data: dict):
                         result_priority.append("apply")
                     if data_dict.lint_command is not None:
                         result_priority.append("lint_repair")
-                    if "posttest" in step_args:
-                        result_priority.append("posttest_failed")
-                        result_priority.append("posttest")
+                    if "verify" in step_args:
+                        result_priority.append("verify_failed")
+                        result_priority.append("verify")
                     result_priority.reverse()
 
                     print(f"[solve] ({instance_id}) Result priority: {result_priority}")
