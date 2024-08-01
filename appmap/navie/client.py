@@ -63,7 +63,12 @@ or explanations.
         self._execute(command, log_file)
 
     def context(
-        self, query_file, output_file, exclude_pattern=None, vectorize_query=True
+        self,
+        query_file,
+        output_file,
+        exclude_pattern=None,
+        include_pattern=None,
+        vectorize_query=True,
     ):
         log_file = os.path.join(self.work_dir, "search_terms.log")
 
@@ -75,6 +80,8 @@ or explanations.
             question.append("/noterms")
         if exclude_pattern:
             question.append(f"/exclude={exclude_pattern}")
+        if include_pattern:
+            question.append(f"/include={include_pattern}")
 
         question_file = os.path.join(self.work_dir, "context.txt")
         with open(question_file, "w") as apply_f:
@@ -107,6 +114,58 @@ or explanations.
 {issue_content}
 """
             )
+
+        command = self._build_command(
+            input_path=input_file,
+            output_path=output_file,
+            context_path=context_file,
+            prompt_path=prompt_file,
+            log_file=log_file,
+        )
+        self._execute(command, log_file)
+
+    def search(
+        self,
+        query_file,
+        output_file,
+        context_file=None,
+        prompt_file=None,
+        format_file=None,
+    ):
+        log_file = os.path.join(self.work_dir, "search.log")
+        input_file = os.path.join(self.work_dir, "search.txt")
+
+        with open(query_file, "r") as query_f:
+            query_content = query_f.read()
+
+        with open(input_file, "w") as search_f:
+            question = ["@search"]
+            if context_file:
+                question.append("/nocontext")
+            if format_file:
+                question.append(f"/noformat")
+            search_f.write(
+                f"""{" ".join(question)}
+                
+{query_content}
+"""
+            )
+
+        if format_file:
+            if not prompt_file:
+                prompt_file = format_file
+            else:
+                # Append format instructions to the prompt
+                with open(format_file) as format_f:
+                    format = format_f.read()
+
+                with open(prompt_file, "a") as prompt_f:
+                    prompt_f.write(
+                        f"""
+
+{format}
+"""
+                    )
 
         command = self._build_command(
             input_path=input_file,

@@ -4,6 +4,8 @@ import re
 import shutil
 import sys
 import time
+
+import yaml
 from appmap.navie.fences import extract_fenced_content
 from appmap.navie.client import Client
 
@@ -30,6 +32,10 @@ class Editor:
         self._files = None
         self._context = None
         self._generated_code = None
+
+    # Set context
+    def set_context(self, context):
+        self._context = context
 
     def _log_action(self, action, content):
         clean_content = re.sub(r"[\r\n\t\x0b\x0c]", " ", content)
@@ -75,9 +81,9 @@ class Editor:
             prompt_file = None
 
         if context:
-            context_file = os.path.join(work_dir, "ask.context.md")
+            context_file = os.path.join(work_dir, "ask.context.yml")
             with open(context_file, "w") as f:
-                f.write(context)
+                f.write(yaml.dump(context))
         else:
             context_file = None
 
@@ -106,7 +112,7 @@ class Editor:
 
         with open(terms_file, "r") as f:
             raw_terms = f.read()
-            terms = self.extract_fenced_content(raw_terms)
+            terms = extract_fenced_content(raw_terms)
 
         self._terms = terms
 
@@ -117,27 +123,59 @@ class Editor:
         query,
         vectorize_query=True,
         exclude_pattern=None,
+        include_pattern=None,
+        cache=True,
     ):
         work_dir = self._work_dir("context")
         query_file = os.path.join(work_dir, "context.input.txt")
+        output_file = os.path.join(work_dir, "context.yaml")
 
         self._log_action("Searching for context", query)
 
+        def read_output_and_list_files(save_cache):
+            with open(output_file, "r") as f:
+                raw_context = f.read()
+                context = extract_fenced_content(raw_context)
+
+            if save_cache:
+                self._save_cache(
+                    work_dir,
+                    query,
+                    "query",
+                    str(vectorize_query),
+                    "vectorize",
+                    exclude_pattern,
+                    "exclude",
+                    include_pattern,
+                    "include",
+                )
+
+            self._context = context
+
+            return context
+
+        if cache and self._all_cache_valid(
+            work_dir,
+            query,
+            "query",
+            str(vectorize_query),
+            "vectorize",
+            exclude_pattern,
+            "exclude",
+            include_pattern,
+            "include",
+        ):
+            print("  Using cached context")
+            return read_output_and_list_files(False)
+
         with open(query_file, "w") as f:
             f.write(query)
-        output_file = os.path.join(work_dir, "context.yaml")
 
         Client(work_dir, self.temperature, self.token_limit, self.log).context(
-            query_file, output_file, exclude_pattern, vectorize_query
+            query_file, output_file, exclude_pattern, include_pattern, vectorize_query
         )
 
-        with open(output_file, "r") as f:
-            raw_context = f.read()
-            context = self.extract_fenced_content(raw_context)
-
-        self._context = context
-
-        return context
+        return read_output_and_list_files(True)
 
     def plan(
         self,
@@ -186,10 +224,10 @@ class Editor:
             f.write(issue)
 
         if context:
-            extension = context_file_extension or "txt"
+            extension = context_file_extension or "yml"
             context_file = os.path.join(work_dir, f"plan.context.{extension}")
             with open(context_file, "w") as f:
-                f.write(context)
+                f.write(yaml.dump(context))
         else:
             context_file = None
 
@@ -310,7 +348,7 @@ class Editor:
         if context:
             context_file = os.path.join(work_dir, "generate.context.yaml")
             with open(context_file, "w") as f:
-                f.write(context)
+                f.write(yaml.dump(context))
         else:
             if not auto_context:
                 raise ValueError(
@@ -334,6 +372,82 @@ class Editor:
             files,
             context_file=context_file,
             prompt_file=prompt_file,
+        )
+
+        return read_output(True)
+
+    def search(self, query, format=None, context=None, prompt=None, cache=True):
+        work_dir = self._work_dir("search")
+        query_file = os.path.join(work_dir, "search.input.txt")
+        output_file = os.path.join(work_dir, "search.yaml")
+
+        self._log_action("Searching for", query)
+
+        def read_output(save_cache):
+            with open(output_file, "r") as f:
+                search_results = f.read()
+
+            if save_cache:
+                self._save_cache(
+                    work_dir,
+                    query,
+                    "query",
+                    context,
+                    "context",
+                    prompt,
+                    "prompt",
+                    format,
+                    "format",
+                )
+
+            print(f"  Output is available at {output_file}")
+
+            return search_results
+
+        if cache and self._all_cache_valid(
+            work_dir,
+            query,
+            "query",
+            context,
+            "context",
+            prompt,
+            "prompt",
+            format,
+            "format",
+        ):
+            print("  Using cached search results")
+            return read_output(False)
+
+        with open(query_file, "w") as f:
+            f.write(query)
+
+        if context:
+            context_file = os.path.join(work_dir, "search.context.yaml")
+            with open(context_file, "w") as f:
+                f.write(yaml.dump(context))
+        else:
+            context_file = None
+
+        if prompt:
+            prompt_file = os.path.join(work_dir, "search.prompt.md")
+            with open(prompt_file, "w") as f:
+                f.write(prompt)
+        else:
+            prompt_file = None
+
+        if format:
+            format_file = os.path.join(work_dir, "search.format.txt")
+            with open(format_file, "w") as f:
+                f.write(format)
+        else:
+            format_file = None
+
+        Client(work_dir, self.temperature, self.token_limit, self.log).search(
+            query_file,
+            output_file,
+            context_file=context_file,
+            prompt_file=prompt_file,
+            format_file=format_file,
         )
 
         return read_output(True)
@@ -370,7 +484,7 @@ class Editor:
         if context:
             context_file = os.path.join(work_dir, "test.context.yaml")
             with open(context_file, "w") as f:
-                f.write(context)
+                f.write(yaml.dump(context))
         else:
             if not auto_context:
                 raise ValueError(
