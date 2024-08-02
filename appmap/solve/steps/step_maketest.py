@@ -21,34 +21,31 @@ def maketest(
 
     test_to_modify_str = Editor(os.path.join(work_dir, "choose")).search(
         f"""Identify a single test case that is most related to the following issue:
-                                  
+
 {issue_content}
 """,
         format="""## Format instructions
         
-Output the result as a YAML list of file paths, and nothing else.
-""",
-    )
-    tests_to_modify = extract_fenced_content(test_to_modify_str)
-    if not tests_to_modify:
-        print(f"No test cases found to modify in {test_to_modify_str}")
-        return {succeeded: False, test_error: "No test cases found to modify"}
-    if len(tests_to_modify) != 1:
-        print(f"Expected exactly one file, got {tests_to_modify_str}")
-        return {succeeded: False, test_error: "Expected exactly one file"}
+Output the result as the file path, and nothing else. Example:
 
-    tests_to_modify = yaml.safe_load(tests_to_modify[0])
-    if not tests_to_modify:
-        print(f"No test cases found to modify in {test_to_modify_str}")
-        return {succeeded: False, test_error: "No test cases found to modify"}
+project/tests/model_test.py
+""",
+        extension="txt",
+    )
+
+    tests_to_modify_lines = "\n".join(extract_fenced_content(test_to_modify_str))
+    tests_to_modify = tests_to_modify_lines.split("\n")
 
     # Expect exactly one file
     if len(tests_to_modify) != 1:
-        print(f"Expected exactly one file, got {tests_to_modify_str}")
-        return {succeeded: False, test_error: "Expected exactly one file"}
+        print(f"Expected exactly one file, got {test_to_modify_str}")
+        return {"succeeded": False, "test_error": "Expected exactly one file"}
 
     test_to_modify = tests_to_modify[0]
     test_to_modify = os.path.relpath(test_to_modify, os.getcwd())
+
+    print(f"[maketest] Modifying test case {test_to_modify}")
+
     with open(test_to_modify, "r") as f:
         test_content = f.read()
 
@@ -174,8 +171,14 @@ def step_maketest(
     test_files = []
     for i in range(num_attempts):
         test_result = maketest(tcm, issue_file, work_dir, i + 1)
-        if test_result["fails_for_expected_reason"]:
+        if (
+            "fails_for_expected_reason" in test_result
+            and "test_file" in test_result
+            and test_result["fails_for_expected_reason"]
+        ):
             test_files.append(test_result["test_file"])
+            # TODO: Allow it to generate more than one test, if they are diverse.
+            break
 
     if len(test_files) == 0:
         print(
