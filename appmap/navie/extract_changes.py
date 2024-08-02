@@ -23,7 +23,7 @@ def extract_changes(content: str) -> List[FileUpdate]:
         return change.lstrip("\n").rstrip("\n")
 
     for match in change_regex.finditer(content):
-        change = match.group(1)
+        change = match.group(0)
 
         try:
             # Parse XML
@@ -38,6 +38,7 @@ def extract_changes(content: str) -> List[FileUpdate]:
                 )
                 changes.append(update)
         except ET.ParseError:
+            print(f"Failed to parse change: {change}")
             continue
 
     return changes
