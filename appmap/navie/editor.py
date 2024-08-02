@@ -27,26 +27,23 @@ class Editor:
             self.log = lambda msg: log_file_handle.write(msg + "\n")
         self.clean = clean
 
-        self._terms = None
         self._plan = None
-        self._files = None
         self._context = None
-        self._generated_code = None
 
     # Set context
     def set_context(self, context):
         self._context = context
 
-    def edit(self, filename, replace, search=None):
-        self._log_action("Editing", filename)
+    def apply(self, filename, replace, search=None):
+        self._log_action("Applying changes", filename)
 
-        Client.edit(filename, replace, search=search)
+        Client.apply(filename, replace, search=search)
 
     def ask(self, question, prompt=None, context=None, cache=True, auto_context=True):
         self._log_action("Asking", question)
 
         work_dir = self._work_dir("ask")
-        question_file = os.path.join(work_dir, "ask.input.txt")
+        input_file = os.path.join(work_dir, "ask.input.txt")
         output_file = os.path.join(work_dir, "ask.md")
 
         def read_output(save_cache):
@@ -68,14 +65,14 @@ class Editor:
             print("  Using cached answer")
             return read_output(False)
 
-        with open(question_file, "w") as f:
+        with open(input_file, "w") as f:
             f.write(question)
 
         context_file = self._save_context(work_dir, "ask", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "ask", prompt)
 
         Client(work_dir, self.temperature, self.token_limit, self.log).ask(
-            question_file,
+            input_file,
             output_file,
             prompt_file=prompt_file,
             context_file=context_file,
@@ -85,23 +82,21 @@ class Editor:
 
     def suggest_terms(self, question):
         work_dir = self._work_dir("suggest_terms")
-        issue_file = os.path.join(work_dir, "terms.input.txt")
-        terms_file = os.path.join(work_dir, "terms.json")
+        input_file = os.path.join(work_dir, "terms.input.txt")
+        output_file = os.path.join(work_dir, "terms.json")
 
         self._log_action("Suggesting terms for", question)
 
-        with open(issue_file, "w") as f:
+        with open(input_file, "w") as f:
             f.write(question)
 
         Client(work_dir, self.temperature, self.token_limit, self.log).terms(
-            issue_file, terms_file
+            input_file, output_file
         )
 
-        with open(terms_file, "r") as f:
+        with open(output_file, "r") as f:
             raw_terms = f.read()
             terms = extract_fenced_content(raw_terms)
-
-        self._terms = terms
 
         return terms
 
@@ -114,22 +109,22 @@ class Editor:
         cache=True,
     ):
         work_dir = self._work_dir("context")
-        query_file = os.path.join(work_dir, "context.input.txt")
+        input_file = os.path.join(work_dir, "context.input.txt")
         output_file = os.path.join(work_dir, "context.yaml")
 
         self._log_action("Searching for context", query)
 
-        def read_output_and_list_files(save_cache):
+        def read_output(save_cache):
             with open(output_file, "r") as f:
                 raw_context = f.read()
-                context = yaml.load(extract_fenced_content(raw_context))
+                context = yaml.safe_load("\n".join(extract_fenced_content(raw_context)))
 
             if save_cache:
                 self._save_cache(
                     work_dir,
                     query,
                     "query",
-                    str(vectorize_query),
+                    vectorize_query,
                     "vectorize",
                     exclude_pattern,
                     "exclude",
@@ -145,7 +140,7 @@ class Editor:
             work_dir,
             query,
             "query",
-            str(vectorize_query),
+            vectorize_query,
             "vectorize",
             exclude_pattern,
             "exclude",
@@ -153,24 +148,22 @@ class Editor:
             "include",
         ):
             print("  Using cached context")
-            return read_output_and_list_files(False)
+            return read_output(False)
 
-        with open(query_file, "w") as f:
+        with open(input_file, "w") as f:
             f.write(query)
 
         Client(work_dir, self.temperature, self.token_limit, self.log).context(
-            query_file, output_file, exclude_pattern, include_pattern, vectorize_query
+            input_file, output_file, exclude_pattern, include_pattern, vectorize_query
         )
 
-        return read_output_and_list_files(True)
+        return read_output(True)
 
     def plan(
         self,
         issue,
         context=None,
-        context_file_extension=None,
         prompt=None,
-        list_files=True,
         cache=True,
         auto_context=True,
     ):
@@ -180,7 +173,7 @@ class Editor:
 
         self._log_action("Planning", issue)
 
-        def read_output_and_list_files(save_cache):
+        def read_output(save_cache):
             with open(output_file, "r") as f:
                 self._plan = f.read()
 
@@ -195,9 +188,6 @@ class Editor:
                     "prompt",
                 )
 
-            if list_files:
-                self.list_files()
-
             print(f"  Output is available at {output_file}")
 
             return self._plan
@@ -206,7 +196,7 @@ class Editor:
             work_dir, issue, "issue", context, "context", prompt, "prompt"
         ):
             print("  Using cached plan")
-            return read_output_and_list_files(False)
+            return read_output(False)
 
         with open(issue_file, "w") as f:
             f.write(issue)
@@ -218,41 +208,27 @@ class Editor:
             issue_file, output_file, context_file, prompt_file=prompt_file
         )
 
-        return read_output_and_list_files(True)
+        return read_output(True)
 
-    def files(self, load=False):
-        if not self._files:
-            if load:
-                self.list_files()
-            else:
-                raise ValueError("The file list is not available, and load is disabled")
-
-        return self._files
-
-    def list_files(self, plan=None, cache=True):
+    def list_files(self, content, cache=True):
         work_dir = self._work_dir("list_files")
         input_file = os.path.join(work_dir, "list_files.input.txt")
         output_file = os.path.join(work_dir, "list_files.json")
 
-        if not plan:
-            if not self._plan:
-                raise ValueError("No plan provided or generated")
-            plan = self._plan
-
         def read_output(save_cache):
+            files = []
             with open(output_file, "r") as f:
-                self._files = []
                 raw_files = f.read()
                 content_items = extract_fenced_content(raw_files)
                 for list in content_items:
-                    self._files.extend(json.loads(list))
+                    files.extend(json.loads(list))
 
             if save_cache:
-                self._save_cache(work_dir, self._plan, "plan")
+                self._save_cache(work_dir, content, "content")
 
-            return self._files
+            return files
 
-        if cache and self._all_cache_valid(work_dir, self._plan, "plan"):
+        if cache and self._all_cache_valid(work_dir, content, "content"):
             return read_output(False)
 
         with open(input_file, "w") as f:
@@ -267,7 +243,6 @@ class Editor:
     def generate(
         self,
         plan=None,
-        files=None,
         context=None,
         auto_context=True,
         prompt=None,
@@ -282,13 +257,6 @@ class Editor:
                 raise ValueError("No plan provided or generated")
             plan = self._plan
 
-        if not files:
-            if self._files is None:
-                raise ValueError("No file list is available")
-            if len(self._files) == 0:
-                raise ValueError("File list is empty")
-            files = self._files
-
         if not context:
             context = self._context
 
@@ -296,16 +264,14 @@ class Editor:
 
         def read_output(save_cache):
             with open(output_file, "r") as f:
-                self._generated_code = f.read()
+                code = f.read()
 
             if save_cache:
                 self._save_cache(
                     work_dir,
                     self._plan,
                     "plan",
-                    self._files,
-                    "files",
-                    self._context,
+                    context,
                     "context",
                     prompt,
                     "prompt",
@@ -313,7 +279,7 @@ class Editor:
 
             print(f"  Output is available at {output_file}")
 
-            return self._generated_code
+            return code
 
         if cache and self._all_cache_valid(
             work_dir, plan, "plan", files, "files", context, "context", prompt, "prompt"
@@ -330,7 +296,6 @@ class Editor:
         Client(work_dir, self.temperature, self.token_limit, self.log).generate(
             plan_file,
             output_file,
-            files,
             context_file=context_file,
             prompt_file=prompt_file,
         )
@@ -340,15 +305,16 @@ class Editor:
     def search(
         self,
         query,
-        format=None,
         context=None,
+        format=None,
         prompt=None,
         cache=True,
+        extension="yaml",
         auto_context=True,
     ):
         work_dir = self._work_dir("search")
         query_file = os.path.join(work_dir, "search.input.txt")
-        output_file = os.path.join(work_dir, "search.yaml")
+        output_file = os.path.join(work_dir, f"search.output.{extension}")
 
         self._log_action("Searching for", query)
 
@@ -422,7 +388,7 @@ class Editor:
 
         def read_output(save_cache):
             with open(output_file, "r") as f:
-                self._generated_code = f.read()
+                code = f.read()
 
             if save_cache:
                 self._save_cache(
@@ -431,7 +397,7 @@ class Editor:
 
             print(f"  Output is available at {output_file}")
 
-            return self._generated_code
+            return code
 
         if cache and self._all_cache_valid(
             work_dir, issue, "issue", context, "context", prompt, "prompt"
