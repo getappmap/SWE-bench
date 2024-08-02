@@ -16,13 +16,13 @@ class Client:
             "node /Users/kgilpin/source/appland/appmap-js/packages/cli/built/cli.js"
         )
 
-    def edit(self, file_path, replace, search=None):
-        log_file = os.path.join(self.work_dir, "edit.log")
+    def apply(self, file_path, replace, search=None):
+        log_file = os.path.join(self.work_dir, "apply.log")
 
         env = self._prepare_env()
         env_str = " ".join([f"{k}={v}" for k, v in env.items()])
 
-        cmd = f"{env_str} {self.appmap_command} edit"
+        cmd = f"{env_str} {self.appmap_command} apply"
         if search:
             cmd += f" -s {search}"
         cmd += f" -r {replace} {file_path}"
@@ -234,7 +234,6 @@ or explanations.
         self,
         plan_file,
         output_file,
-        file_list,
         context_file=None,
         prompt_file=None,
     ):
@@ -254,24 +253,6 @@ or explanations.
 {plan_content}
 """
             )
-            for modify_file_name in file_list:
-                # If the file doesn't exist
-                if not os.path.exists(modify_file_name):
-                    print(f"File {modify_file_name} does not exist. Skipping.")
-                    continue
-
-                with open(modify_file_name, "r") as modify_f:
-                    modify_content = modify_f.read()
-                input_f.write(
-                    f"""
-<file>
-<path>{modify_file_name}</path>
-<content>
-{modify_content}
-</content>
-</file>
-"""
-                )
 
         command = self._build_command(
             input_path=input_file,
@@ -286,7 +267,6 @@ or explanations.
         self,
         issue_file,
         output_file,
-        file_list=[],
         context_file=None,
         prompt_file=None,
     ):
@@ -307,24 +287,6 @@ or explanations.
 {issue_content}
 """
             )
-            for modify_file_name in file_list:
-                # If the file doesn't exist
-                if not os.path.exists(modify_file_name):
-                    print(f"File {modify_file_name} does not exist. Skipping.")
-                    continue
-
-                with open(modify_file_name, "r") as modify_f:
-                    modify_content = modify_f.read()
-                input_f.write(
-                    f"""
-<file>
-<path>{modify_file_name}</path>
-<content>
-{modify_content}
-</content>
-</file>
-"""
-                )
 
         command = self._build_command(
             input_path=input_file,
