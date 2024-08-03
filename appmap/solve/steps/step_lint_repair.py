@@ -1,13 +1,13 @@
 from appmap.navie.editor import Editor
 from appmap.navie.extract_changes import extract_changes
-from ..log import log_diff, log_lint, log_command
+from appmap.solve.steps.lint_repair import lint_in_conda
+from ..log import log_diff
 from ..run_command import run_command
 from ..run_navie_command import run_navie_command
 from ...navie.format_instructions import xml_format_instructions
 
 
 import os
-import subprocess
 
 
 class LintRepairContext:
@@ -58,42 +58,7 @@ def diff_file(context, file, step):
     return file_diff
 
 
-# Lint the file and return a dictionary of line numbers with lint errors
-def lint_file(context, file):
-    lint_args = [
-        "bash",
-        "-c",
-        f". {context.conda_path}/bin/activate {context.conda_env} && {context.lint_command} {file}",
-    ]
-    log_command(context.log_dir, " ".join(lint_args))
-
-    lint_result = subprocess.run(lint_args, capture_output=True, shell=False, text=True)
-
-    lint_output = lint_result.stdout
-
-    log_lint(
-        context.log_dir, os.path.join(context.work_dir_base_name, file), lint_output
-    )
-
-    lint_errors = lint_output.split("\n")
-
-    # Lint errors are formatted like this:
-    # bin/solve.py:257:80: E501 line too long (231 > 79 characters)
-    # Collect the line numbers of the lint errors.
-    lint_errors_by_line_number = {}
-    for error in lint_errors:
-        if error:
-            tokens = error.split(":")
-            if len(tokens) > 1:
-                line_number = tokens[1]
-                if line_number and line_number.isdigit():
-                    lint_errors_by_line_number[int(line_number)] = error
-    return lint_errors_by_line_number
-
-
-def lint_error_line_numbers_within_diff_sections(
-    file, lint_errors_by_line_number, file_diff
-):
+def lint_error_line_numbers_within_diff_sections(lint_errors_by_line_number, file_diff):
     # The file diff contains chunks like:
     # @@ -147,15 +147,21 @@
     # Find the '+' number, which indicates the start line. Also find the number after the
@@ -143,18 +108,22 @@ def step_lint_repair(
 
         print(f"[lint-repair] ({instance_id}) Linting {file}")
 
-        lint_errors_by_line_number = lint_file(context, file)
+        lint_errors_by_line_number = lint_in_conda(
+            context.conda_path, context.conda_env, context.lint_command, file
+        )
         if not len(lint_errors_by_line_number):
             print(f"[lint-repair] ({instance_id}) No lint errors found in {file}")
             continue
 
         lint_errors = "\n".join(lint_errors_by_line_number.values())
-        print(lint_errors)
+        print(
+            f"[lint-repair] ({instance_id}) Lint errors found in {file}: {lint_errors}"
+        )
 
         file_diff = diff_file(context, file, "pre")
 
         line_numbers = lint_error_line_numbers_within_diff_sections(
-            file, lint_errors_by_line_number, file_diff
+            lint_errors_by_line_number, file_diff
         )
 
         if line_numbers:
@@ -320,13 +289,15 @@ only present in the file/content to help you identify which line has the lint er
             )
             repair_item += 1
 
-        post_fix_lint_errors_by_line_number = lint_file(context, file)
+        post_fix_lint_errors_by_line_number = lint_in_conda(
+            context.conda_path, context.conda_env, context.lint_command, file
+        )
         post_file_diff = diff_file(context, file, "post")
 
-        print(post_file_diff)
+        print(f"[lint-repair] ({instance_id}) Diff after repair:\n{post_file_diff}")
 
         post_line_numbers = lint_error_line_numbers_within_diff_sections(
-            file, post_fix_lint_errors_by_line_number, post_file_diff
+            post_fix_lint_errors_by_line_number, post_file_diff
         )
 
         if post_line_numbers:

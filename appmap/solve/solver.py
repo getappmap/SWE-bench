@@ -62,11 +62,6 @@ class Solver:
         self.changed_files_limit = changed_files_limit
         self.test_attempts = test_attempts
 
-        if self.lint_command and not self.steps["apply"]:
-            print(
-                f"[solver] ({self.instance_id}) WARN: Lint command will not be executed without apply step."
-            )
-
         if not os.path.isfile(self.issue_file):
             raise FileNotFoundError(f"File '{self.issue_file}' not found.")
 
@@ -168,12 +163,19 @@ class Solver:
             self.task_manager,
             self.issue_file,
             self.work_dir,
+            self.lint_command,
             self.test_attempts,
         )
 
-        maketest_files = [result["test_file"] for result in maketest_results]
-        self.maketest_errors = [result["error_summary"] for result in maketest_results]
-        self.extend_test_directives(maketest_files)
+        results_with_error_summary = [
+            result for result in maketest_results if "error_summary" in result
+        ]
+        self.maketest_errors = [
+            result["error_summary"] for result in results_with_error_summary
+        ]
+        self.extend_test_directives(
+            [result["test_directive"] for result in maketest_results]
+        )
 
     def plan(self):
         step_plan(

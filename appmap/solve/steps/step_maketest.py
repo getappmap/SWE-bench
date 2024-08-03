@@ -1,19 +1,39 @@
 import os
-from typing import TypedDict, Optional
+from typing import List, TypedDict, Optional, Union
 import yaml
 
 from appmap.navie.editor import Editor
+from appmap.navie.extract_changes import extract_changes
 from appmap.navie.fences import extract_fenced_content
+from appmap.navie.format_instructions import xml_format_instructions
+from appmap.solve.steps.lint_repair import lint_in_conda
 from appmap.solve.steps.run_test import run_test
+from appmap.solve.steps.test_files_to_modules import test_files_to_modules
+
+
+class TestError(TypedDict):
+    error: str
+
+
+class TestResult(TypedDict):
+    test_directive: str
+    verifies_issue: bool
+    error_summary: Optional[str]
 
 
 def maketest(
     tcm,
     issue_file,
     work_dir,
+    lint_command,
     test_number,
-):
-    print(f"[maketest] Generating a test case to verify the solution to {issue_file}")
+) -> Union[TestResult, TestError]:
+    instance = tcm.instance
+    instance_id = tcm.instance["instance_id"]
+
+    print(
+        f"[maketest] ({instance_id}) Generating a test case to verify the solution to {issue_file}"
+    )
 
     with open(issue_file, "r") as f:
         issue_content = f.read()
@@ -21,7 +41,7 @@ def maketest(
     work_dir = os.path.join(work_dir, "maketest", str(test_number))
 
     test_to_modify_str = Editor(os.path.join(work_dir, "choose")).search(
-        f"""Identify a single test case that is most related to the following issue:
+        f"""/include=test Identify a single test case that is most related to the following issue:
 
 {issue_content}
 """,
@@ -39,59 +59,128 @@ project/tests/model_test.py
 
     # Expect exactly one file
     if len(tests_to_modify) != 1:
-        print(f"Expected exactly one file, got {test_to_modify_str}")
-        return {"succeeded": False, "test_error": "Expected exactly one file"}
+        print(
+            f"[maketest] ({instance_id}) Expected exactly one file, got {test_to_modify_str}"
+        )
+        return {"error": "Expected exactly one file"}
 
-    test_to_modify = tests_to_modify[0]
-    test_to_modify = os.path.relpath(test_to_modify, os.getcwd())
+    test_file = tests_to_modify[0]
+    test_file = os.path.relpath(test_file, os.getcwd())
 
-    print(f"[maketest] Modifying test case {test_to_modify}")
+    print(f"[maketest] ({instance_id}) Modifying test case {test_file}")
 
-    with open(test_to_modify, "r") as f:
+    with open(test_file, "r") as f:
         test_content = f.read()
+        original_test_content = test_content
 
     navie = Editor(os.path.join(work_dir, "generate"))
-    navie.context(issue_content, exclude_pattern="test")
 
     test_prompt = f"""## Task
 
-Modify this test case to verify the solution to the described issue:
+Add a new test to the following test file. 
+
+The new test should verify the solution to the issue that's described by the user.
+
+The test case MUST FAIL if the issue is NOT FIXED.
+
+If any new imports are needed, be sure to include them.
 
 <test>
 {test_content}
 </test>
 
-## Output instructions
+## Output format
 
-The output should contain only a single test case. 
-
-Remove all test cases from the original file, except the one that you
-are modifying or creating.
-
-The test case MUST FAIL if the issue is NOT FIXED.
-
-Be sure to emit all needed imports.
-
-Output only the code, and nothing else.
+{xml_format_instructions()}
 """
 
-    raw_code = navie.test(issue_content, prompt=test_prompt)
+    test_output = navie.test(
+        f"""/exclude=test
+                          
+{issue_content}""",
+        prompt=test_prompt,
+    )
 
-    codes = extract_fenced_content(raw_code)
-    if not codes or len(codes) != 1:
-        print(f"Expected exactly one code block, got {len(codes)}")
-        return {"succeeded": False, "test_error": "Expected exactly one code block"}
+    test_changes_content = "\n\n".join(extract_fenced_content(test_output))
 
-    raw_code = codes[0]
+    changes = extract_changes(test_changes_content)
+    for change in changes:
+        if change.original:
+            print(
+                f"[maketest] ({instance_id}) Applying test change to file: {test_file}"
+            )
+            work_dir = os.path.join(work_dir, "apply")
+            Editor(work_dir).apply(
+                test_file,
+                change.modified,
+                search=change.original,
+            )
+        else:
+            print(
+                f"[maketest] ({instance_id}) Planned test change has no <original> section, so it will be appended to: {test_file}"
+            )
+            with open(test_file, "a") as f:
+                f.write("\n")
+                f.write(change.modified)
 
-    # Append a suffix to the test_to_modify file name.
-    # Example: test_to_modify = "test.py", modified_file_name = "test_modified.py"
-    test_file = test_to_modify.replace(".py", f"_maketest_{test_number}.py")
+    with open(test_file, "r") as f:
+        test_content = f.read()
 
-    print(f"[maketest] Writing test case to {test_file}")
+    lint_errors_by_line_number = lint_in_conda(
+        tcm.conda_path,
+        tcm.venv,
+        lint_command,
+        test_file,
+    )
+    if lint_errors_by_line_number:
+        print(
+            f"[maketest] ({instance_id}) Lint errors found in test file {test_file}:\n{lint_errors_by_line_number}"
+        )
 
-    with open(test_file, "w") as f:
-        f.write(raw_code)
+        lint_error_str = "\n".join(list(lint_errors_by_line_number.values()))
+        lint_repair = Editor(os.path.join(work_dir, "lint_repair"))
+        lint_repair_content = lint_repair.generate(
+            lint_error_str,
+            prompt=f"""## Task
+
+Fix lint errors in the code.
+
+<code>
+{test_content}
+</code>
+
+## Output format
+
+{xml_format_instructions()}
+""",
+        )
+        lint_repair_changes = extract_changes(lint_repair_content)
+        for change in lint_repair_changes:
+            if change.original:
+                print(
+                    f"[maketest] ({instance_id}) Applying lint repair change to file: {test_file}"
+                )
+                work_dir = os.path.join(work_dir, "apply")
+                Editor(work_dir).apply(
+                    test_file,
+                    change.modified,
+                    search=change.original,
+                )
+            else:
+                print(
+                    f"[maketest] ({instance_id}) Planned lint repair change has no <original> section, so it will be appended to: {test_file}"
+                )
+                with open(test_file, "a") as f:
+                    f.write("\n")
+                    f.write(change.modified)
+
+        lint_errors_by_line_number_after_repair = lint_in_conda(
+            tcm.conda_path, tcm.venv, lint_command, test_file
+        )
+        if lint_errors_by_line_number_after_repair:
+            print(
+                f"[maketest] ({instance_id}) Lint errors found in test file {test_file} after lint repair:\n{lint_errors_by_line_number_after_repair}"
+            )
 
     # TODO: Don't record appmap data of the test yet
     # succeeded, test_error = run_test(tcm, test_file, appmap=True)
@@ -100,15 +189,17 @@ Output only the code, and nothing else.
     #     instance_id = tcm.instance["instance_id"]
     #     index_appmaps(instance_id, log_dir, appmap_command)
 
-    succeeded, test_error = run_test(tcm, test_file)
+    succeeded, test_error = run_test(tcm, test_file, appmap=False)
 
     # Verify that the test_error indicates that the issue is being reproduced
     fails_for_expected_reason = False
     if succeeded:
-        print(f"[maketest] Test case {test_file} succeeded. This is unexpected!")
+        print(
+            f"[maketest] ({instance_id}) Test case {test_file} succeeded. This is unexpected!"
+        )
     else:
         print(
-            f"[maketest] Test case {test_file} failed. This is expected. Let's see if it failed for the right reason."
+            f"[maketest] ({instance_id}) Test case {test_file} failed. This is expected. Let's see if it failed for the right reason."
         )
 
         if "ERROR" in test_error:
@@ -147,19 +238,36 @@ If the issue contains a specific error message, the test case should fail with t
 Emit a single word that indicates whether the test error is consistent with the described issue.
 
 - Emit "yes" if the test error is consistent with the described issue.
+- Emit "maybe" if the test error is possibly consistent with the described issue.
 - Emit "no" if the test error is NOT consistent with the described issue.
 """,
         )
 
-        if whyfailed != "yes":
+        if whyfailed == "no":
             print(
-                f"[maketest] Test case {test_file} DID NOT fail for the unexpected reason"
+                f"[maketest] ({instance_id}) Test case {test_file} DID NOT fail for the expected reason"
             )
+            print(
+                f"[maketest] ({instance_id}) Reverting test changes to {test_file} and trying again"
+            )
+            with open(test_file, "w") as f:
+                f.write(original_test_content)
         else:
             fails_for_expected_reason = True
-            print(f"[maketest] Test case {test_file} failed for the expected reason")
+            print(
+                f"[maketest] ({instance_id}) Test case {test_file} failed, possibly / probably for the expected reason"
+            )
 
-    error_summary = None
+    if instance["repo"] == "django/django":
+        test_directive = test_files_to_modules([test_file])[0]
+    else:
+        test_directive = test_file
+
+    result = TestResult(
+        test_directive=test_directive,
+        verifies_issue=fails_for_expected_reason,
+        error_summary=None,
+    )
     if fails_for_expected_reason:
         error_summary = Editor(os.path.join(work_dir, "summarize")).ask(
             f"""/nocontext A test case is failing.
@@ -184,53 +292,33 @@ DO NOT include:
 """,
             context=[],
         )
-
-    result = {
-        "test_file": test_file,
-        "succeeded": succeeded,
-        "test_error": test_error,
-        "fails_for_expected_reason": fails_for_expected_reason,
-    }
-    if error_summary:
         result["error_summary"] = error_summary
 
     return result
-
-
-class TestResult(TypedDict):
-    test_file: str
-    error_summary: str
 
 
 def step_maketest(
     tcm,
     issue_file,
     work_dir,
+    lint_command,
     num_attempts,
-) -> Optional[TestResult]:
+) -> List[TestResult]:
     # Try N times to generate a test that fails for the right reason
+    instance_id = tcm.instance["instance_id"]
     test_results = []
     for i in range(num_attempts):
-        test_result = maketest(tcm, issue_file, work_dir, i + 1)
-        if (
-            "fails_for_expected_reason" in test_result
-            and "test_file" in test_result
-            and test_result["fails_for_expected_reason"]
-        ):
-            test_file = test_result["test_file"]
-            error_summary = test_result["error_summary"]
-            print(
-                f"[maketest] Generated test case {test_file} that fails for the right reason"
-            )
-            test_results.append(
-                TestResult(test_file=test_file, error_summary=error_summary)
-            )
-            # TODO: Allow it to generate more than one test, if they are diverse.
-            break
+        test_result = maketest(tcm, issue_file, work_dir, lint_command, i + 1)
+        if "test_directive" in test_result:
+            if test_result["verifies_issue"]:
+                print(
+                    f"[maketest] ({instance_id}) Test case {test_result['test_directive']} verifies the issue"
+                )
+                return [test_result]
 
-    if len(test_results) == 0:
-        print(
-            "[maketest] Failed to generate a test case that fails for the right reason"
-        )
+            test_results.append(test_result)
 
-    return test_results
+    print(
+        f"[maketest] ({tcm.instance['instance_id']}) No test cases were generated that verify the issue. Returning the first test case for pass-to-pass purposes."
+    )
+    return test_results[0:1]
