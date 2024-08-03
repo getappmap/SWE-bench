@@ -1,3 +1,5 @@
+from appmap.navie.editor import Editor
+from appmap.navie.extract_changes import extract_changes
 from ..log import log_diff, log_lint, log_command
 from ..run_command import run_command
 from ..run_navie_command import run_navie_command
@@ -215,7 +217,7 @@ def step_lint_repair(
 
         with open(repair_question, "w") as f:
             f.write(
-                f"""@generate /noformat /noterms
+                """@generate /noformat /noterms
                     
 <lint-errors>
 """
@@ -305,13 +307,13 @@ only present in the file/content to help you identify which line has the lint er
         with open(repair_output, "r") as f:
             repair_output_content = f.read()
 
-        changes = extract_changes(solution_content)
+        changes = extract_changes(repair_output_content)
         repair_item = 1
         for change in changes:
             print(f"[lint-repair] ({instance_id}) Applying change: {change}")
 
             work_dir = os.path.join(repair_dir, f"repair_{repair_item}")
-            Editor(work_dir).edit(
+            Editor(work_dir).apply(
                 change.file,
                 change.modified,
                 search=change.original,

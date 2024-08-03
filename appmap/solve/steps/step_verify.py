@@ -42,7 +42,7 @@ def repair_test(
 
     with open(repair_question, "w") as f:
         f.write(
-            f"""@generate /noformat
+            """@generate /noformat
 
 <test-errors>
 """
@@ -164,7 +164,7 @@ def step_verify(
     os.makedirs(verify_log_dir, exist_ok=True)
 
     # Run the diff command
-    diff_command = f"git diff"
+    diff_command = "git diff"
     file_diff = run_command(verify_log_dir, diff_command, fail_on_error=True)
     print(f"[verify] ({instance_id}) Current project diff:")
     print(file_diff)

@@ -11,4 +11,3 @@ def count_appmaps():
                 if 10 * 1024 <= file_size < 40 * 1024 * 1024:
                     count += 1
     return count
-

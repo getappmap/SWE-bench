@@ -37,7 +37,12 @@ class Editor:
     def apply(self, filename, replace, search=None):
         self._log_action("Applying changes", filename)
 
-        Client.apply(filename, replace, search=search)
+        filename_slug = "".join([c if c.isalnum() else "_" for c in filename]).strip("_")
+
+        work_dir = self._work_dir("apply", filename_slug)
+        Client(work_dir, self.temperature, self.token_limit, self.log).apply(
+            filename, replace, search=search
+        )
 
     def ask(self, question, prompt=None, context=None, cache=True, auto_context=True):
         self._log_action("Asking", question)
@@ -232,7 +237,7 @@ class Editor:
             return read_output(False)
 
         with open(input_file, "w") as f:
-            f.write(plan)
+            f.write(content)
 
         Client(work_dir, self.temperature, self.token_limit, self.log).list_files(
             input_file, output_file
@@ -269,7 +274,7 @@ class Editor:
             if save_cache:
                 self._save_cache(
                     work_dir,
-                    self._plan,
+                    plan,
                     "plan",
                     context,
                     "context",
@@ -282,7 +287,7 @@ class Editor:
             return code
 
         if cache and self._all_cache_valid(
-            work_dir, plan, "plan", files, "files", context, "context", prompt, "prompt"
+            work_dir, plan, "plan", context, "context", prompt, "prompt"
         ):
             print("  Using cached generated code")
             return read_output(False)
@@ -495,9 +500,10 @@ class Editor:
             cached_content = f.read()
             return cached_content == content
 
-    def _work_dir(self, name):
+    def _work_dir(self, *name_tokens):
         rename_existing = self.clean
 
+        name = os.path.sep.join(name_tokens)
         work_dir = os.path.join(self.work_dir, name)
         if rename_existing and os.path.exists(work_dir):
             # Rename the existing work dir according to the timestamp of the oldest file in the directory

@@ -1,6 +1,5 @@
 from appmap.navie.editor import Editor
 from appmap.navie.extract_changes import extract_changes
-from ..run_navie_command import run_navie_command
 
 import os
 
@@ -15,11 +14,9 @@ def step_apply(
 
     changes = extract_changes(solution_content)
     for change in changes:
-        print(f"[apply] ({instance_id}) Applying change: {change}")
-        file_slug = "".join([c if c.isalnum() else "_" for c in change.file]).strip("_")
-        work_dir = os.path.join(work_dir, "apply", file_slug)
-
-        Editor(work_dir).edit(
+        print(f"[apply] ({instance_id}) Applying change to file: {change.file}")
+        work_dir = os.path.join(work_dir, "apply")
+        Editor(work_dir).apply(
             change.file,
             change.modified,
             search=change.original,

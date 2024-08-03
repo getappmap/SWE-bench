@@ -18,14 +18,24 @@ class Client:
 
     def apply(self, file_path, replace, search=None):
         log_file = os.path.join(self.work_dir, "apply.log")
+        search_file = os.path.join(self.work_dir, "search.txt")
+        replace_file = os.path.join(self.work_dir, "replace.txt")
+
+        with open(replace_file, "w") as replace_f:
+            replace_f.write(replace)
 
         env = self._prepare_env()
         env_str = " ".join([f"{k}={v}" for k, v in env.items()])
 
         cmd = f"{env_str} {self.appmap_command} apply"
-        if search:
-            cmd += f" -s {search}"
-        cmd += f" -r {replace} {file_path}"
+
+        if search is not None:
+            with open(search_file, "w") as search_f:
+                search_f.write(search)
+            cmd += f" -s {search_file}"
+
+        cmd += f" -r {replace_file}"
+        cmd += f" {file_path}"
         cmd += f" > {log_file} 2>&1"
         self._execute(cmd, log_file)
 
@@ -47,13 +57,15 @@ class Client:
         log_file = os.path.join(self.work_dir, "ask.log")
         input_file = os.path.join(self.work_dir, "ask.txt")
 
-        with open(input_file, "w") as input_f:
-            if context_file:
-                input_f.write("/nocontext\n")
+        with open(question_file, "r") as question_f:
+            question = question_f.read()
 
-            with open(question_file, "r") as question_f:
-                question = question_f.read()
-                input_f.write(question)
+        with open(input_file, "w") as input_f:
+            input_tokens = ["@explain"]
+            if context_file:
+                input_tokens.append("/nocontext")
+            input_tokens.append(question)
+            input_f.write(" ".join(input_tokens))
 
         command = self._build_command(
             input_path=question_file,
@@ -66,26 +78,31 @@ class Client:
     def terms(self, issue_file, output_file):
         log_file = os.path.join(self.work_dir, "terms.log")
         input_file = os.path.join(self.work_dir, "terms.txt")
+        prompt_file = os.path.join(self.work_dir, "terms.prompt.md")
+
         with open(issue_file, "r") as issue_f:
             issue_content = issue_f.read()
 
-        with open(input_file, "w") as rewrite_f:
-            rewrite_f.write(
-                f"""@generate /nocontext
+        with open(input_file, "w") as input_f:
+            input_tokens = ["@generate"]
+            input_tokens.append("/nocontext")
+            input_tokens.append(issue_content)
+            input_f.write(" ".join(input_tokens))
 
-Generate a list of all file names, module names, class names, function names and varable names that are mentioned in the
+        with open(prompt_file, "w") as prompt_f:
+            prompt_f.write(
+                f"""Generate a list of all file names, module names, class names, function names and varable names that are mentioned in the
 described issue. Do not emit symbols that are part of the programming language itself. Do not emit symbols that are part
 of test frameworks. Focus on library and application code only. Emit the results as a JSON list. Do not emit text, markdown, 
 or explanations.
-
-<issue>
-{issue_content}
-</issue>
 """
             )
 
         command = self._build_command(
-            input_path=input_file, output_path=output_file, log_file=log_file
+            input_path=input_file,
+            output_path=output_file,
+            log_file=log_file,
+            prompt_path=prompt_file,
         )
         self._execute(command, log_file)
 
@@ -124,7 +141,9 @@ or explanations.
         )
         self._execute(command, log_file)
 
-    def plan(self, issue_file, output_file, context_file=None, prompt_file=None):
+    def plan(
+        self, issue_file, output_file, context_file=None, prompt_file=None, options=None
+    ):
         log_file = os.path.join(self.work_dir, "plan.log")
         input_file = os.path.join(self.work_dir, "plan.txt")
 
@@ -132,15 +151,11 @@ or explanations.
             issue_content = issue_f.read()
 
         with open(input_file, "w") as plan_f:
-            question = ["@plan"]
+            input_tokens = ["@plan"]
             if context_file:
-                question.append("/nocontext")
-            plan_f.write(
-                f"""{" ".join(question)}
-
-{issue_content}
-"""
-            )
+                input_tokens.append("/nocontext")
+            input_tokens.append(issue_content)
+            plan_f.write(" ".join(input_tokens))
 
         command = self._build_command(
             input_path=input_file,
@@ -166,17 +181,14 @@ or explanations.
             query_content = query_f.read()
 
         with open(input_file, "w") as search_f:
-            question = ["@search"]
+            input_tokens = ["@search"]
             if context_file:
-                question.append("/nocontext")
+                input_tokens.append("/nocontext")
             if format_file:
-                question.append(f"/noformat")
-            search_f.write(
-                f"""{" ".join(question)}
-                
-{query_content}
-"""
-            )
+                input_tokens.append(f"/noformat")
+            input_tokens.append(query_content)
+            input = " ".join(input_tokens)
+            search_f.write(input)
 
         if format_file:
             if not prompt_file:
@@ -243,16 +255,14 @@ or explanations.
         with open(plan_file, "r") as plan_f:
             plan_content = plan_f.read()
         with open(input_file, "w") as input_f:
-            question = ["@generate /noformat"]
+            input_tokens = ["@generate"]
+            input_tokens.append("/noformat")
             if context_file:
-                question.append("/nocontext")
+                input_tokens.append("/nocontext")
+            input_tokens.append(plan_content)
+            input = " ".join(input_tokens)
 
-            input_f.write(
-                f"""{" ".join(question)}
-                             
-{plan_content}
-"""
-            )
+            input_f.write(input)
 
         command = self._build_command(
             input_path=input_file,
@@ -277,16 +287,13 @@ or explanations.
             issue_content = issue_f.read()
 
         with open(input_file, "w") as input_f:
-            question = ["@test /noformat"]
+            input_tokens = ["@test", "/noformat"]
             if context_file:
-                question.append("/nocontext")
+                input_tokens.append("/nocontext")
+            input_tokens.append(issue_content)
+            input = " ".join(input_tokens)
 
-            input_f.write(
-                f"""{" ".join(question)}
-                             
-{issue_content}
-"""
-            )
+            input_f.write(input)
 
         command = self._build_command(
             input_path=input_file,

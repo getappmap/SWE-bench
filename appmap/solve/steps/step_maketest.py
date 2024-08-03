@@ -1,6 +1,7 @@
 import os
-
+from typing import TypedDict, Optional
 import yaml
+
 from appmap.navie.editor import Editor
 from appmap.navie.fences import extract_fenced_content
 from appmap.solve.steps.run_test import run_test
@@ -79,7 +80,7 @@ Output only the code, and nothing else.
     codes = extract_fenced_content(raw_code)
     if not codes or len(codes) != 1:
         print(f"Expected exactly one code block, got {len(codes)}")
-        return {succeeded: False, test_error: "Expected exactly one code block"}
+        return {"succeeded": False, "test_error": "Expected exactly one code block"}
 
     raw_code = codes[0]
 
@@ -121,9 +122,7 @@ Output only the code, and nothing else.
             test_error = "\n".join(error_lines[first_line_index_with_error:])
 
         whyfailed = Editor(os.path.join(work_dir, "check")).ask(
-            f"""A test case has been created that is currently expected to fail due to a known issue.
-
-Examine the error message below to determine if the test case is failing for the expected reason.
+            f"""/nocontext 
 
 <error>
 {test_error}
@@ -134,7 +133,16 @@ Examine the error message below to determine if the test case is failing for the
 </issue>
 """,
             context=[],
-            prompt="""## Output format
+            prompt="""## Task
+
+A test case has been created that is currently expected to fail due to a known issue.
+
+Examine the error message below to determine if the test case is failing due to the reason described 
+in the issue.
+
+If the issue contains a specific error message, the test case should fail with that error message.
+        
+## Output format
             
 Emit a single word that indicates whether the test error is consistent with the described issue.
 
@@ -145,20 +153,53 @@ Emit a single word that indicates whether the test error is consistent with the 
 
         if whyfailed != "yes":
             print(
-                f"[maketest] Test case {test_file} failed for an unexpected reason: {whyfailed}"
+                f"[maketest] Test case {test_file} DID NOT fail for the unexpected reason"
             )
         else:
             fails_for_expected_reason = True
-            print(
-                f"[maketest] Test case {test_file} failed for the expected reason: {whyfailed}"
-            )
+            print(f"[maketest] Test case {test_file} failed for the expected reason")
 
-    return {
+    error_summary = None
+    if fails_for_expected_reason:
+        error_summary = Editor(os.path.join(work_dir, "summarize")).ask(
+            f"""/nocontext A test case is failing.
+
+Examine the message below. Extract the most relevant information about the error.
+
+For example, include:
+
+- Error message
+- Stack trace
+- Other exception details
+- Other explanatory information
+
+DO NOT include:
+
+- Test setup and configuration
+- Test teardown and cleanup
+
+<error>
+{test_error}
+</error>
+""",
+            context=[],
+        )
+
+    result = {
         "test_file": test_file,
         "succeeded": succeeded,
         "test_error": test_error,
         "fails_for_expected_reason": fails_for_expected_reason,
     }
+    if error_summary:
+        result["error_summary"] = error_summary
+
+    return result
+
+
+class TestResult(TypedDict):
+    test_file: str
+    error_summary: str
 
 
 def step_maketest(
@@ -166,9 +207,9 @@ def step_maketest(
     issue_file,
     work_dir,
     num_attempts,
-):
+) -> Optional[TestResult]:
     # Try N times to generate a test that fails for the right reason
-    test_files = []
+    test_results = []
     for i in range(num_attempts):
         test_result = maketest(tcm, issue_file, work_dir, i + 1)
         if (
@@ -176,13 +217,20 @@ def step_maketest(
             and "test_file" in test_result
             and test_result["fails_for_expected_reason"]
         ):
-            test_files.append(test_result["test_file"])
+            test_file = test_result["test_file"]
+            error_summary = test_result["error_summary"]
+            print(
+                f"[maketest] Generated test case {test_file} that fails for the right reason"
+            )
+            test_results.append(
+                TestResult(test_file=test_file, error_summary=error_summary)
+            )
             # TODO: Allow it to generate more than one test, if they are diverse.
             break
 
-    if len(test_files) == 0:
+    if len(test_results) == 0:
         print(
-            f"[maketest] Failed to generate a test case that fails for the right reason"
+            "[maketest] Failed to generate a test case that fails for the right reason"
         )
 
-    return test_files
+    return test_results
