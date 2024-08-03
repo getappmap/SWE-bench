@@ -18,12 +18,12 @@ on:
       runner:
         description: "Runner type"
         required: true
-        default: swe-bench-ubuntu-latest
+        default: ubuntu-latest
         type: choice
         options:
+          - ubuntu-latest
           - swe-bench-ubuntu-latest
           - SWE-Bench_Larger
-          - ubuntu-latest
       split:
         description: "Dataset split"
         required: true
@@ -59,7 +59,7 @@ run-name: ${{ inputs.name || github.event.pull_request.title || github.event.wor
 
 jobs:
   show-inputs:
-    runs-on: ubuntu-latest
+    runs-on: 'ubuntu-latest'
     steps:
       - name: Display Input Values
         run: |
@@ -73,7 +73,7 @@ jobs:
           echo "steps: ${{ github.event.inputs.steps }}"
           echo "instance_set: ${{ github.event.inputs.instance_set }}"
   build-appmap-js:
-    runs-on: SWE-Bench_Larger
+    runs-on: 'ubuntu-latest'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -128,7 +128,7 @@ jobs:
     needs:
       - build-appmap-js
       - prepare-matrix
-    runs-on: ${{ inputs.runner || 'swe-bench-ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     strategy:
       matrix:
         index: ${{ fromJson(needs['prepare-matrix'].outputs.matrix) }}
@@ -245,7 +245,7 @@ jobs:
     needs:
       - solve
     if: needs.solve.result == 'success' || needs.solve.result == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: 'ubuntu-latest'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
