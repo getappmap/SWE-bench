@@ -85,7 +85,9 @@ def solve_instance(
     # Run this as a separate process so that it can change the working directory.
     solve_result = run(solve_args, cwd=testbed)
     if solve_result.returncode != 0:
-        print(f"Solver reported exit code {solve_result.returncode} for {instance['instance_id']}/{iteration + 1}.")
+        print(
+            f"Solver reported exit code {solve_result.returncode} for {instance['instance_id']}/{iteration + 1}."
+        )
 
 
 def print_disk_space(path, description):
@@ -226,10 +228,6 @@ def worker_init(data: dict):
                                 )
                                 return
 
-                            instance["appmap_archive"] = extract_appmaps(
-                                instance, testbed
-                            )
-
                             # In case this is a re-run, delete any existing patch files
                             issue_dir = (
                                 Path(log_dir)
@@ -355,18 +353,6 @@ def worker_init(data: dict):
         import traceback
 
         traceback.print_exc()
-
-
-def extract_appmaps(instance, testbed):
-    if not appmap_finder:
-        return
-    appmap_archive = appmap_finder.find_archive(
-        instance["repo"].split("/")[-1] + "-" + instance["version"]
-    )
-    if appmap_archive is not None:
-        print(f"AppMap archive: {appmap_archive}", flush=True)
-        appmap_archive.extract(testbed)
-        return appmap_archive.name
 
 
 def split_runner_instances(
@@ -563,13 +549,6 @@ if __name__ == "__main__":
         help="(Optional) Keep temporary directories after running",
     )
     parser.add_argument(
-        "--appmaps",
-        type=str,
-        nargs="?",
-        const=True,
-        help="Use AppMaps (with optional path to local AppMap archive directory)",
-    )
-    parser.add_argument(
         "--steps",
         type=str,
         help="Comma-separated list of solve steps to execute",
@@ -621,19 +600,4 @@ if __name__ == "__main__":
         help="(Optional) The amount to increase the temperature by on each iteration",
     )
     args = parser.parse_args()
-    if args.appmaps:
-        if isinstance(args.appmaps, bool):
-            appmap_path = None
-            print("Using only online AppMap data archives")
-        else:
-            appmap_path = os.path.abspath(args.appmaps)
-            print(f"Using AppMap data archives from {appmap_path} (and online)")
-
-        # Don't load the ArchiveFinder unless appmap support is activated, because the
-        # 'github' dependency is hard to install on some systems.
-        from appmap.archive import ArchiveFinder
-
-        appmap_finder = ArchiveFinder(appmap_path)
-    else:
-        print("Not using AppMap data archives")
     main(args)

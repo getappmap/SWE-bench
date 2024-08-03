@@ -36,10 +36,6 @@ on:
         description: "Number of retries to perform on each instance until a patch is found"
         required: false
         default: "3"
-      appmaps:
-        description: "Set to true to use AppMaps"
-        type: boolean
-        required: false
       num_runners:
         description: "Number of runners to split the workload across"
         required: true
@@ -72,7 +68,6 @@ jobs:
           echo "runner: ${{ github.event.inputs.runner }}"
           echo "split: ${{ github.event.inputs.split }}"
           echo "retries: ${{ github.event.inputs.retries }}"
-          echo "appmaps: ${{ github.event.inputs.appmaps }}"
           echo "num_runners: ${{ github.event.inputs.num_runners }}"
           echo "name: ${{ github.event.inputs.name }}"
           echo "steps: ${{ github.event.inputs.steps }}"
@@ -211,7 +206,6 @@ jobs:
             --num_runners "${NUM_RUNNERS:-1}" \
             --runner_index "${{ matrix.index }}" \
             --verbose \
-            $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
             $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}") \
             $(test -n "${{ inputs.instance_set }}" && echo --instance_set "${{ inputs.instance_set }}")
 
