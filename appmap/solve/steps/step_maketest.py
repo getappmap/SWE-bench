@@ -133,21 +133,33 @@ If any new imports are needed, be sure to include them.
         test_file,
     )
     if lint_errors_by_line_number:
+        lint_error_str = "\n".join(list(lint_errors_by_line_number.values()))
         print(
-            f"[maketest] ({instance_id}) Lint errors found in test file {test_file}:\n{lint_errors_by_line_number}"
+            f"[maketest] ({instance_id}) Lint errors found in test file {test_file}:\n{lint_error_str}"
         )
 
-        lint_error_str = "\n".join(list(lint_errors_by_line_number.values()))
         lint_repair = Editor(os.path.join(work_dir, "lint_repair"))
+        test_content_with_line_numbers = "\n".join(
+            [f"{i+1:6}: {line}" for i, line in enumerate(test_content.split("\n"))]
+        )
+
         lint_repair_content = lint_repair.generate(
             lint_error_str,
             prompt=f"""## Task
 
-Fix lint errors in the code.
+A developer is fixing a software issue:
+
+<issue>
+{issue_content}
+</issue>
+
+The code solution is:
 
 <code>
-{test_content}
+{test_content_with_line_numbers}
 </code>
+
+There are lint errors in the code. Fix the lint errors.
 
 ## Output format
 
@@ -178,8 +190,11 @@ Fix lint errors in the code.
             tcm.conda_path, tcm.venv, lint_command, test_file
         )
         if lint_errors_by_line_number_after_repair:
+            lint_errors_after_repair_str = "\n".join(
+                list(lint_errors_by_line_number_after_repair.values())
+            )
             print(
-                f"[maketest] ({instance_id}) Lint errors found in test file {test_file} after lint repair:\n{lint_errors_by_line_number_after_repair}"
+                f"[maketest] ({instance_id}) Lint errors found in test file {test_file} after lint repair:\n{lint_errors_after_repair_str}"
             )
 
     # TODO: Don't record appmap data of the test yet
