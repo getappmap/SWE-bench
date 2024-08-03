@@ -26,6 +26,7 @@ on:
           - ubuntu-latest
           - swe-bench-ubuntu-latest
           - SWE-Bench_Larger
+          - ubuntu-latest
       num_runners:
         description: "Number of runners to split the workload across"
         required: true
