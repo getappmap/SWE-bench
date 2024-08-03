@@ -46,7 +46,6 @@ def write_csv_report(report_map, predictions: list[dict], split, output_csv_path
         "model_iteration",
         "model_lint_repair",
         "model_test_repair",
-        "appmap_archive",
     ]
 
     # Write to CSV
@@ -65,7 +64,6 @@ def write_csv_report(report_map, predictions: list[dict], split, output_csv_path
             row["model_iteration"] = instance.get("model_iteration", "")
             row["model_lint_repair"] = instance.get("model_lint_repair", "")
             row["model_test_repair"] = instance.get("model_test_repair", "")
-            row["appmap_archive"] = instance["appmap_archive"]
 
             writer.writerow(row)
 
