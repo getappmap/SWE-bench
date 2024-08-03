@@ -13,7 +13,6 @@ from appmap.solve.patch import clean_patch
 from appmap.solve.run_command import run_command
 
 from appmap.solve.steps.read_test_directives import read_test_directives
-from appmap.solve.steps.step_verify import step_verify
 from appmap.solve.steps.build_task_manager import build_task_manager
 from appmap.solve.steps.step_lint_repair import step_lint_repair
 from appmap.solve.steps.step_apply import step_apply
@@ -47,6 +46,8 @@ class Solver:
         appmap_command="appmap",
         steps=None,
         temperature=0.0,
+        changed_files_limit=1,  # TODO: Make this configurable. It's 1 for "Lite", otherwise greater than 1
+        test_attempts=1,  # TODO: Make this configurable; ensure that maketest doesn't copy existing failed attempts
     ):
         self.instances_path = instances_path
         self.instance_id = instance_id
@@ -59,6 +60,8 @@ class Solver:
         self.appmap_command = appmap_command
         self.steps = steps or DEFAULT_STEPS
         self.temperature = temperature
+        self.changed_files_limit = changed_files_limit
+        self.test_attempts = test_attempts
 
         if self.lint_command and not self.steps["apply"]:
             print(
@@ -87,6 +90,7 @@ class Solver:
 
         self.files = []
         self.files_changed = []
+        self.maketest_errors = []
         self.test_directives = []
 
     def solve(self):
@@ -147,8 +151,6 @@ class Solver:
 
         if self.steps["verify"]:
             self.verify()
-        else:
-            self.verify_succeeded = True
 
     # Enumerate test cases that should be verified "still passing" with the valid solution.
     # Note that some test cases may be *expected* to fail with a valid solution, so this is no
@@ -163,49 +165,40 @@ class Solver:
 
     # Generate a test case to verify the solution.
     def maketest(self):
-        maketest_files = step_maketest(
+        maketest_results = step_maketest(
             self.task_manager,
             self.issue_file,
             self.work_dir,
-            3,  # TODO: Make configurable
+            self.test_attempts,
         )
 
+        maketest_files = [result["test_file"] for result in maketest_results]
+        self.maketest_errors = [result["error_summary"] for result in maketest_results]
         self.extend_test_directives(maketest_files)
 
     def plan(self):
         step_plan(
-            self.log_dir,
             self.issue_file,
             self.work_dir,
             self.instance_id,
-            self.appmap_command,
+            self.changed_files_limit,
             self.plan_file,
-            self.context_yaml_file,
-            self.temperature,
+            # maketest_errors=self.maketest_errors # TODO: Use these once the information is more reliable
         )
 
     def list_files(self):
         step_list(
-            self.log_dir,
             self.work_dir,
             self.instance_id,
-            self.appmap_command,
             self.plan_file,
-            self.temperature,
         )
 
     def generate_code(self):
         step_generate(
-            self.log_dir,
-            self,
             self.work_dir,
             self.instance_id,
-            self.appmap_command,
             self.plan_file,
             self.solution_file,
-            self.files,
-            self.context_yaml_file,
-            self.temperature,
         )
 
     def apply_changes(self):
@@ -244,6 +237,7 @@ class Solver:
                 f"[solver] ({self.instance_id}) WARN: No test directives have been collected. Skipping verify step."
             )
             self.test_directives_succeeded = []
+            return
         else:
             print(
                 f"[solver] ({self.instance_id}) Verifying solution using test directives {self.test_directives}"
@@ -263,7 +257,10 @@ class Solver:
         self.load_file_changes(result_name)
 
     def verify_succeeded(self):
-        return self.test_directives == self.test_directives_succeeded
+        return (
+            len(self.test_directives) > 0
+            and self.test_directives == self.test_directives_succeeded
+        )
 
     def load_file_changes(self, result_name):
         print(f"[solver] ({self.instance_id}) Loading file changes")
@@ -278,7 +275,7 @@ class Solver:
 
         print(f"[solver] ({self.instance_id}) Files changed: {self.files_changed}")
 
-        diff_command = f"git diff"
+        diff_command = "git diff"
         diff = run_command(self.log_dir, diff_command, fail_on_error=True)
         if diff:
             diff = clean_patch(diff)
@@ -410,16 +407,9 @@ if __name__ == "__main__":
     )
     solver.solve()
     files_changed = solver.files_changed
-    verify_succeeded = solver.verify_succeeded()
 
     if len(files_changed) == 0:
         print(f"[solver] WARN: No files changed for {issue_name}.")
-        sys.exit(1)
-
-    if not verify_succeeded:
-        print(
-            f"[solver] Changed {len(files_changed)} files for {issue_name}, but verify failed."
-        )
         sys.exit(1)
 
     if len(files_changed) > 0:

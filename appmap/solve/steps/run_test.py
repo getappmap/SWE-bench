@@ -23,7 +23,7 @@ def run_test(tcm, test_file, appmap=False, files_to_directives=True):
     env = None
     test_command = f"{tcm.cmd_activate} && "
     if appmap:
-        test_command += f"appmap-python "
+        test_command += "appmap-python "
         env = {
             "APPMAP_DISPLAY_PARAMS": "false",
             "APPMAP_MAX_EVENTS": "10000",
@@ -35,6 +35,11 @@ def run_test(tcm, test_file, appmap=False, files_to_directives=True):
     print(
         f"[runtest] ({instance_id}) ({instance_id}) Running test command: {test_command} {test_file}"
     )
+
+    with open(tcm.log_file, "r") as f:
+        base_log_content = f.read()
+        base_log_line_count = len(base_log_content.split("\n"))
+
     test_output = None
     timeout = False
     try:
@@ -63,7 +68,11 @@ def run_test(tcm, test_file, appmap=False, files_to_directives=True):
             print(
                 f"[runtest] ({instance_id}) Review {tcm.log_file} for more information"
             )
-            with open(tcm.log_file) as f:
-                test_error = f.read()
+
+            with open(tcm.log_file, "r") as f:
+                log_content = f.read()
+                log_lines = log_content.split("\n")
+                # Select log_lines after base_log_line_count
+                test_error = "\n".join(log_lines[base_log_line_count:])
 
     return (succeeded, test_error)

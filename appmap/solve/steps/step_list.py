@@ -1,5 +1,7 @@
 import json
 
+from appmap.navie.editor import Editor
+
 from ..is_test_file import is_test_file
 from ..run_navie_command import run_navie_command
 
@@ -7,30 +9,23 @@ from ..run_navie_command import run_navie_command
 import os
 
 
-def step_list(log_dir, work_dir, instance_id, appmap_command, plan_file, temperature):
+def step_list(work_dir, instance_id, plan_file):
     print(f"[list] ({instance_id}) Detecting files to be modified")
 
-    # TODO: Migrate to the Navie Editor API.
+    with open(plan_file, "r") as f:
+        plan = f.read()
+
+    navie = Editor(os.path.join(work_dir, "list"))
+    files = navie.list_files(plan)
+
+    # Transform to local paths
+    files = [os.path.relpath(f, os.getcwd()) for f in files]
+    # Filter out test files
+    files = [f for f in files if not is_test_file(f)]
 
     output_path = os.path.join(work_dir, "files.json")
-    log_path = os.path.join(work_dir, "list-files.log")
-    run_navie_command(
-        log_dir,
-        temperature=temperature,
-        command=appmap_command,
-        context_path=plan_file,
-        output_path=output_path,
-        log_path=log_path,
-        additional_args="@list-files /format=json /nofence",
-    )
-
-    print(f"[list] ({instance_id}) Files detected. Filtering out test files.")
-    with open(output_path) as f:
-        files = json.load(f)
-        files = [f for f in files if not is_test_file(f)]
-        files_str = ", ".join(files)
-
     with open(output_path, "w") as f:
         f.write(json.dumps(files))
 
+    files_str = ", ".join(files)
     print(f"[list] ({instance_id}) Files to be modified: {files_str}")
