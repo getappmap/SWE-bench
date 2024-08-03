@@ -344,6 +344,12 @@ or explanations.
         result = os.system(command)
 
         if result != 0:
+            with open(log_file, "r") as f:
+                log_content = f.read()
+                # Log the last 200 lines
+                log_lines = log_content.split("\n")[-200:]
+                print("\n".join(log_lines))
+
             raise RuntimeError(
                 f"Failed to execute command {command}. See {log_file} for details."
             )
