@@ -71,12 +71,12 @@ def solve_instance(
         path_conda,
         "--log-dir",
         log_dir,
-        "--appmap-command",
-        appmap_command,
         "--temperature",
         str(temperature),
     ]
 
+    if appmap_command is not None:
+        solve_args.extend(["--appmap-command", appmap_command])
     if lint_command is not None:
         solve_args.extend(["--lint-command", lint_command])
     if steps is not None:
@@ -529,9 +529,7 @@ if __name__ == "__main__":
         default=None,
         help="(Optional) Filter to apply to task instances",
     )
-    parser.add_argument(
-        "--appmap_command", type=str, default="appmap", help="Path to appmap command"
-    )
+    parser.add_argument("--appmap_command", type=str, help="Path to appmap command")
     parser.add_argument(
         "--lint_command",
         type=str,

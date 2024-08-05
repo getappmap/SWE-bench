@@ -2,17 +2,23 @@ import json
 import os
 import re
 import shutil
-import sys
 import time
 
 import yaml
+from appmap.navie.config import Config
 from appmap.navie.fences import extract_fenced_content
 from appmap.navie.client import Client
 
 
 class Editor:
+
     def __init__(
-        self, work_dir, temperature=0.0, token_limit=None, log=None, clean=False
+        self,
+        work_dir,
+        temperature=None,  # Can also be configured via the APPMAP_NAVIE_TEMPERATURE environment variable
+        token_limit=None,  # Can also be configured via the APPMAP_NAVIE_TOKEN_LIMIT environment variable
+        log=None,
+        clean=Config.get_clean(),
     ):
         self.work_dir = work_dir
         os.makedirs(self.work_dir, exist_ok=True)
@@ -37,7 +43,9 @@ class Editor:
     def apply(self, filename, replace, search=None):
         self._log_action("Applying changes", filename)
 
-        filename_slug = "".join([c if c.isalnum() else "_" for c in filename]).strip("_")
+        filename_slug = "".join([c if c.isalnum() else "_" for c in filename]).strip(
+            "_"
+        )
 
         work_dir = self._work_dir("apply", filename_slug)
         Client(work_dir, self.temperature, self.token_limit, self.log).apply(

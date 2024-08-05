@@ -1,3 +1,4 @@
+from appmap.navie.config import Config
 from appmap.navie.editor import Editor
 from appmap.navie.extract_changes import extract_changes
 from appmap.solve.steps.lint_repair import lint_in_conda
@@ -19,7 +20,6 @@ class LintRepairContext:
         conda_path,
         conda_env,
         lint_command,
-        appmap_command,
         base_file_content,
     ):
         self.log_dir = log_dir
@@ -28,7 +28,6 @@ class LintRepairContext:
         self.conda_path = conda_path
         self.conda_env = conda_env
         self.lint_command = lint_command
-        self.appmap_command = appmap_command
         self.base_file_content = base_file_content
         self.work_dir_base_name = os.path.basename(work_dir)
 
@@ -84,7 +83,6 @@ def step_lint_repair(
     conda_path,
     conda_env,
     lint_command,
-    appmap_command,
     base_file_content,
     temperature,
 ):
@@ -95,7 +93,6 @@ def step_lint_repair(
         conda_path,
         conda_env,
         lint_command,
-        appmap_command,
         base_file_content,
     )
 
@@ -261,7 +258,6 @@ only present in the file/content to help you identify which line has the lint er
         run_navie_command(
             log_dir,
             temperature=temperature,
-            command=appmap_command,
             input_path=repair_question,
             output_path=repair_output,
             prompt_path=repair_prompt,
