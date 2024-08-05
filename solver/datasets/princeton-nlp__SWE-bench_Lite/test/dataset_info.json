@@ -1,0 +1,92 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "swe-bench_lite",
+  "dataset_size": 3759325,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/princeton-nlp/SWE-bench_Lite@81ad348adcaf3368691f4db2907f8fc97a8f7526/data/dev-00000-of-00001.parquet": {
+      "num_bytes": 119551,
+      "checksum": null
+    },
+    "hf://datasets/princeton-nlp/SWE-bench_Lite@81ad348adcaf3368691f4db2907f8fc97a8f7526/data/test-00000-of-00001.parquet": {
+      "num_bytes": 1176783,
+      "checksum": null
+    }
+  },
+  "download_size": 1296334,
+  "features": {
+    "repo": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "instance_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "base_commit": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "patch": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "test_patch": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "problem_statement": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "hints_text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "created_at": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "version": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "FAIL_TO_PASS": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "PASS_TO_PASS": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "environment_setup_commit": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 5055659,
+  "splits": {
+    "dev": {
+      "name": "dev",
+      "num_bytes": 232250,
+      "num_examples": 23,
+      "dataset_name": "swe-bench_lite"
+    },
+    "test": {
+      "name": "test",
+      "num_bytes": 3527075,
+      "num_examples": 300,
+      "dataset_name": "swe-bench_lite"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

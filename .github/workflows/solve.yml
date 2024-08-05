@@ -194,7 +194,7 @@ jobs:
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          python appmap/solve.py \
+          python solver/solve.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
             --split ${SWE_SPLIT:-dev} \
             --filter "${SWE_FILTER:-marshmallow-1343}" \
@@ -288,7 +288,7 @@ jobs:
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           conda info
-          python appmap/report.py \
+          python solver/report.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
             --split ${SWE_SPLIT:-test}
 

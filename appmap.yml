@@ -1,7 +1,8 @@
 name: swe-bench
 language: python
 packages:
-  - path: appmap
+  - path: solve
+  - path: navie
   - path: swebench
   - path: inference
 appmap_dir: tmp/appmap
