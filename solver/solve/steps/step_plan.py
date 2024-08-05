@@ -64,6 +64,8 @@ project/src/user_model.py
 
 Generate a plan to fix the issue described below. The plan should be focused on modifying the root cause of the issue.
 
+Fix the issue using the least number of changes possible.
+
 <issue>
 {issue_content}
 </issue>
