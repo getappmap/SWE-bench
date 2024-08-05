@@ -240,6 +240,12 @@ jobs:
           name: output_${{ matrix.index }}
           path: output_${{ matrix.index }}.tar.xz
           compression-level: 0
+          
+      - name: Setup upterm session
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-actor: true # Restrict to the user who triggered the workflow
+          wait-timeout-minutes: 5
 
   report:
     needs:
@@ -301,3 +307,4 @@ jobs:
             logs/
             predictions.jsonl
             results.csv
+
