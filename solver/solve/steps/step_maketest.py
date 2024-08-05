@@ -47,9 +47,9 @@ def maketest(
 """,
         format="""## Format instructions
         
-Output the result as the file path, and nothing else. Example:
+Output the result as the file path, and nothing else.
 
-project/tests/model_test.py
+Do not include line numbers or any location within the file. Just the file path.
 """,
         extension="txt",
     )
@@ -68,6 +68,12 @@ project/tests/model_test.py
     test_file = os.path.relpath(test_file, os.getcwd())
 
     print(f"[maketest] ({instance_id}) Modifying test case {test_file}")
+
+    if not os.path.exists(test_file):
+        print(
+            f"[maketest] ({instance_id}) Test file {test_file} does not exist. Skipping test generation."
+        )
+        return {"error": f"Selected test file {test_file} does not exist"}
 
     with open(test_file, "r") as f:
         test_content = f.read()
@@ -270,7 +276,7 @@ Emit a single word that indicates whether the test error is consistent with the 
         else:
             fails_for_expected_reason = True
             print(
-                f"[maketest] ({instance_id}) Test case {test_file} failed, possibly / probably for the expected reason"
+                f"[maketest] ({instance_id}) It looks like it failed for the expected reason"
             )
 
     if instance["repo"] == "django/django":

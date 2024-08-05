@@ -223,35 +223,21 @@ class Editor:
 
         return read_output(True)
 
-    def list_files(self, content, cache=True):
-        work_dir = self._work_dir("list_files")
-        input_file = os.path.join(work_dir, "list_files.input.txt")
-        output_file = os.path.join(work_dir, "list_files.json")
-
-        def read_output(save_cache):
-            files = []
-            with open(output_file, "r") as f:
-                raw_files = f.read()
-                content_items = extract_fenced_content(raw_files)
-                for list in content_items:
-                    files.extend(json.loads(list))
-
-            if save_cache:
-                self._save_cache(work_dir, content, "content")
-
-            return files
-
-        if cache and self._all_cache_valid(work_dir, content, "content"):
-            return read_output(False)
-
-        with open(input_file, "w") as f:
-            f.write(content)
-
-        Client(work_dir, self.temperature, self.token_limit, self.log).list_files(
-            input_file, output_file
+    def list_files(self, content):
+        # Scan through all the files in the content and look for file-ish regepx patterns.
+        # Select the ones that match up to real, existing files.
+        path_separator = os.path.sep
+        path_separator_escaped = re.escape(path_separator)
+        file_regexp = (
+            r"([a-zA-Z0-9_" + path_separator_escaped + r"\-]+\.(?:[a-zA-Z0-9]{1,4}))\b"
         )
 
-        return read_output(True)
+        files = list(set(re.findall(file_regexp, content)))
+        print(f"Path-like strings in content: {files}")
+        existing_files = [f for f in files if os.path.exists(f)]
+        print(f"File paths that exist on the filesystem: {existing_files}")
+
+        return existing_files
 
     def generate(
         self,
