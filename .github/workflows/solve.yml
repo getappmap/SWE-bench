@@ -6,7 +6,7 @@ on:
       filter:
         description: "Instance filter regex"
         required: false
-        default: "django-1[67]"
+        default: "marshmallow"
       dataset:
         description: "Dataset name"
         required: true
@@ -27,7 +27,7 @@ on:
       split:
         description: "Dataset split"
         required: true
-        default: test
+        default: dev
         type: choice
         options:
           - dev
