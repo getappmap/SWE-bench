@@ -195,6 +195,7 @@ jobs:
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           python solver/solve.py \
+            --keep \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
             --split ${SWE_SPLIT:-dev} \
             --filter "${SWE_FILTER:-marshmallow-1343}" \
@@ -240,7 +241,7 @@ jobs:
           name: output_${{ matrix.index }}
           path: output_${{ matrix.index }}.tar.xz
           compression-level: 0
-          
+
       - name: Setup upterm session
         uses: owenthereal/action-upterm@v1
         with:
