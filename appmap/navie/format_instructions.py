@@ -45,41 +45,21 @@ The <original> and <modified> content should be wrapped in a CDATA section to av
 <change>
 <file change-number-for-this-file="1">src/myproj/myfunc.py</file>
 <original line-count="14" no-ellipsis="true"><![CDATA[
-class DateTime(Field):
-    def bind_to_schema(self, field_name, schema):
-        self.field_name = field_name
-        self.container = schema
-        # Configure format from schema opts
-        if self.format is None and hasattr(schema, "opts"):
-            self.format = schema.opts.datetimeformat
-            self.dateformat = schema.opts.dateformat
-            self.metadata["marshmallow_field"] = self
-        # _bind_to_schema is called before processors
-        if hasattr(schema, "root"):
-            self.root = schema.root
-        if self.metadata.get("validate"):
-            self._validate = self.metadata["validate"]
+    lines of 
+    original code
+    in the file to find
+
+    for context
 ]]></original>
 <modified no-ellipsis="true"><![CDATA[
-class DateTime(Field):
-    def bind_to_schema(self, field_name, schema):
-        self.field_name = field_name
-        self.container = schema
-        # Check if 'schema' has 'opts' before accessing
-        if hasattr(schema, "opts"):
-            # Configure format from schema opts
-            if self.format is None:
-                self.format = schema.opts.datetimeformat
-                self.dateformat = schema.opts.dateformat
-            self.metadata["marshmallow_field"] = self
-            # _bind_to_schema is called before processors
-            if hasattr(schema, "root"):
-                self.root = schema.root
-            if self.metadata.get("validate"):
-                self._validate = self.metadata["validate"]
+    lines of
+    original code
+    in the file to find
 
     def new_method(self):
         pass
+        
+    for context
 ]]></modified>
 </change>
     """
