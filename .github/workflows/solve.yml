@@ -194,7 +194,6 @@ jobs:
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pip install appmap
           python appmap/solve.py \
             --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
             --split ${SWE_SPLIT:-dev} \
