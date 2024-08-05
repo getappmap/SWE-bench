@@ -3,6 +3,7 @@ import json
 import os
 import sys
 
+from appmap.navie.config import Config
 from appmap.solve.steps.step_maketest import step_maketest
 
 
@@ -43,7 +44,6 @@ class Solver:
         conda_env,
         format_command=None,
         lint_command=None,
-        appmap_command="appmap",
         steps=None,
         temperature=0.0,
         changed_files_limit=1,  # TODO: Make this configurable. It's 1 for "Lite", otherwise greater than 1
@@ -57,7 +57,6 @@ class Solver:
         self.conda_env = conda_env
         self.format_command = format_command
         self.lint_command = lint_command
-        self.appmap_command = appmap_command
         self.steps = steps or DEFAULT_STEPS
         self.temperature = temperature
         self.changed_files_limit = changed_files_limit
@@ -219,7 +218,6 @@ class Solver:
             self.conda_path,
             self.conda_env,
             self.lint_command,
-            self.appmap_command,
             self.base_file_content,
             self.temperature,
         )
@@ -249,7 +247,6 @@ class Solver:
                 self.task_manager,
                 self.work_dir,
                 self.instance_id,
-                self.appmap_command,
                 self.load_file_content(),
                 self.test_directives,
             )
@@ -322,10 +319,7 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--directory",
-        type=str,
-        help="Working directory of the project to modify",
-        default=None,
+        "--directory", type=str, help="Working directory of the project to modify"
     )
     parser.add_argument(
         "--log-dir", type=str, help="Directory to store logs", default="logs"
@@ -336,15 +330,9 @@ def parse_arguments():
         help="Path to the conda installation",
         default="conda",
     )
-    parser.add_argument(
-        "--format-command", type=str, help="Format command to use", default=None
-    )
-    parser.add_argument(
-        "--lint-command", type=str, help="Lint command to use", default=None
-    )
-    parser.add_argument(
-        "--appmap-command", type=str, help="AppMap command to use", default="appmap"
-    )
+    parser.add_argument("--format-command", type=str, help="Format command to use")
+    parser.add_argument("--lint-command", type=str, help="Lint command to use")
+    parser.add_argument("--appmap-command", type=str, help="AppMap command to use")
 
     parser.add_argument(
         "--steps",
@@ -357,12 +345,6 @@ def parse_arguments():
         type=float,
         default=0.0,
         help="(Optional) The temperature to use when running the model",
-    )
-    parser.add_argument(
-        "--temperature_increase",
-        type=float,
-        default=0.1,
-        help="(Optional) The amount to increase the temperature by on each iteration",
     )
     return parser.parse_args()
 
@@ -394,6 +376,9 @@ if __name__ == "__main__":
     instance_name = os.path.basename(os.path.dirname(os.path.dirname(args.issue_file)))
     issue_name = os.path.join(instance_name, iteration)
 
+    if args.appmap_command is not None:
+        Config.set_appmap_command(args.appmap_command)
+
     solver = Solver(
         instances_path=args.instances_path,
         instance_id=args.instance_id,
@@ -403,7 +388,6 @@ if __name__ == "__main__":
         log_dir=args.log_dir,
         format_command=args.format_command,
         lint_command=args.lint_command,
-        appmap_command=args.appmap_command,
         steps=steps,
         temperature=args.temperature,
     )

@@ -1,5 +1,6 @@
 import os
 
+from appmap.navie.config import Config
 from appmap.navie.log_print import log_print
 
 # EXCLUDE_PYTHON_TESTS_PATTERN = """(\\btesting\\b|\\btest\\b|\\btests\\b|\\btest_|_test\\.py$|\\.txt$|\\.html$|\\.rst$|\\.md$)"""
@@ -11,10 +12,6 @@ class Client:
         self.temperature = temperature
         self.token_limit = token_limit
         self.log = log
-        # TODO: Change me
-        self.appmap_command = (
-            "node /Users/kgilpin/source/appland/appmap-js/packages/cli/built/cli.js"
-        )
 
     def apply(self, file_path, replace, search=None):
         log_file = os.path.join(self.work_dir, "apply.log")
@@ -27,7 +24,7 @@ class Client:
         env = self._prepare_env()
         env_str = " ".join([f"{k}={v}" for k, v in env.items()])
 
-        cmd = f"{env_str} {self.appmap_command} apply"
+        cmd = f"{env_str} {Config.get_appmap_command()} apply"
 
         if search is not None:
             with open(search_file, "w") as search_f:
@@ -305,9 +302,9 @@ or explanations.
         self._execute(command, log_file)
 
     def _prepare_env(self):
-        env = {
-            "APPMAP_NAVIE_TEMPERATURE": str(self.temperature),
-        }
+        env = {}
+        if self.temperature:
+            env["APPMAP_NAVIE_TEMPERATURE"] = str(self.temperature)
         if self.token_limit:
             env["APPMAP_NAVIE_TOKEN_LIMIT"] = str(self.token_limit)
         return env
@@ -324,7 +321,7 @@ or explanations.
         env = self._prepare_env()
         env_str = " ".join([f"{k}={v}" for k, v in env.items()])
 
-        cmd = f"{env_str} {self.appmap_command} navie --log-navie"
+        cmd = f"{env_str} {Config.get_appmap_command()} navie --log-navie"
         if input_path:
             cmd += f" -i {input_path}"
         if context_path:

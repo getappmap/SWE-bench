@@ -3,7 +3,6 @@ import json
 from appmap.navie.editor import Editor
 
 from ..is_test_file import is_test_file
-from ..run_navie_command import run_navie_command
 
 
 import os

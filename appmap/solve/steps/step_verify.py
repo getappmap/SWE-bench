@@ -18,7 +18,6 @@ def repair_test(
     work_dir,
     instance_id,
     test_directive,
-    appmap_command,
     diff_command,
     test_output,
     file_content,
@@ -92,7 +91,6 @@ only present in the file/content to help you identify which line has the lint er
     print(f"[verify/repair] ({instance_id}) Generating code to fix test errors")
     run_navie_command(
         log_dir,
-        command=appmap_command,
         input_path=repair_question,
         output_path=repair_output,
         prompt_path=repair_prompt,
@@ -146,7 +144,6 @@ def step_verify(
     task_manager,
     work_dir,
     instance_id,
-    appmap_command,
     file_content,
     test_directives,
 ):
@@ -183,7 +180,6 @@ def step_verify(
                 work_dir,
                 instance_id,
                 test_directive,
-                appmap_command,
                 diff_command,
                 test_output,
                 file_content,

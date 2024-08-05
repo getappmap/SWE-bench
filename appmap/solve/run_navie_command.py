@@ -1,14 +1,15 @@
 import os
 
+from appmap.navie.config import Config
+
 from .log import log_command
 
 
 def run_navie_command(
     log_dir,
-    command,
     output_path,
     log_path,
-    temperature=0.0,
+    temperature=None,
     token_limit=None,
     context_path=None,
     input_path=None,
@@ -27,20 +28,19 @@ def run_navie_command(
     :return: None
     """
 
-    # TODO: Add token limit option, e.g. --ai-option tokenLimit=4000
     # TODO: Check input_path and context_path to determine file sizes.
     #       If the file sizes overflow a desired context limit, figure out how to
     #       prune them in some way.
+    command = Config.get_appmap_command()
 
-    env = {
-        "APPMAP_NAVIE_TEMPERATURE": temperature,
-    }
+    env = {}
+    if temperature:
+        env["APPMAP_NAVIE_TEMPERATURE"] = temperature
     if token_limit:
         env["APPMAP_NAVIE_TOKEN_LIMIT"] = token_limit
     env_str = " ".join([f"{k}={v}" for k, v in env.items()])
 
     cmd = f"{env_str} {command} navie --log-navie"
-    # TODO: Add token limit option, e.g. --ai-option tokenLimit=4000
     if input_path:
         cmd += f" -i {input_path}"
     if context_path:
