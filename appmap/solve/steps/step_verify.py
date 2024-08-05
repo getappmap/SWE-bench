@@ -36,9 +36,6 @@ def repair_test(
         os.path.join(repair_dir, f"generate.{ext}")
         for ext in ["txt", "prompt.md", "md", "log"]
     ]
-    repair_apply_prompt, repair_apply_output, repair_apply_log = [
-        os.path.join(repair_dir, f"apply.{ext}") for ext in ["txt", "md", "log"]
-    ]
 
     with open(repair_question, "w") as f:
         f.write(
@@ -113,7 +110,7 @@ only present in the file/content to help you identify which line has the lint er
     changes = extract_changes(repair_output_content)
     for change in changes:
         print(f"[verify/repair] ({instance_id}) Change: {change}")
-        Editor(os.path.join(repair_dir, "repair.log")).edit(
+        Editor(os.path.join(repair_dir, "repair.log")).apply(
             change.file,
             change.modified,
             search=change.original,
