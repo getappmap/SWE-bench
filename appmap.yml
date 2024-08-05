@@ -1,0 +1,7 @@
+name: swe-bench
+language: python
+packages:
+  - path: appmap
+  - path: swebench
+  - path: inference
+appmap_dir: tmp/appmap
