@@ -65,6 +65,7 @@ def solve_instance(
     solve_args = [
         "env",
         "APPMAP_LOG_LEVEL=DEBUG",
+        "APPMAP_DISPLAY_PARAMS=false",
         "appmap-python",
         "--record",
         "process",

@@ -1,7 +1,7 @@
 name: swe-bench
 language: python
 packages:
-  - path: solve
+  - path: solver
   - path: navie
   - path: swebench
   - path: inference

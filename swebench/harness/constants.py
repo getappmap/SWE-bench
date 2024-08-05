@@ -111,7 +111,7 @@ MAP_VERSION_TO_INSTALL_DJANGO.update(
     {
         k: {
             **DJANGO_DEFAULTS,
-            "python": "3.6",
+            "python": "3.8",
             "packages": "requirements.txt",
             "install": "python -m pip install -e .",
         }

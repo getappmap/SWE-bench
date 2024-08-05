@@ -7,12 +7,9 @@ django__django-13768
 django__django-14238
 django__django-14915
 django__django-16046
-matplotlib__matplotlib-23562
 psf__requests-863
 pylint-dev__pylint-5859
 pytest-dev__pytest-9359
-scikit-learn__scikit-learn-11281
-scikit-learn__scikit-learn-13779
 sphinx-doc__sphinx-8713
 sympy__sympy-11897
 sympy__sympy-13647
