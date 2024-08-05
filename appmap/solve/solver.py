@@ -3,14 +3,12 @@ import json
 import os
 import sys
 
-from appmap.navie.config import Config
-from appmap.solve.steps.step_maketest import step_maketest
-
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 
 from appmap.solve.patch import clean_patch
+from appmap.navie.config import Config
+from appmap.solve.steps.step_maketest import step_maketest
 from appmap.solve.run_command import run_command
 
 from appmap.solve.steps.read_test_directives import read_test_directives

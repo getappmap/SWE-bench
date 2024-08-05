@@ -60,6 +60,11 @@ def solve_instance(
 
     solver_path = Path(__file__).parent / "solve" / "solver.py"
     solve_args = [
+        "env",
+        "APPMAP_LOG_LEVEL=DEBUG",
+        "appmap-python",
+        "--record",
+        "process",
         "python",
         str(solver_path),
         str(issue_file),
