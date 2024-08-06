@@ -1,17 +1,15 @@
 import os
 
 from navie.config import Config
-from navie.log_print import log_print
 
 # EXCLUDE_PYTHON_TESTS_PATTERN = """(\\btesting\\b|\\btest\\b|\\btests\\b|\\btest_|_test\\.py$|\\.txt$|\\.html$|\\.rst$|\\.md$)"""
 
 
 class Client:
-    def __init__(self, work_dir, temperature=0.0, token_limit=None, log=log_print):
+    def __init__(self, work_dir, temperature=0.0, token_limit=None):
         self.work_dir = work_dir
         self.temperature = temperature
         self.token_limit = token_limit
-        self.log = log
 
     def apply(self, file_path, replace, search=None):
         log_file = os.path.join(self.work_dir, "apply.log")
@@ -34,12 +32,17 @@ class Client:
         cmd += f" -r {replace_file}"
         cmd += f" {file_path}"
         cmd += f" > {log_file} 2>&1"
-        self._execute(cmd, log_file)
+        exit_status = self._execute(cmd, log_file)
+        return exit_status == 0
 
     def compute_update(self, file_path, new_content_file, prompt_file=None):
         file_slug = "".join([c if c.isalnum() else "_" for c in file_path]).strip("_")
         log_file = os.path.join(self.work_dir, file_slug, "compute_update.log")
         output_file = os.path.join(self.work_dir, file_slug, "compute_update.txt")
+
+        self._log_request(
+            f"Computing update for file {file_path} with new content from {new_content_file}"
+        )
 
         command = self._build_command(
             input_path=file_path,
@@ -48,7 +51,8 @@ class Client:
             log_file=log_file,
             prompt_path=prompt_file,
         )
-        self._execute(command, log_file)
+        exit_status = self._execute(command, log_file)
+        return exit_status == 0
 
     def ask(self, question_file, output_file, context_file=None, prompt_file=None):
         log_file = os.path.join(self.work_dir, "ask.log")
@@ -215,11 +219,6 @@ or explanations.
     def list_files(self, plan_file, output_file):
         log_file = os.path.join(self.work_dir, "list_files.log")
         input_file = os.path.join(self.work_dir, "list_files.txt")
-        if not output_file.endswith(".json"):
-            self.log(
-                "list-files",
-                f"Expecting output file {output_file} to have extension: .json",
-            )
 
         with open(plan_file, "r") as plan_f:
             plan_content = plan_f.read()
@@ -336,7 +335,10 @@ or explanations.
         return cmd
 
     def _execute(self, command, log_file):
-        self.log(command)
+        with open(log_file, "w") as f:
+            f.write("$ ")
+            f.write(command)
+            f.write("\n\n")
 
         result = os.system(command)
 

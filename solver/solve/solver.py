@@ -130,10 +130,10 @@ class Solver:
                 )
 
             if self.steps["generate"]:
-                self.generate_code()
+                self.generate_code(i)
 
             if self.steps["apply"]:
-                self.apply_changes()
+                self.apply_changes(i)
 
             if len(self.files_changed) > 0:
                 break
@@ -192,20 +192,17 @@ class Solver:
             self.plan_file,
         )
 
-    def generate_code(self):
+    def generate_code(self, iteration):
         step_generate(
             self.work_dir,
             self.instance_id,
             self.plan_file,
             self.solution_file,
+            iteration,
         )
 
-    def apply_changes(self):
-        step_apply(
-            self.work_dir,
-            self.instance_id,
-            self.solution_file,
-        )
+    def apply_changes(self, iteration):
+        step_apply(self.work_dir, self.instance_id, self.solution_file, iteration)
         self.load_file_changes("apply")
 
     def lint_repair(self):

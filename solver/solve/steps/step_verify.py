@@ -108,7 +108,7 @@ only present in the file/content to help you identify which line has the lint er
     changes = extract_changes(repair_output_content)
     for change in changes:
         print(f"[verify/repair] ({instance_id}) Change: {change}")
-        Editor(os.path.join(repair_dir, "repair.log")).apply(
+        Editor(os.path.join(repair_dir, "repair.log"), log_dir=work_dir).apply(
             change.file,
             change.modified,
             search=change.original,
