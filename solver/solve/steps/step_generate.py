@@ -1,5 +1,4 @@
 import shutil
-import yaml
 
 from navie.editor import Editor
 from navie.format_instructions import xml_format_instructions
@@ -20,8 +19,17 @@ def step_generate(
     with open(plan_file, "r") as f:
         plan = f.read()
 
+    content = f"""@generate /exclude=test
+
+{plan}
+"""
+
     navie = Editor(os.path.join(work_dir, "generate"))
-    navie.generate(plan=plan, prompt=xml_format_instructions())
+    navie.generate(
+        plan=plan,
+        options="/noprojectinfo /include=.py /exclude=test",
+        prompt=xml_format_instructions(),
+    )
 
     output_file = os.path.join(navie.work_dir, "generate", "generate.md")
 

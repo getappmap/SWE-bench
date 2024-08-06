@@ -22,7 +22,7 @@ def step_plan(
     print(f"[plan] ({instance_id}) Searching for the root cause of the issue")
     navie = Editor(os.path.join(work_dir, "plan"))
     root_cause_search = [
-        f"""/include=.py /exclude=test
+        f"""/noprojectinfo /include=.py /exclude=test
 Find the root cause of the issue described below. The root cause is the smallest change that will fix the issue.
 
 The issue is described as follows:
@@ -52,6 +52,7 @@ Output the result as the file path, and nothing else. Example:
 
 project/src/user_model.py
 """,
+        options="/noprojectinfo /include=.py /exclude=test",
         extension="txt",
     )
 
@@ -60,9 +61,7 @@ project/src/user_model.py
     )
 
     print(f"[plan] ({instance_id}) Generating a plan to fix the issue")
-    plan_search = f"""/include=.py /exclude=test
-
-Generate a plan to fix the issue described below. The plan should be focused on modifying the root cause of the issue.
+    plan_search = f"""Generate a plan to fix the issue described below. The plan should be focused on modifying the root cause of the issue.
 
 Fix the issue using the least number of changes possible.
 
@@ -76,7 +75,7 @@ Fix the issue using the least number of changes possible.
 
 Do not include code snippets in the output. Just describe what needs to be done.
 """
-    navie.plan(plan_search)
+    navie.plan(plan_search, options="/noprojectinfo /include=.py /exclude=test")
 
     print(f"[plan] ({instance_id}) Copying the plan file to the main work directory")
 
