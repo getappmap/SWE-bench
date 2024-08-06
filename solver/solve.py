@@ -62,9 +62,14 @@ def solve_instance(
         f.write(instance["problem_statement"])
 
     solver_path = Path(__file__).parent / "solve" / "solver.py"
+    appmap_config_file = Path(__file__).parent / ".." / "appmap.yml"
+    print(f"Using appmap config file: {appmap_config_file.resolve()}")
+    if not appmap_config_file.exists():
+        raise FileNotFoundError(f"Appmap config file not found: {appmap_config_file}")
+
     solve_args = [
         "env",
-        "APPMAP_LOG_LEVEL=DEBUG",
+        f"APPMAP_CONFIG={appmap_config_file.resolve()}",
         "appmap-python",
         "--record",
         "process",
