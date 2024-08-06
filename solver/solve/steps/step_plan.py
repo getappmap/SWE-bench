@@ -20,7 +20,7 @@ def step_plan(
         issue_content = f.read()
 
     print(f"[plan] ({instance_id}) Searching for the root cause of the issue")
-    navie = Editor(os.path.join(work_dir, "plan"))
+    navie = Editor(os.path.join(work_dir, "plan"), log_dir=work_dir)
     root_cause_search = [
         f"""/noprojectinfo /include=.py /exclude=test
 Find the root cause of the issue described below. The root cause is the smallest change that will fix the issue.

@@ -14,7 +14,7 @@ def step_list(work_dir, instance_id, plan_file):
     with open(plan_file, "r") as f:
         plan = f.read()
 
-    navie = Editor(os.path.join(work_dir, "list"))
+    navie = Editor(os.path.join(work_dir, "list"), log_dir=work_dir)
     files = navie.list_files(plan)
 
     # Transform to local paths

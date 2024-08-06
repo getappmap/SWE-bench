@@ -38,9 +38,11 @@ def maketest(
     with open(issue_file, "r") as f:
         issue_content = f.read()
 
-    work_dir = os.path.join(work_dir, "maketest", str(test_number))
+    maketest_work_dir = os.path.join(work_dir, "maketest", str(test_number))
 
-    test_to_modify_str = Editor(os.path.join(work_dir, "choose")).search(
+    test_to_modify_str = Editor(
+        os.path.join(maketest_work_dir, "choose"), log_dir=work_dir
+    ).search(
         f"""Identify a single test case that is most related to the following issue:
 
 {issue_content}
@@ -57,6 +59,15 @@ Do not include line numbers or any location within the file. Just the file path.
 
     tests_to_modify_lines = "\n".join(extract_fenced_content(test_to_modify_str))
     tests_to_modify = tests_to_modify_lines.split("\n")
+
+    def resolve_test_path(test):
+        if not os.path.exists(test):
+            test_relative = test.lstrip("/")
+            if os.path.exists(test_relative):
+                return test_relative
+        return test
+
+    tests_to_modify = [resolve_test_path(test) for test in tests_to_modify]
 
     # Expect exactly one file
     if len(tests_to_modify) != 1:
@@ -80,7 +91,7 @@ Do not include line numbers or any location within the file. Just the file path.
         test_content = f.read()
         original_test_content = test_content
 
-    navie = Editor(os.path.join(work_dir, "generate"))
+    navie = Editor(os.path.join(maketest_work_dir, "generate"), log_dir=work_dir)
 
     test_prompt = f"""## Task
 
@@ -110,20 +121,22 @@ If any new imports are needed, be sure to include them.
     test_changes_content = "\n\n".join(extract_fenced_content(test_output))
 
     changes = extract_changes(test_changes_content)
-    for change in changes:
+    # Iterate through changes, with an index
+    for i, change in enumerate(changes):
         if change.original:
             print(
-                f"[maketest] ({instance_id}) Applying test change to file: {test_file}"
+                f"[maketest] ({instance_id}) Applying test change {i+1} to file: {test_file}"
             )
-            work_dir = os.path.join(work_dir, "apply")
-            Editor(work_dir).apply(
+            Editor(
+                os.path.join(maketest_work_dir, "apply", str(i + 1)), log_dir=work_dir
+            ).apply(
                 test_file,
                 change.modified,
                 search=change.original,
             )
         else:
             print(
-                f"[maketest] ({instance_id}) Planned test change has no <original> section, so it will be appended to: {test_file}"
+                f"[maketest] ({instance_id}) Planned test change {i+1} has no <original> section, so it will be appended to: {test_file}"
             )
             with open(test_file, "a") as f:
                 f.write("\n")
@@ -144,7 +157,9 @@ If any new imports are needed, be sure to include them.
             f"[maketest] ({instance_id}) Lint errors found in test file {test_file}:\n{lint_error_str}"
         )
 
-        lint_repair = Editor(os.path.join(work_dir, "lint_repair"))
+        lint_repair = Editor(
+            os.path.join(maketest_work_dir, "lint_repair"), log_dir=work_dir
+        )
         test_content_with_line_numbers = "\n".join(
             [f"{i+1:6}: {line}" for i, line in enumerate(test_content.split("\n"))]
         )
@@ -174,20 +189,21 @@ There are lint errors in the code. Fix the lint errors.
             options="/noprojectinfo /exclude=test /nolistfiles",
         )
         lint_repair_changes = extract_changes(lint_repair_content)
-        for change in lint_repair_changes:
+        for i, change in enumerate(lint_repair_changes):
             if change.original:
                 print(
-                    f"[maketest] ({instance_id}) Applying lint repair change to file: {test_file}"
+                    f"[maketest] ({instance_id}) Applying lint repair change {i+1} to file: {test_file}"
                 )
-                work_dir = os.path.join(work_dir, "apply")
-                Editor(work_dir).apply(
+                Editor(
+                    os.path.join(maketest_work_dir, "apply", str(i + 1)), log_dir=work_dir
+                ).apply(
                     test_file,
                     change.modified,
                     search=change.original,
                 )
             else:
                 print(
-                    f"[maketest] ({instance_id}) Planned lint repair change has no <original> section, so it will be appended to: {test_file}"
+                    f"[maketest] ({instance_id}) Planned lint repair change {i+1} has no <original> section, so it will be appended to: {test_file}"
                 )
                 with open(test_file, "a") as f:
                     f.write("\n")
@@ -234,7 +250,9 @@ There are lint errors in the code. Fix the lint errors.
             )
             test_error = "\n".join(error_lines[first_line_index_with_error:])
 
-        whyfailed = Editor(os.path.join(work_dir, "check")).ask(
+        whyfailed = Editor(
+            os.path.join(maketest_work_dir, "check"), log_dir=work_dir
+        ).ask(
             f"""/nocontext 
 
 <error>
@@ -291,7 +309,9 @@ Emit a single word that indicates whether the test error is consistent with the 
         error_summary=None,
     )
     if fails_for_expected_reason:
-        error_summary = Editor(os.path.join(work_dir, "summarize")).ask(
+        error_summary = Editor(
+            os.path.join(maketest_work_dir, "summarize"), log_dir=work_dir
+        ).ask(
             f"""/nocontext A test case is failing.
 
 Examine the message below. Extract the most relevant information about the error.

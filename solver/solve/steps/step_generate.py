@@ -13,18 +13,16 @@ def step_generate(
     instance_id,
     plan_file,
     solution_file,
+    iteration,
 ):
     print(f"[generate] ({instance_id}) Generating code")
 
     with open(plan_file, "r") as f:
         plan = f.read()
 
-    content = f"""@generate /exclude=test
-
-{plan}
-"""
-
-    navie = Editor(os.path.join(work_dir, "generate"))
+    navie = Editor(
+        os.path.join(work_dir, "generate", str(iteration + 1)), log_dir=work_dir
+    )
     navie.generate(
         plan=plan,
         options="/noprojectinfo /include=.py /exclude=test",

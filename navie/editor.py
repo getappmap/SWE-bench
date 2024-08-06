@@ -17,6 +17,7 @@ class Editor:
         work_dir,
         temperature=None,  # Can also be configured via the APPMAP_NAVIE_TEMPERATURE environment variable
         token_limit=None,  # Can also be configured via the APPMAP_NAVIE_TOKEN_LIMIT environment variable
+        log_dir=None,
         log=None,
         clean=Config.get_clean(),
     ):
@@ -28,9 +29,16 @@ class Editor:
         if log:
             self.log = log
         else:
-            log_file = os.path.join(self.work_dir, "navie.log")
-            log_file_handle = open(log_file, "w")
-            self.log = lambda msg: log_file_handle.write(msg + "\n")
+            log_dir = log_dir or self.work_dir
+            log_file = os.path.join(log_dir, "navie.log")
+            log_file_lock = os.path.join(log_dir, "navie.log.lock")
+
+            def log_message(msg):
+                with open(log_file_lock, "w"):
+                    with open(log_file, "a") as log_file_handle:
+                        log_file_handle.write(msg + "\n")
+
+            self.log = log_message
         self.clean = clean
 
         self._plan = None
@@ -41,16 +49,18 @@ class Editor:
         self._context = context
 
     def apply(self, filename, replace, search=None):
-        self._log_action("Applying changes", filename)
+        self._log_action("@apply", filename)
 
         filename_slug = "".join([c if c.isalnum() else "_" for c in filename]).strip(
             "_"
         )
 
         work_dir = self._work_dir("apply", filename_slug)
-        Client(work_dir, self.temperature, self.token_limit, self.log).apply(
+        succeeded = Client(work_dir, self.temperature, self.token_limit).apply(
             filename, replace, search=search
         )
+        message = "Changes applied" if succeeded else "Failed to apply changes"
+        self._log_response(message)
 
     def ask(
         self,
@@ -61,7 +71,7 @@ class Editor:
         cache=True,
         auto_context=True,
     ):
-        self._log_action("Asking", question)
+        self._log_action("@explain", options, question)
 
         work_dir = self._work_dir("ask")
         input_file = os.path.join(work_dir, "ask.input.txt")
@@ -84,7 +94,7 @@ class Editor:
                     "context",
                 )
 
-            print(f"  Output is available at {output_file}")
+            self._log_response(explanation, output_file=output_file)
 
             return explanation
 
@@ -112,7 +122,7 @@ class Editor:
         context_file = self._save_context(work_dir, "ask", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "ask", prompt)
 
-        Client(work_dir, self.temperature, self.token_limit, self.log).ask(
+        Client(work_dir, self.temperature, self.token_limit).ask(
             input_file,
             output_file,
             prompt_file=prompt_file,
@@ -126,18 +136,20 @@ class Editor:
         input_file = os.path.join(work_dir, "terms.input.txt")
         output_file = os.path.join(work_dir, "terms.json")
 
-        self._log_action("Suggesting terms for", question)
+        self._log_action("@generate (terms)", question)
 
         with open(input_file, "w") as f:
             f.write(question)
 
-        Client(work_dir, self.temperature, self.token_limit, self.log).terms(
+        Client(work_dir, self.temperature, self.token_limit).terms(
             input_file, output_file
         )
 
         with open(output_file, "r") as f:
             raw_terms = f.read()
             terms = extract_fenced_content(raw_terms)
+
+        self._log_response("\n".join(terms), output_file=output_file)
 
         return terms
 
@@ -154,7 +166,7 @@ class Editor:
         input_file = os.path.join(work_dir, "context.input.txt")
         output_file = os.path.join(work_dir, "context.yaml")
 
-        self._log_action("Searching for context", query)
+        self._log_action("@context", options, query)
 
         def read_output(save_cache):
             with open(output_file, "r") as f:
@@ -177,6 +189,8 @@ class Editor:
                 )
 
             self._context = context
+
+            self._log_response(raw_context, output_file=output_file)
 
             return context
 
@@ -203,7 +217,7 @@ class Editor:
             content.append(query)
             f.write(" ".join(content))
 
-        Client(work_dir, self.temperature, self.token_limit, self.log).context(
+        Client(work_dir, self.temperature, self.token_limit).context(
             input_file, output_file, exclude_pattern, include_pattern, vectorize_query
         )
 
@@ -222,7 +236,7 @@ class Editor:
         issue_file = os.path.join(work_dir, "plan.input.txt")
         output_file = os.path.join(work_dir, "plan.md")
 
-        self._log_action("Planning", issue)
+        self._log_action("@plan", options, issue)
 
         def read_output(save_cache):
             with open(output_file, "r") as f:
@@ -242,6 +256,8 @@ class Editor:
                 )
 
             print(f"  Output is available at {output_file}")
+
+            self._log_response(self._plan, output_file=output_file)
 
             return self._plan
 
@@ -269,7 +285,7 @@ class Editor:
         context_file = self._save_context(work_dir, "plan", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "plan", prompt)
 
-        Client(work_dir, self.temperature, self.token_limit, self.log).plan(
+        Client(work_dir, self.temperature, self.token_limit).plan(
             issue_file, output_file, context_file, prompt_file=prompt_file
         )
 
@@ -278,6 +294,9 @@ class Editor:
     def list_files(self, content):
         # Scan through all the files in the content and look for file-ish regepx patterns.
         # Select the ones that match up to real, existing files.
+
+        self._log_action("list-files", content)
+
         path_separator = os.path.sep
         path_separator_escaped = re.escape(path_separator)
         file_regexp = (
@@ -288,6 +307,8 @@ class Editor:
         print(f"Path-like strings in content: {files}")
         existing_files = [f for f in files if os.path.exists(f)]
         print(f"File paths that exist on the filesystem: {existing_files}")
+
+        self._log_response(", ".join(existing_files))
 
         return existing_files
 
@@ -312,7 +333,7 @@ class Editor:
         if not context:
             context = self._context
 
-        self._log_action("Generating", plan)
+        self._log_action("@generate", options, plan)
 
         def read_output(save_cache):
             with open(output_file, "r") as f:
@@ -332,6 +353,8 @@ class Editor:
                 )
 
             print(f"  Output is available at {output_file}")
+
+            self._log_response(code, output_file=output_file)
 
             return code
 
@@ -359,7 +382,7 @@ class Editor:
         context_file = self._save_context(work_dir, "generate", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "generate", prompt)
 
-        Client(work_dir, self.temperature, self.token_limit, self.log).generate(
+        Client(work_dir, self.temperature, self.token_limit).generate(
             plan_file,
             output_file,
             context_file=context_file,
@@ -383,7 +406,7 @@ class Editor:
         input_file = os.path.join(work_dir, "search.input.txt")
         output_file = os.path.join(work_dir, f"search.output.{extension}")
 
-        self._log_action("Searching for", query)
+        self._log_action("@search", options, query)
 
         def read_output(save_cache):
             with open(output_file, "r") as f:
@@ -405,6 +428,8 @@ class Editor:
                 )
 
             print(f"  Output is available at {output_file}")
+
+            self._log_response(search_results, output_file=output_file)
 
             return search_results
 
@@ -441,7 +466,7 @@ class Editor:
         else:
             format_file = None
 
-        Client(work_dir, self.temperature, self.token_limit, self.log).search(
+        Client(work_dir, self.temperature, self.token_limit).search(
             input_file,
             output_file,
             context_file=context_file,
@@ -467,7 +492,7 @@ class Editor:
         if not context:
             context = self._context
 
-        self._log_action("Generating a test case for", issue)
+        self._log_action("@test", options, issue)
 
         def read_output(save_cache):
             with open(output_file, "r") as f:
@@ -487,6 +512,8 @@ class Editor:
                 )
 
             print(f"  Output is available at {output_file}")
+
+            self._log_response(code, output_file=output_file)
 
             return code
 
@@ -514,7 +541,7 @@ class Editor:
         context_file = self._save_context(work_dir, "test", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "test", prompt)
 
-        Client(work_dir, self.temperature, self.token_limit, self.log).test(
+        Client(work_dir, self.temperature, self.token_limit).test(
             issue_file,
             output_file,
             context_file=context_file,
@@ -523,12 +550,23 @@ class Editor:
 
         return read_output(True)
 
-    def _log_action(self, action, content):
-        clean_content = re.sub(r"[\r\n\t\x0b\x0c]", " ", content)
+    def _log_action(self, action, *messages):
+        combined_message = " ".join([m for m in messages if m is not None and m != ""])
+        clean_content = re.sub(r"[\r\n\t\x0b\x0c]", " ", combined_message)
         clean_content = re.sub(r" +", " ", clean_content)
-        if len(clean_content) > 100:
+        if len(clean_content) > 200:
             clean_content = clean_content[:100] + "..."
-        self.log(f"{action}: {clean_content}")
+        self.log(f"{action} {clean_content}")
+
+    def _log_response(self, response, output_file=None):
+        clean_content = re.sub(r"[\r\n\t\x0b\x0c]", " ", response)
+        clean_content = re.sub(r" +", " ", clean_content)
+        if len(clean_content) > 200:
+            clean_content = clean_content[:100] + "..."
+
+        if output_file:
+            self.log(f"  {output_file}")
+        self.log(f"  {clean_content}")
 
     def _save_context(self, work_dir, name, context, auto_context):
         if context:
@@ -582,9 +620,6 @@ class Editor:
 
             content_name = contents[i + 1]
             if not self._is_cache_valid(work_dir, content, content_name):
-                self.log(
-                    f"Cache for {content_name} is invalid. The action will be performed."
-                )
                 return False
 
         return True
