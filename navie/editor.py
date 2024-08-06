@@ -52,7 +52,15 @@ class Editor:
             filename, replace, search=search
         )
 
-    def ask(self, question, prompt=None, context=None, cache=True, auto_context=True):
+    def ask(
+        self,
+        question,
+        prompt=None,
+        options=None,
+        context=None,
+        cache=True,
+        auto_context=True,
+    ):
         self._log_action("Asking", question)
 
         work_dir = self._work_dir("ask")
@@ -65,7 +73,15 @@ class Editor:
 
             if save_cache:
                 self._save_cache(
-                    work_dir, question, "question", prompt, "prompt", context, "context"
+                    work_dir,
+                    question,
+                    "question",
+                    options,
+                    "options",
+                    prompt,
+                    "prompt",
+                    context,
+                    "context",
                 )
 
             print(f"  Output is available at {output_file}")
@@ -73,13 +89,25 @@ class Editor:
             return explanation
 
         if cache and self._all_cache_valid(
-            work_dir, question, "question", prompt, "prompt", context, "context"
+            work_dir,
+            question,
+            "question",
+            options,
+            "options",
+            prompt,
+            "prompt",
+            context,
+            "context",
         ):
             print("  Using cached answer")
             return read_output(False)
 
         with open(input_file, "w") as f:
-            f.write(question)
+            content = []
+            if options:
+                content.append(options)
+            content.append(question)
+            f.write(" ".join(content))
 
         context_file = self._save_context(work_dir, "ask", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "ask", prompt)
@@ -116,6 +144,7 @@ class Editor:
     def context(
         self,
         query,
+        options=None,
         vectorize_query=True,
         exclude_pattern=None,
         include_pattern=None,
@@ -137,6 +166,8 @@ class Editor:
                     work_dir,
                     query,
                     "query",
+                    options,
+                    "options",
                     vectorize_query,
                     "vectorize",
                     exclude_pattern,
@@ -153,6 +184,8 @@ class Editor:
             work_dir,
             query,
             "query",
+            options,
+            "options",
             vectorize_query,
             "vectorize",
             exclude_pattern,
@@ -164,7 +197,11 @@ class Editor:
             return read_output(False)
 
         with open(input_file, "w") as f:
-            f.write(query)
+            content = []
+            if options:
+                content.append(options)
+            content.append(query)
+            f.write(" ".join(content))
 
         Client(work_dir, self.temperature, self.token_limit, self.log).context(
             input_file, output_file, exclude_pattern, include_pattern, vectorize_query
@@ -176,6 +213,7 @@ class Editor:
         self,
         issue,
         context=None,
+        options=None,
         prompt=None,
         cache=True,
         auto_context=True,
@@ -195,6 +233,8 @@ class Editor:
                     work_dir,
                     issue,
                     "issue",
+                    options,
+                    "options",
                     context,
                     "context",
                     prompt,
@@ -206,13 +246,25 @@ class Editor:
             return self._plan
 
         if cache and self._all_cache_valid(
-            work_dir, issue, "issue", context, "context", prompt, "prompt"
+            work_dir,
+            issue,
+            "issue",
+            options,
+            "options",
+            context,
+            "context",
+            prompt,
+            "prompt",
         ):
             print("  Using cached plan")
             return read_output(False)
 
         with open(issue_file, "w") as f:
-            f.write(issue)
+            content = []
+            if options:
+                content.append(options)
+            content.append(issue)
+            f.write(" ".join(content))
 
         context_file = self._save_context(work_dir, "plan", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "plan", prompt)
@@ -242,6 +294,7 @@ class Editor:
     def generate(
         self,
         plan=None,
+        options=None,
         context=None,
         auto_context=True,
         prompt=None,
@@ -270,6 +323,8 @@ class Editor:
                     work_dir,
                     plan,
                     "plan",
+                    options,
+                    "options",
                     context,
                     "context",
                     prompt,
@@ -281,13 +336,25 @@ class Editor:
             return code
 
         if cache and self._all_cache_valid(
-            work_dir, plan, "plan", context, "context", prompt, "prompt"
+            work_dir,
+            plan,
+            "plan",
+            options,
+            "options",
+            context,
+            "context",
+            prompt,
+            "prompt",
         ):
             print("  Using cached generated code")
             return read_output(False)
 
         with open(plan_file, "w") as f:
-            f.write(plan)
+            content = []
+            if options:
+                content.append(options)
+            content.append(plan)
+            f.write(" ".join(content))
 
         context_file = self._save_context(work_dir, "generate", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "generate", prompt)
@@ -306,13 +373,14 @@ class Editor:
         query,
         context=None,
         format=None,
+        options=None,
         prompt=None,
         cache=True,
         extension="yaml",
         auto_context=True,
     ):
         work_dir = self._work_dir("search")
-        query_file = os.path.join(work_dir, "search.input.txt")
+        input_file = os.path.join(work_dir, "search.input.txt")
         output_file = os.path.join(work_dir, f"search.output.{extension}")
 
         self._log_action("Searching for", query)
@@ -326,6 +394,8 @@ class Editor:
                     work_dir,
                     query,
                     "query",
+                    options,
+                    "options",
                     context,
                     "context",
                     prompt,
@@ -342,6 +412,8 @@ class Editor:
             work_dir,
             query,
             "query",
+            options,
+            "options",
             context,
             "context",
             prompt,
@@ -352,8 +424,12 @@ class Editor:
             print("  Using cached search results")
             return read_output(False)
 
-        with open(query_file, "w") as f:
-            f.write(query)
+        with open(input_file, "w") as f:
+            content = []
+            if options:
+                content.append(options)
+            content.append(query)
+            f.write(" ".join(content))
 
         context_file = self._save_context(work_dir, "search", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "search", prompt)
@@ -366,7 +442,7 @@ class Editor:
             format_file = None
 
         Client(work_dir, self.temperature, self.token_limit, self.log).search(
-            query_file,
+            input_file,
             output_file,
             context_file=context_file,
             prompt_file=prompt_file,
@@ -375,7 +451,15 @@ class Editor:
 
         return read_output(True)
 
-    def test(self, issue, context=None, auto_context=True, prompt=None, cache=True):
+    def test(
+        self,
+        issue,
+        context=None,
+        options=None,
+        auto_context=True,
+        prompt=None,
+        cache=True,
+    ):
         work_dir = self._work_dir("test")
         issue_file = os.path.join(work_dir, "test.input.txt")
         output_file = os.path.join(work_dir, "test.md")
@@ -391,7 +475,15 @@ class Editor:
 
             if save_cache:
                 self._save_cache(
-                    work_dir, issue, "issue", context, "context", prompt, "prompt"
+                    work_dir,
+                    issue,
+                    "issue",
+                    options,
+                    "options",
+                    context,
+                    "context",
+                    prompt,
+                    "prompt",
                 )
 
             print(f"  Output is available at {output_file}")
@@ -399,13 +491,25 @@ class Editor:
             return code
 
         if cache and self._all_cache_valid(
-            work_dir, issue, "issue", context, "context", prompt, "prompt"
+            work_dir,
+            issue,
+            "issue",
+            options,
+            "options",
+            context,
+            "context",
+            prompt,
+            "prompt",
         ):
             print("  Using cached test case")
             return read_output(False)
 
         with open(issue_file, "w") as f:
-            f.write(issue)
+            content = []
+            if options:
+                content.append(options)
+            content.append(issue)
+            f.write(" ".join(content))
 
         context_file = self._save_context(work_dir, "test", context, auto_context)
         prompt_file = self._save_prompt(work_dir, "test", prompt)
