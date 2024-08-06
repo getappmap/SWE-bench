@@ -41,7 +41,7 @@ def maketest(
     work_dir = os.path.join(work_dir, "maketest", str(test_number))
 
     test_to_modify_str = Editor(os.path.join(work_dir, "choose")).search(
-        f"""/include=test Identify a single test case that is most related to the following issue:
+        f"""Identify a single test case that is most related to the following issue:
 
 {issue_content}
 """,
@@ -51,6 +51,7 @@ Output the result as the file path, and nothing else.
 
 Do not include line numbers or any location within the file. Just the file path.
 """,
+        options="/noprojectinfo /include=test",
         extension="txt",
     )
 
@@ -101,9 +102,8 @@ If any new imports are needed, be sure to include them.
 """
 
     test_output = navie.test(
-        f"""/exclude=test
-                          
-{issue_content}""",
+        issue_content,
+        options="/noprojectinfo /nolistfiles /include=.py /exclude=test",
         prompt=test_prompt,
     )
 
@@ -171,6 +171,7 @@ There are lint errors in the code. Fix the lint errors.
 
 {xml_format_instructions()}
 """,
+            options="/noprojectinfo /exclude=test /nolistfiles",
         )
         lint_repair_changes = extract_changes(lint_repair_content)
         for change in lint_repair_changes:
