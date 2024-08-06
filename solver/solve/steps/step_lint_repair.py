@@ -183,7 +183,7 @@ def step_lint_repair(
 
         with open(repair_question, "w") as f:
             f.write(
-                """@generate /noformat /noterms
+                """@generate /noformat /noterms /nolistfiles /noprojectinfo /exclude=test
                     
 <lint-errors>
 """
