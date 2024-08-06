@@ -6,6 +6,7 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, ".."))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
+sys.path.append(os.path.join(SCRIPT_DIR, "..", "..", "submodules", "navie-editor"))
 
 <<<<<<< HEAD:appmap/solve/solver.py
 from appmap.solve.patch import clean_patch
