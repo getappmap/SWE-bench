@@ -4,7 +4,15 @@ from navie.editor import Editor
 from navie.extract_changes import extract_changes
 
 
+from .patch import git_diff, filter_patch_exclude_tests
 from .is_test_file import is_test_file
+
+
+class ApplyResponse:
+    patch: str
+
+    def __init__(self, patch):
+        self.patch = patch
 
 
 def step_apply(
@@ -12,7 +20,7 @@ def step_apply(
     instance_id,
     solution_file,
     iteration,
-):
+) -> ApplyResponse:
     with open(solution_file, "r") as f:
         solution_content = f.read()
 
@@ -37,3 +45,6 @@ def step_apply(
         )
 
     print(f"[apply] ({instance_id}) Changes applied")
+
+    patch = filter_patch_exclude_tests(git_diff(work_dir))
+    return ApplyResponse(patch=patch)

@@ -8,6 +8,7 @@ from ..log import log_diff
 from ..run_navie_command import run_navie_command
 
 from .patch import (
+    filter_patch_exclude_tests,
     filter_patch_match_file,
     git_diff,
     list_files_in_patch,
@@ -60,6 +61,11 @@ def lint_error_line_numbers_within_diff_sections(lint_errors_by_line_number, fil
         for diff_range in diff_ranges
         if diff_range[0] <= line_number <= diff_range[0] + diff_range[1]
     ]
+
+
+class LintRepairResponse:
+    def __init__(self, patch):
+        self.patch = patch
 
 
 def step_lint_repair(
@@ -325,3 +331,6 @@ only present in the file/content to help you identify which line has the lint er
                 os.path.join(context.work_dir_base_name, file),
                 "No lint errors within diff sections after repair",
             )
+
+    patch = filter_patch_exclude_tests(git_diff(log_dir))
+    return LintRepairResponse(patch)

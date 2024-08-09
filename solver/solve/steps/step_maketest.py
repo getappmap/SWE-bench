@@ -19,8 +19,31 @@ class TestError(TypedDict):
 
 class TestResult(TypedDict):
     test_directive: str
-    verifies_issue: bool
+    is_issue_reproduced: bool
     error_summary: Optional[str]
+
+
+class TestResponse:
+    def __init__(
+        self,
+        patch: str,
+        test_results: List[TestResult],
+        is_issue_reproduced: bool,
+        num_attempts: int,
+    ):
+        self.patch = patch
+        self.test_results = test_results
+        self.is_issue_reproduced = is_issue_reproduced
+        self.num_attempts = num_attempts
+
+    def errors(self):
+        results_with_error_summary = [
+            result for result in self.test_results if "error_summary" in result
+        ]
+        [result["error_summary"] for result in results_with_error_summary]
+
+    def test_directives(self):
+        return [result["test_directive"] for result in self.test_results]
 
 
 def maketest(
@@ -329,7 +352,7 @@ Emit a single word that indicates whether the test error is consistent with the 
 
     result = TestResult(
         test_directive=test_directive,
-        verifies_issue=fails_for_expected_reason,
+        is_issue_reproduced=fails_for_expected_reason,
         error_summary=None,
     )
     if fails_for_expected_reason:
@@ -369,32 +392,42 @@ def step_maketest(
     work_dir,
     lint_command,
     num_attempts,
-) -> List[TestResult]:
-    def print_test_diff():
-        file_diff = filter_patch_include_tests(git_diff(work_dir))
-        if file_diff:
-            print(f"[maketest] ({instance_id}) Generated test diff:")
-            print(file_diff)
-        else:
-            print(f"[maketest] ({instance_id}) No test changes were accepted.")
-
+) -> TestResponse:
     # Try N times to generate a test that fails for the planned reason
     instance_id = tcm.instance["instance_id"]
     test_results = []
-    for i in range(num_attempts):
-        test_result = maketest(tcm, issue_file, work_dir, lint_command, i + 1)
+    is_issue_reproduced = False
+    for attempt_number in range(num_attempts):
+        test_result = maketest(
+            tcm, issue_file, work_dir, lint_command, attempt_number + 1
+        )
         if "test_directive" in test_result:
-            if test_result["verifies_issue"]:
+            if test_result["is_issue_reproduced"]:
                 print(
                     f"[maketest] ({instance_id}) Test case {test_result['test_directive']} verifies the issue"
                 )
-                print_test_diff()
-                return [test_result]
+                is_issue_reproduced = True
+                test_results = [test_result]
+                break
+            else:
+                test_results.append(test_result)
 
-            test_results.append(test_result)
+    if not is_issue_reproduced:
+        print(
+            f"[maketest] ({tcm.instance['instance_id']}) No test cases were generated that verify the issue. Returning the first test case for pass-to-pass purposes."
+        )
 
-    print(
-        f"[maketest] ({tcm.instance['instance_id']}) No test cases were generated that verify the issue. Returning the first test case for pass-to-pass purposes."
+    file_diff = filter_patch_include_tests(git_diff(work_dir))
+    if file_diff:
+        print(f"[maketest] ({instance_id}) Generated test diff:")
+        print(file_diff)
+    else:
+        print(f"[maketest] ({instance_id}) No test changes were accepted.")
+
+    patch = filter_patch_include_tests(git_diff(work_dir))
+    return TestResponse(
+        patch,
+        test_results[0:1],
+        is_issue_reproduced,
+        attempt_number + 1,
     )
-    print_test_diff()
-    return test_results[0:1]

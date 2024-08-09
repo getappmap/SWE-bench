@@ -1,4 +1,5 @@
 import os
+from typing import List
 
 from navie.editor import Editor
 from navie.extract_changes import extract_changes
@@ -10,7 +11,11 @@ from ..run_navie_command import run_navie_command
 
 from .run_test import run_test
 from .is_test_file import is_test_file
-from .patch import filter_patch_exclude_tests, git_diff, list_files_in_patch
+from .patch import (
+    filter_patch_exclude_tests,
+    git_diff,
+    list_files_in_patch,
+)
 
 
 def repair_test(
@@ -146,12 +151,21 @@ only present in the file/content to help you identify which line has the lint er
     return True
 
 
+class VerifyResponse:
+    patch: str
+    test_directives_succeeded: List[str]
+
+    def __init__(self, patch, test_directives_succeeded):
+        self.patch = patch
+        self.test_directives_succeeded = test_directives_succeeded
+
+
 def step_verify(
     task_manager,
     work_dir,
     instance_id,
     test_directives,
-):
+) -> VerifyResponse:
     test_files_str = ", ".join(test_directives)
     print(
         f"[verify] ({instance_id}) Running verify for {instance_id}: {test_files_str}"
@@ -191,4 +205,5 @@ def step_verify(
         if succeeded:
             test_directives_succeeded.append(test_directive)
 
-    return test_directives_succeeded
+    patch = filter_patch_exclude_tests(git_diff(verify_log_dir))
+    return VerifyResponse(patch, test_directives_succeeded)
