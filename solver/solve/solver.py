@@ -8,16 +8,21 @@ sys.path.append(os.path.join(SCRIPT_DIR, ".."))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", "..", "submodules", "navie-editor"))
 
-from solve.steps.patch import filter_patch_exclude_tests, git_diff, list_files_in_patch
+from navie.config import Config
+
+from solve.steps.patch import (
+    filter_patch_exclude_tests,
+    git_diff,
+    list_files_in_patch,
+)
 from solve.steps.read_test_directives import read_test_directives
 from solve.steps.build_task_manager import build_task_manager
-from solve.steps.step_maketest import step_maketest
-from solve.steps.step_lint_repair import step_lint_repair
-from solve.steps.step_apply import step_apply
+from solve.steps.step_maketest import step_maketest, TestResponse
+from solve.steps.step_lint_repair import step_lint_repair, LintRepairResponse
+from solve.steps.step_apply import step_apply, ApplyResponse
 from solve.steps.step_generate import step_generate
-from solve.steps.step_list import step_list
 from solve.steps.step_plan import step_plan
-from solve.steps.step_verify import step_verify
+from solve.steps.step_verify import step_verify, VerifyResponse
 
 DEFAULT_STEPS = {
     "peektest": False,
@@ -27,6 +32,20 @@ DEFAULT_STEPS = {
     "apply": True,
     "verify": True,
 }
+
+
+class Solution:
+    def __init__(
+        self,
+        maketest: TestResponse,
+        apply: ApplyResponse,
+        lint_repair: LintRepairResponse,
+        verify: VerifyResponse,
+    ):
+        self.maketest = maketest
+        self.apply = apply
+        self.lint_repair = lint_repair
+        self.verify = verify
 
 
 class Solver:
@@ -78,12 +97,15 @@ class Solver:
             verbose=True,
         )
 
-        self.files = []
         self.files_changed = []
-        self.maketest_errors = []
         self.test_directives = []
 
-    def solve(self):
+        self.maketest_response = None
+        self.apply_response = None
+        self.lint_repair_response = None
+        self.verify_response = None
+
+    def solve(self) -> Solution:
         if self.steps["peektest"]:
             self.peektest()
 
@@ -114,6 +136,13 @@ class Solver:
         if self.steps["verify"]:
             self.verify()
 
+        return Solution(
+            self.maketest_response,
+            self.apply_response,
+            self.lint_repair_response,
+            self.verify_response,
+        )
+
     # Enumerate test cases that should be verified "still passing" with the valid solution.
     # Note that some test cases may be *expected* to fail with a valid solution, so this is no
     # more than a heuristic.
@@ -127,23 +156,14 @@ class Solver:
 
     # Generate a test case to verify the solution.
     def maketest(self):
-        maketest_results = step_maketest(
+        self.maketest_response = step_maketest(
             self.task_manager,
             self.issue_file,
             self.work_dir,
             self.lint_command,
             self.test_attempts,
         )
-
-        results_with_error_summary = [
-            result for result in maketest_results if "error_summary" in result
-        ]
-        self.maketest_errors = [
-            result["error_summary"] for result in results_with_error_summary
-        ]
-        self.extend_test_directives(
-            [result["test_directive"] for result in maketest_results]
-        )
+        self.extend_test_directives(self.maketest_response.test_directives())
 
     def plan(self):
         step_plan(
@@ -153,13 +173,6 @@ class Solver:
             self.changed_files_limit,
             self.plan_file,
             # maketest_errors=self.maketest_errors # TODO: Use these once the information is more reliable
-        )
-
-    def list_files(self):
-        step_list(
-            self.work_dir,
-            self.instance_id,
-            self.plan_file,
         )
 
     def generate_code(self, iteration):
@@ -172,11 +185,13 @@ class Solver:
         )
 
     def apply_changes(self, iteration):
-        step_apply(self.work_dir, self.instance_id, self.solution_file, iteration)
+        self.apply_response = step_apply(
+            self.work_dir, self.instance_id, self.solution_file, iteration
+        )
         self.load_file_changes("apply")
 
     def lint_repair(self):
-        step_lint_repair(
+        self.lint_repair_response = step_lint_repair(
             self.log_dir,
             self.work_dir,
             self.instance_id,
@@ -188,8 +203,6 @@ class Solver:
         self.load_file_changes("lint_repair")
 
     def verify(self):
-        self.test_directives_succeeded = []
-
         if not self.files_changed or len(self.files_changed) == 0:
             print(
                 f"[solver] ({self.instance_id}) No files changed. Skipping verify step."
@@ -200,14 +213,13 @@ class Solver:
             print(
                 f"[solver] ({self.instance_id}) WARN: No test directives have been collected. Skipping verify step."
             )
-            self.test_directives_succeeded = []
             return
         else:
             print(
                 f"[solver] ({self.instance_id}) Verifying solution using test directives {self.test_directives}"
             )
 
-            self.test_directives_succeeded = step_verify(
+            self.verify_response = step_verify(
                 self.task_manager,
                 self.work_dir,
                 self.instance_id,
@@ -221,24 +233,25 @@ class Solver:
     def verify_succeeded(self):
         return (
             len(self.test_directives) > 0
-            and self.test_directives == self.test_directives_succeeded
+            and self.verify_response
+            and self.test_directives == self.verify_response.test_directives_succeeded
         )
 
     def load_file_changes(self, result_name):
         print(f"[solver] ({self.instance_id}) Loading file changes")
 
-        diff_content = filter_patch_exclude_tests(git_diff(self.log_dir))
-        if diff_content:
-            self.files_changed = list_files_in_patch(diff_content)
+        patch = filter_patch_exclude_tests(git_diff(self.log_dir))
+        if patch:
+            self.files_changed = list_files_in_patch(patch)
 
-            diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
-            with open(diff_file, "w") as f:
-                f.write(diff_content)
+            patch_file = os.path.join(self.work_dir, f"{result_name}.patch")
+            with open(patch_file, "w") as f:
+                f.write(patch)
 
-            print(f"[solver] ({self.instance_id}) Diff saved to file {diff_file}")
+            print(f"[solver] ({self.instance_id}) Patch saved to file {patch_file}")
         else:
             self.files_changed = []
-            print(f"[solver] ({self.instance_id}) Diff is empty.")
+            print(f"[solver] ({self.instance_id}) Patch is empty.")
 
     def extend_test_directives(self, test_directives):
         self.test_directives = list(set(self.test_directives + test_directives))
@@ -337,7 +350,7 @@ if __name__ == "__main__":
         steps=steps,
         temperature=args.temperature,
     )
-    solver.solve()
+    solution = solver.solve()
     files_changed = solver.files_changed
 
     if len(files_changed) == 0:

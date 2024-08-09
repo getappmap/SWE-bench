@@ -203,7 +203,7 @@ def format_problem(instance: dict) -> str:
     return problem
 
 
-def print_verbose(message):
+def print_suppress(message):
     pass
 
 
@@ -243,6 +243,8 @@ if __name__ == "__main__":
 
     if args.verbose:
         print_verbose = print
+    else:
+        print_verbose = print_suppress
 
     results = []
 

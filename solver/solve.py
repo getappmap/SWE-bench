@@ -8,7 +8,6 @@ import sys
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
 from os.path import abspath
-from pathlib import Path
 from subprocess import run
 from textwrap import dedent
 
@@ -65,7 +64,7 @@ def solve_instance(
     appmap_config_file = Path(__file__).parent / ".." / "appmap.yml"
     print(f"Using appmap config file: {appmap_config_file.resolve()}")
     if not appmap_config_file.exists():
-        raise FileNotFoundError(f"Appmap config file not found: {appmap_config_file}")
+        raise FileNotFoundError(f"AppMap config file not found: {appmap_config_file}")
 
     solve_args = [
         "env",
@@ -242,17 +241,12 @@ def worker_init(data: dict):
                                 )
                                 return
 
-                            # In case this is a re-run, delete any existing patch files
                             issue_dir = (
                                 Path(log_dir)
                                 / "solve"
                                 / instance["instance_id"]
                                 / str(attempt_number + 1)
                             )
-                            for result_name in result_priority:
-                                patch_file = issue_dir / f"{result_name}.patch"
-                                if patch_file.exists():
-                                    patch_file.unlink()
 
                             solve_instance(
                                 data_dict.instances_path,
