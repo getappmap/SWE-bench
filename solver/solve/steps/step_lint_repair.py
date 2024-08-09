@@ -1,14 +1,19 @@
-from navie.config import Config
+import os
+
 from navie.editor import Editor
 from navie.extract_changes import extract_changes
-from solve.steps.lint_repair import lint_in_conda
-from ..log import log_diff
-from ..run_command import run_command
-from ..run_navie_command import run_navie_command
 from navie.format_instructions import xml_format_instructions
 
+from ..log import log_diff
+from ..run_navie_command import run_navie_command
 
-import os
+from .patch import (
+    filter_patch_match_file,
+    git_diff,
+    list_files_in_patch,
+)
+from .lint_repair import lint_in_conda
+from .is_test_file import is_test_file
 
 
 class LintRepairContext:
@@ -20,7 +25,6 @@ class LintRepairContext:
         conda_path,
         conda_env,
         lint_command,
-        base_file_content,
     ):
         self.log_dir = log_dir
         self.work_dir = work_dir
@@ -28,7 +32,6 @@ class LintRepairContext:
         self.conda_path = conda_path
         self.conda_env = conda_env
         self.lint_command = lint_command
-        self.base_file_content = base_file_content
         self.work_dir_base_name = os.path.basename(work_dir)
 
 
@@ -36,25 +39,8 @@ def norm_file_name(file):
     return file.replace("/", "_")
 
 
-def diff_file(context, file, step):
-    temp_dir = os.path.join(context.work_dir, "diff", norm_file_name(file), step)
-    os.makedirs(temp_dir, exist_ok=True)
-    # Write the base file content
-    with open(os.path.join(temp_dir, "base"), "w") as f:
-        f.write(context.base_file_content[file])
-    with open(file, "r") as f:
-        with open(os.path.join(temp_dir, "updated"), "w") as f2:
-            f2.write(f.read())
-
-    # Run the diff command
-    diff_command = (
-        f"diff -u {os.path.join(temp_dir, 'base')} {os.path.join(temp_dir, 'updated')}"
-    )
-    file_diff = run_command(context.log_dir, diff_command, fail_on_error=False)
-
-    log_diff(context.log_dir, os.path.join(context.work_dir_base_name, file), file_diff)
-
-    return file_diff
+def diff_file(log_dir, file):
+    return filter_patch_match_file(git_diff(log_dir), file)
 
 
 def lint_error_line_numbers_within_diff_sections(lint_errors_by_line_number, file_diff):
@@ -83,7 +69,6 @@ def step_lint_repair(
     conda_path,
     conda_env,
     lint_command,
-    base_file_content,
     temperature,
 ):
     context = LintRepairContext(
@@ -93,15 +78,22 @@ def step_lint_repair(
         conda_path,
         conda_env,
         lint_command,
-        base_file_content,
     )
 
-    for file in base_file_content.keys():
+    file_names = list_files_in_patch(git_diff(log_dir))
+    for file in file_names:
         if not file.endswith(".py"):
             print(
                 f"[lint-repair] ({instance_id}) Skipping {file} because it is not a Python file"
             )
             continue
+
+        if is_test_file(file):
+            print(f"[lint-repair] ({instance_id}) Skipping test file {file}")
+            continue
+
+        with open(file, "r") as f:
+            base_file_content = f.read()
 
         print(f"[lint-repair] ({instance_id}) Linting {file}")
 
@@ -117,7 +109,7 @@ def step_lint_repair(
             f"[lint-repair] ({instance_id}) Lint errors found in {file}: {lint_errors}"
         )
 
-        file_diff = diff_file(context, file, "pre")
+        file_diff = diff_file(context.log_dir, file)
 
         line_numbers = lint_error_line_numbers_within_diff_sections(
             lint_errors_by_line_number, file_diff
@@ -176,9 +168,6 @@ def step_lint_repair(
         repair_question, repair_prompt, repair_output, repair_log = [
             os.path.join(repair_dir, f"generate.{ext}")
             for ext in ["txt", "prompt.md", "md", "log"]
-        ]
-        repair_apply_question, repair_apply_output, repair_apply_log = [
-            os.path.join(repair_dir, f"apply.{ext}") for ext in ["txt", "md", "log"]
         ]
 
         with open(repair_question, "w") as f:
@@ -275,7 +264,15 @@ only present in the file/content to help you identify which line has the lint er
         changes = extract_changes(repair_output_content)
         repair_item = 1
         for change in changes:
-            print(f"[lint-repair] ({instance_id}) Applying change: {change}")
+            if is_test_file(change.file):
+                print(
+                    f"[lint-repair] ({instance_id}) Skipping change to test file: {change.file}"
+                )
+                continue
+
+            print(
+                f"[lint-repair] ({instance_id}) Applying change to file: {change.file}"
+            )
 
             work_dir = os.path.join(repair_dir, f"repair_{repair_item}")
             Editor(work_dir).apply(
@@ -288,7 +285,7 @@ only present in the file/content to help you identify which line has the lint er
         post_fix_lint_errors_by_line_number = lint_in_conda(
             context.conda_path, context.conda_env, context.lint_command, file
         )
-        post_file_diff = diff_file(context, file, "post")
+        post_file_diff = diff_file(context.log_dir, file)
 
         print(f"[lint-repair] ({instance_id}) Diff after repair:\n{post_file_diff}")
 
@@ -319,7 +316,7 @@ only present in the file/content to help you identify which line has the lint er
             print("\n".join(post_fix_lint_errors_by_line_number.values()))
             # Replace the file with the original file contents
             with open(file, "w") as f:
-                f.write(context.base_file_content[file])
+                f.write(base_file_content)
 
         else:
             print("There are no lint errors within diff sections after repair")

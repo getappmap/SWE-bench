@@ -1,14 +1,16 @@
 import os
 from typing import List, TypedDict, Optional, Union
-import yaml
 
 from navie.editor import Editor
 from navie.extract_changes import extract_changes
 from navie.fences import extract_fenced_content
 from navie.format_instructions import xml_format_instructions
-from solve.steps.lint_repair import lint_in_conda
-from solve.steps.run_test import run_test
-from solve.steps.test_files_to_modules import test_files_to_modules
+
+from .patch import filter_patch_include_tests, git_diff
+from .lint_repair import lint_in_conda
+from .run_test import run_test
+from .test_files_to_modules import test_files_to_modules
+from .is_test_file import is_test_file
 
 
 class TestError(TypedDict):
@@ -123,6 +125,12 @@ If any new imports are needed, be sure to include them.
     changes = extract_changes(test_changes_content)
     # Iterate through changes, with an index
     for i, change in enumerate(changes):
+        if not is_test_file(change.file):
+            print(
+                f"[maketest] ({instance_id}) Skipping change {i+1} to non-test file: {change.file}"
+            )
+            continue
+
         if change.original:
             print(
                 f"[maketest] ({instance_id}) Applying test change {i+1} to file: {test_file}"
@@ -144,6 +152,10 @@ If any new imports are needed, be sure to include them.
 
     with open(test_file, "r") as f:
         test_content = f.read()
+
+    print(f"[maketest] ({instance_id}) Generated test changes to {test_file}:")
+    print(filter_patch_include_tests(git_diff(work_dir)))
+    print(f"[maketest] ({instance_id}) Linting test file {test_file}")
 
     lint_errors_by_line_number = lint_in_conda(
         tcm.conda_path,
@@ -189,13 +201,21 @@ There are lint errors in the code. Fix the lint errors.
             options="/noprojectinfo /exclude=test /nolistfiles",
         )
         lint_repair_changes = extract_changes(lint_repair_content)
+
         for i, change in enumerate(lint_repair_changes):
+            if not is_test_file(change.file):
+                print(
+                    f"[maketest] ({instance_id}) Skipping lint repair change {i+1} to test file: {change.file}"
+                )
+                continue
+
             if change.original:
                 print(
                     f"[maketest] ({instance_id}) Applying lint repair change {i+1} to file: {test_file}"
                 )
                 Editor(
-                    os.path.join(maketest_work_dir, "apply", str(i + 1)), log_dir=work_dir
+                    os.path.join(maketest_work_dir, "apply", str(i + 1)),
+                    log_dir=work_dir,
                 ).apply(
                     test_file,
                     change.modified,
@@ -219,6 +239,10 @@ There are lint errors in the code. Fix the lint errors.
             print(
                 f"[maketest] ({instance_id}) Lint errors found in test file {test_file} after lint repair:\n{lint_errors_after_repair_str}"
             )
+    else:
+        print(
+            f"[maketest] ({instance_id}) No lint errors found in test file {test_file}"
+        )
 
     # TODO: Don't record appmap data of the test yet
     # succeeded, test_error = run_test(tcm, test_file, appmap=True)
@@ -237,7 +261,7 @@ There are lint errors in the code. Fix the lint errors.
         )
     else:
         print(
-            f"[maketest] ({instance_id}) Test case {test_file} failed. This is expected. Let's see if it failed for the right reason."
+            f"[maketest] ({instance_id}) Test case {test_file} failed. This is expected. Let's see if it failed for the planned reason."
         )
 
         if "ERROR" in test_error:
@@ -285,7 +309,7 @@ Emit a single word that indicates whether the test error is consistent with the 
 
         if whyfailed == "no":
             print(
-                f"[maketest] ({instance_id}) Test case {test_file} DID NOT fail for the expected reason"
+                f"[maketest] ({instance_id}) Test case {test_file} DID NOT fail for the planned reason"
             )
             print(
                 f"[maketest] ({instance_id}) Reverting test changes to {test_file} and trying again"
@@ -295,7 +319,7 @@ Emit a single word that indicates whether the test error is consistent with the 
         else:
             fails_for_expected_reason = True
             print(
-                f"[maketest] ({instance_id}) It looks like it failed for the expected reason"
+                f"[maketest] ({instance_id}) It looks like it failed for the planned reason"
             )
 
     if instance["repo"] == "django/django":
@@ -346,7 +370,15 @@ def step_maketest(
     lint_command,
     num_attempts,
 ) -> List[TestResult]:
-    # Try N times to generate a test that fails for the right reason
+    def print_test_diff():
+        file_diff = filter_patch_include_tests(git_diff(work_dir))
+        if file_diff:
+            print(f"[maketest] ({instance_id}) Generated test diff:")
+            print(file_diff)
+        else:
+            print(f"[maketest] ({instance_id}) No test changes were accepted.")
+
+    # Try N times to generate a test that fails for the planned reason
     instance_id = tcm.instance["instance_id"]
     test_results = []
     for i in range(num_attempts):
@@ -356,6 +388,7 @@ def step_maketest(
                 print(
                     f"[maketest] ({instance_id}) Test case {test_result['test_directive']} verifies the issue"
                 )
+                print_test_diff()
                 return [test_result]
 
             test_results.append(test_result)
@@ -363,4 +396,5 @@ def step_maketest(
     print(
         f"[maketest] ({tcm.instance['instance_id']}) No test cases were generated that verify the issue. Returning the first test case for pass-to-pass purposes."
     )
+    print_test_diff()
     return test_results[0:1]

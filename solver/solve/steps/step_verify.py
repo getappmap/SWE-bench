@@ -2,14 +2,15 @@ import os
 
 from navie.editor import Editor
 from navie.extract_changes import extract_changes
-from solve.steps.run_test import run_test
+from navie.format_instructions import xml_format_instructions
+
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 
-from navie.format_instructions import xml_format_instructions
 from ..run_navie_command import run_navie_command
-from ..run_command import run_command
 
-from .erase_test_changes import erase_test_changes_from_file
+from .run_test import run_test
+from .is_test_file import is_test_file
+from .patch import filter_patch_exclude_tests, git_diff, list_files_in_patch
 
 
 def repair_test(
@@ -18,9 +19,7 @@ def repair_test(
     work_dir,
     instance_id,
     test_directive,
-    diff_command,
     test_output,
-    file_content,
 ):
     # Sanitize the test directive (a filename-ish) to be suitable as a slug or pathname component.
     # Replace all non-alphanumeric characters with underscores.
@@ -38,7 +37,7 @@ def repair_test(
 
     with open(repair_question, "w") as f:
         f.write(
-            """@generate /noformat
+            """@generate /noformat /nolistfiles
 
 <test-errors>
 """
@@ -49,11 +48,16 @@ def repair_test(
 </test-errors>
 """
         )
+
         # Store each file name and text from file_content
-        for file_name, file_text in file_content.items():
+        patch = filter_patch_exclude_tests(git_diff(log_dir))
+        files = list_files_in_patch(patch)
+        for file_name in files:
+            with open(file_name, "r") as file:
+                file_text = file.read()
             file_lines = file_text.split("\n")
             file_text_with_line_numbers = "\n".join(
-                [f"{i+1}: {line}" for i, line in enumerate(file_lines)]
+                [f"{i+1:6}: {line}" for i, line in enumerate(file_lines)]
             )
             f.write(
                 f"""
@@ -101,12 +105,14 @@ only present in the file/content to help you identify which line has the lint er
         f"[verify/repair] ({instance_id}) Code generated to repair source file in {repair_output}"
     )
 
-    erase_test_changes_from_file(instance_id, repair_output)
-    with open(repair_output, "r") as f:
-        repair_output_content = f.read()
-
-    changes = extract_changes(repair_output_content)
+    changes = extract_changes(repair_output)
     for change in changes:
+        if is_test_file(change.file):
+            print(
+                f"[verify/repair] ({instance_id}) Skipping change to test file: {change.file}"
+            )
+            continue
+
         print(f"[verify/repair] ({instance_id}) Change: {change}")
         Editor(os.path.join(repair_dir, "repair.log"), log_dir=work_dir).apply(
             change.file,
@@ -116,7 +122,7 @@ only present in the file/content to help you identify which line has the lint er
 
     print(f"[verify/repair] ({instance_id}) Changes applied:")
 
-    file_diff = run_command(log_dir, diff_command, fail_on_error=True)
+    file_diff = filter_patch_exclude_tests(git_diff(log_dir))
     print(file_diff)
     repair_diff_file = os.path.join(log_dir, "solve_repair.patch")
     with open(repair_diff_file, "w") as f:
@@ -144,7 +150,6 @@ def step_verify(
     task_manager,
     work_dir,
     instance_id,
-    file_content,
     test_directives,
 ):
     test_files_str = ", ".join(test_directives)
@@ -157,9 +162,7 @@ def step_verify(
     os.makedirs(verify_dir, exist_ok=True)
     os.makedirs(verify_log_dir, exist_ok=True)
 
-    # Run the diff command
-    diff_command = "git diff"
-    file_diff = run_command(verify_log_dir, diff_command, fail_on_error=True)
+    file_diff = filter_patch_exclude_tests(git_diff(verify_log_dir))
     print(f"[verify] ({instance_id}) Current project diff:")
     print(file_diff)
     diff_file = os.path.join(verify_log_dir, "solve.patch")
@@ -180,9 +183,7 @@ def step_verify(
                 work_dir,
                 instance_id,
                 test_directive,
-                diff_command,
                 test_output,
-                file_content,
             )
             if repaired:
                 succeeded = True
