@@ -1,11 +1,8 @@
+import os
 import shutil
 
 from navie.editor import Editor
 from navie.format_instructions import xml_format_instructions
-
-from .erase_test_changes import erase_test_changes_from_file
-
-import os
 
 
 def step_generate(
@@ -30,9 +27,6 @@ def step_generate(
     )
 
     output_file = os.path.join(navie.work_dir, "generate", "generate.md")
-
-    erase_test_changes_from_file(instance_id, output_file)
+    shutil.copy(output_file, solution_file)
 
     print(f"[generate] ({instance_id}) Code generated in {solution_file}")
-
-    shutil.copy(output_file, solution_file)

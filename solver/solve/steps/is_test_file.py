@@ -1,6 +1,7 @@
 # Test file is any ".py" file whose basename starts with "test_" or ends with "_test.py"
 # or is contained with a directory named "test", "tests" or "testcases"
 import fnmatch
+from os import path
 import re
 
 test_glob_patterns = [
@@ -21,7 +22,7 @@ def is_test_file(file):
     if not file.endswith(".py"):
         return False
 
-    path_entries = file.split("/")
+    path_entries = file.split(path.sep)
     if "_pytest" in path_entries:
         return False
 
@@ -36,3 +37,7 @@ def is_test_file(file):
         return True
 
     return False
+
+
+def is_non_test_file(filename):
+    return not is_test_file(filename)

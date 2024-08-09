@@ -1,5 +1,8 @@
 {
     "ignore": [
         "submodules/**",
+        "tmp/**",
+        "venv/**",
+        "work/**",
     ],
 }

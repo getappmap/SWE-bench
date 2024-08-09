@@ -1,7 +1,10 @@
+import os
+
 from navie.editor import Editor
 from navie.extract_changes import extract_changes
 
-import os
+
+from .is_test_file import is_test_file
 
 
 def step_apply(
@@ -15,6 +18,12 @@ def step_apply(
 
     changes = extract_changes(solution_content)
     for i, change in enumerate(changes):
+        if is_test_file(change.file):
+            print(
+                f"[apply] ({instance_id}) Skipping change {iteration}/{i+1} to test file: {change.file}"
+            )
+            continue
+
         print(
             f"[apply] ({instance_id}) Applying change {iteration}/{i+1} to file: {change.file}"
         )

@@ -1,10 +1,7 @@
 import shutil
-import yaml
+import os
 
 from navie.editor import Editor
-
-
-import os
 
 
 def step_plan(

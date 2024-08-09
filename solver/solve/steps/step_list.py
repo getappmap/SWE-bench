@@ -1,11 +1,9 @@
+import os
 import json
 
 from navie.editor import Editor
 
-from ..is_test_file import is_test_file
-
-
-import os
+from .is_test_file import is_test_file
 
 
 def step_list(work_dir, instance_id, plan_file):

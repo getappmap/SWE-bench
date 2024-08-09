@@ -1,7 +1,7 @@
 import argparse
-import json
 import os
 import sys
+
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, ".."))
@@ -9,8 +9,8 @@ sys.path.append(os.path.join(SCRIPT_DIR, "..", ".."))
 sys.path.append(os.path.join(SCRIPT_DIR, "..", "..", "submodules", "navie-editor"))
 
 from navie.config import Config
-from solve.run_command import run_command
 
+from solve.steps.patch import filter_patch_exclude_tests, git_diff, list_files_in_patch
 from solve.steps.read_test_directives import read_test_directives
 from solve.steps.build_task_manager import build_task_manager
 from solve.steps.step_maketest import step_maketest
@@ -25,7 +25,6 @@ DEFAULT_STEPS = {
     "peektest": False,
     "maketest": True,
     "plan": True,
-    "list": True,
     "generate": True,
     "apply": True,
     "verify": True,
@@ -96,34 +95,6 @@ class Solver:
         if self.steps["plan"]:
             self.plan()
 
-        if self.steps["list"]:
-            self.list_files()
-
-        files_list_file = os.path.join(self.work_dir, "files.json")
-        if not os.path.isfile(files_list_file):
-            raise FileNotFoundError(
-                f"File '{files_list_file}' does not exist. You need to run the 'list' step."
-            )
-
-        with open(files_list_file, "r") as f:
-            self.files = json.load(f)
-
-        for file in self.files:
-            if not os.path.isfile(file):
-                print(
-                    f"[solver] ({self.instance_id}) WARN: File '{file}' from files.json does not exist."
-                )
-                self.files.remove(file)
-
-        if len(self.files) == 0:
-            print(
-                f"[solver] ({self.instance_id}) No files to change. Exiting without a solution."
-            )
-            return
-
-        self.base_file_content = self.load_file_content()
-
-        # Retry generate + apply in order to get a patch
         for i in range(2):
             if i > 0:
                 print(
@@ -214,7 +185,6 @@ class Solver:
             self.conda_path,
             self.conda_env,
             self.lint_command,
-            self.base_file_content,
             self.temperature,
         )
         self.load_file_changes("lint_repair")
@@ -243,7 +213,6 @@ class Solver:
                 self.task_manager,
                 self.work_dir,
                 self.instance_id,
-                self.load_file_content(),
                 self.test_directives,
             )
 
@@ -259,35 +228,19 @@ class Solver:
 
     def load_file_changes(self, result_name):
         print(f"[solver] ({self.instance_id}) Loading file changes")
-        self.files_changed = []
-        updated_file_content = self.load_file_content()
-        for file in updated_file_content:
-            if (
-                file not in self.base_file_content
-                or updated_file_content[file] != self.base_file_content[file]
-            ):
-                self.files_changed.append(file)
 
-        print(f"[solver] ({self.instance_id}) Files changed: {self.files_changed}")
+        diff_content = filter_patch_exclude_tests(git_diff(self.log_dir))
+        if diff_content:
+            self.files_changed = list_files_in_patch(diff_content)
 
-        diff_command = "git diff"
-        diff = run_command(self.log_dir, diff_command, fail_on_error=True)
-        if diff:
             diff_file = os.path.join(self.work_dir, f"{result_name}.patch")
             with open(diff_file, "w") as f:
-                f.write(diff)
+                f.write(diff_content)
 
             print(f"[solver] ({self.instance_id}) Diff saved to file {diff_file}")
         else:
+            self.files_changed = []
             print(f"[solver] ({self.instance_id}) Diff is empty.")
-
-    def load_file_content(self):
-        result = {}
-        for file in self.files:
-            if os.path.isfile(file):
-                with open(file, "r") as f:
-                    result[file] = f.read()
-        return result
 
     def extend_test_directives(self, test_directives):
         self.test_directives = list(set(self.test_directives + test_directives))
