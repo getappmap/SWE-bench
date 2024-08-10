@@ -1,6 +1,7 @@
 from navie.config import Config
-from solve.run_command import run_command
-from solve.steps.count_appmaps import count_appmaps
+
+from ..run_command import run_command
+from .count_appmaps import count_appmaps
 
 
 def index_appmaps(instance_id, log_dir):

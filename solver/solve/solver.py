@@ -17,7 +17,7 @@ from solve.steps.patch import (
 )
 from solve.steps.read_test_directives import read_test_directives
 from solve.steps.build_task_manager import build_task_manager
-from solve.steps.step_maketest import step_maketest, TestResponse
+from solve.steps.step_maketest import MaketestResult, step_maketest, PrepareTestResponse
 from solve.steps.step_lint_repair import step_lint_repair, LintRepairResponse
 from solve.steps.step_apply import step_apply, ApplyResponse
 from solve.steps.step_generate import step_generate
@@ -34,18 +34,53 @@ DEFAULT_STEPS = {
 }
 
 
+class SolutionPatch:
+    def __init__(self, name, patch):
+        self.name = name
+        self.patch = patch
+
+
 class Solution:
     def __init__(
         self,
-        maketest: TestResponse,
+        prepare_test_response: PrepareTestResponse,
         apply: ApplyResponse,
         lint_repair: LintRepairResponse,
         verify: VerifyResponse,
     ):
-        self.maketest = maketest
+        self.prepare_test_response = prepare_test_response
         self.apply = apply
         self.lint_repair = lint_repair
         self.verify = verify
+
+    def solution_patch(self):
+        if (
+            self.prepare_test_response
+            and self.prepare_test_response.is_issue_reproduced()
+            and self.verify
+            and self.verify.test_directives_succeeded
+        ):
+            return SolutionPatch("fail_to_pass", self.verify.patch)
+
+        if (
+            self.prepare_test_response
+            and self.verify
+            and self.verify.test_directives_succeeded
+        ):
+            return SolutionPatch("pass_to_pass", self.verify.patch)
+
+        if (
+            self.prepare_test_response
+            and self.verify
+            and not self.verify.test_directives_succeeded
+        ):
+            return SolutionPatch("pass_to_fail", self.verify.patch)
+
+        if self.lint_repair and self.lint_repair:
+            return SolutionPatch("lint_repair", self.lint_repair.patch)
+
+        if self.apply:
+            return SolutionPatch("apply", self.apply.patch)
 
 
 class Solver:
@@ -97,10 +132,13 @@ class Solver:
             verbose=True,
         )
 
+        print("Task manager:")
+        print(self.task_manager)
+
         self.files_changed = []
         self.test_directives = []
 
-        self.maketest_response = None
+        self.prepare_test_response = None
         self.apply_response = None
         self.lint_repair_response = None
         self.verify_response = None
@@ -137,7 +175,7 @@ class Solver:
             self.verify()
 
         return Solution(
-            self.maketest_response,
+            self.prepare_test_response,
             self.apply_response,
             self.lint_repair_response,
             self.verify_response,
@@ -151,19 +189,28 @@ class Solver:
         print(
             f"""[solver] ({self.instance_id}) Named test directives: {", ".join(test_directives)}"""
         )
+        self.prepare_test_response = PrepareTestResponse(
+            None,
+            [
+                MaketestResult(test_directive, False)
+                for test_directive in test_directives
+            ],
+            False,
+            1,
+        )
 
         self.extend_test_directives(test_directives)
 
     # Generate a test case to verify the solution.
     def maketest(self):
-        self.maketest_response = step_maketest(
+        self.prepare_test_response = step_maketest(
             self.task_manager,
             self.issue_file,
             self.work_dir,
             self.lint_command,
             self.test_attempts,
         )
-        self.extend_test_directives(self.maketest_response.test_directives())
+        self.extend_test_directives(self.prepare_test_response.test_directives())
 
     def plan(self):
         step_plan(

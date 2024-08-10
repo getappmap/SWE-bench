@@ -1,0 +1,33 @@
+name: Test
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Cache conda environment
+        id: cache-conda
+        uses: actions/cache@v4
+        with:
+          path: /usr/share/miniconda/envs/swe-bench
+          key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
+
+      - name: Create conda env
+        if: steps.cache-conda.outputs.cache-hit != 'true'
+        run: |
+          conda init bash
+          conda env create -f environment.yml
+
+      - name: Run tests
+        run: |
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate swe-bench
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest

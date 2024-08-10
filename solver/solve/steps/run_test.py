@@ -1,9 +1,8 @@
-import os
 import subprocess
-
-from solve.run_command import run_command
-from solve.steps.test_files_to_modules import test_files_to_modules
 from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
+
+from ..run_command import run_command
+from .test_files_to_modules import test_files_to_modules
 
 
 def run_test(tcm, test_file, appmap=False, files_to_directives=True):

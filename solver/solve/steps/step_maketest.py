@@ -13,28 +13,34 @@ from .test_files_to_modules import test_files_to_modules
 from .is_test_file import is_test_file
 
 
-class TestError(TypedDict):
+class MaketestError(TypedDict):
     error: str
 
 
-class TestResult(TypedDict):
+class MaketestResult(TypedDict):
     test_directive: str
     is_issue_reproduced: bool
     error_summary: Optional[str]
 
 
-class TestResponse:
+class PrepareTestResponse:
     def __init__(
         self,
-        patch: str,
-        test_results: List[TestResult],
-        is_issue_reproduced: bool,
+        patch: Optional[str],
+        test_results: List[MaketestResult],
         num_attempts: int,
     ):
         self.patch = patch
         self.test_results = test_results
-        self.is_issue_reproduced = is_issue_reproduced
         self.num_attempts = num_attempts
+
+    def is_issue_reproduced(self):
+        is_issue_reproduced_values = [
+            result["is_issue_reproduced"]
+            for result in self.test_results
+            if "is_issue_reproduced" in result
+        ]
+        return any(is_issue_reproduced_values)
 
     def errors(self):
         results_with_error_summary = [
@@ -52,7 +58,7 @@ def maketest(
     work_dir,
     lint_command,
     test_number,
-) -> Union[TestResult, TestError]:
+) -> Union[MaketestResult, MaketestError]:
     instance = tcm.instance
     instance_id = tcm.instance["instance_id"]
 
@@ -350,7 +356,7 @@ Emit a single word that indicates whether the test error is consistent with the 
     else:
         test_directive = test_file
 
-    result = TestResult(
+    result = MaketestResult(
         test_directive=test_directive,
         is_issue_reproduced=fails_for_expected_reason,
         error_summary=None,
@@ -392,11 +398,10 @@ def step_maketest(
     work_dir,
     lint_command,
     num_attempts,
-) -> TestResponse:
+) -> PrepareTestResponse:
     # Try N times to generate a test that fails for the planned reason
     instance_id = tcm.instance["instance_id"]
     test_results = []
-    is_issue_reproduced = False
     for attempt_number in range(num_attempts):
         test_result = maketest(
             tcm, issue_file, work_dir, lint_command, attempt_number + 1
@@ -406,17 +411,10 @@ def step_maketest(
                 print(
                     f"[maketest] ({instance_id}) Test case {test_result['test_directive']} verifies the issue"
                 )
-                is_issue_reproduced = True
                 test_results = [test_result]
                 break
             else:
                 test_results.append(test_result)
-
-    if not is_issue_reproduced:
-        print(
-            f"[maketest] ({tcm.instance['instance_id']}) No test cases were generated that verify the issue. Returning the first test case for pass-to-pass purposes."
-        )
-
     file_diff = filter_patch_include_tests(git_diff(work_dir))
     if file_diff:
         print(f"[maketest] ({instance_id}) Generated test diff:")
@@ -425,9 +423,15 @@ def step_maketest(
         print(f"[maketest] ({instance_id}) No test changes were accepted.")
 
     patch = filter_patch_include_tests(git_diff(work_dir))
-    return TestResponse(
+    response = PrepareTestResponse(
         patch,
         test_results[0:1],
-        is_issue_reproduced,
         attempt_number + 1,
     )
+
+    if not response.is_issue_reproduced():
+        print(
+            f"[maketest] ({tcm.instance['instance_id']}) No test cases were generated that verify the issue. Returning the first test case for pass-to-pass purposes."
+        )
+
+    return response

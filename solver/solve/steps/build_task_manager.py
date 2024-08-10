@@ -1,8 +1,8 @@
-from solve.data import load_data
+import os
+
 from swebench.harness.context_manager import TaskEnvContextManager
 
-
-import os
+from ..data import load_data
 
 
 def build_task_manager(

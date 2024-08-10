@@ -1,6 +1,6 @@
 import re
 
-from solve.steps.test_files_to_modules import test_files_to_modules
+from .test_files_to_modules import test_files_to_modules
 
 
 DATA_FILE_EXTS = [

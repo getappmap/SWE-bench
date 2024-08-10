@@ -1,0 +1,28 @@
+@search /noformat /noprojectinfo /include=test Identify a single test case that is most related to the following issue:
+
+[version 2.20.0] TypeError: 'NoneType' object is not subscriptable
+After update from version 2.19.5 to 2.20.0 I got error for code like:
+
+```python
+from marshmallow import Schema, fields, validates
+
+
+class Bar(Schema):
+    value = fields.String()
+
+    @validates('value')  # <- issue here
+    def validate_value(self, value):
+        pass
+
+
+class Foo(Schema):
+    bar = fields.Nested(Bar)
+
+
+sch = Foo()
+
+sch.validate({
+    'bar': 'invalid',
+})
+```
+
