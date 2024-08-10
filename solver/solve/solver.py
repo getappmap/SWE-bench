@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 
@@ -313,6 +314,13 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        "--output-file",
+        type=str,
+        help="File to write the solution to",
+        default="solution.json",
+    )
+
+    parser.add_argument(
         "--instances-path",
         type=str,
         help="Path to candidate task instances file",
@@ -399,6 +407,47 @@ if __name__ == "__main__":
     )
     solution = solver.solve()
     files_changed = solver.files_changed
+
+    solution_output = {}
+
+    patch_names = []
+    if solution.prepare_test_response:
+        patch_names.append("prepare_test")
+        solution_output["prepare_test_patch"] = solution.prepare_test_response.patch
+        solution_output["prepare_test_num_attempts"] = (
+            solution.prepare_test_response.num_attempts
+        )
+        solution_output["prepare_test_is_issue_reproduced"] = (
+            solution.prepare_test_response.is_issue_reproduced()
+        )
+        solution_output["prepare_test_directives"] = (
+            solution.prepare_test_response.test_directives()
+        )
+
+    if solution.apply:
+        patch_names.append("apply")
+        solution_output["apply_patch"] = solution.apply.patch
+
+    if solution.lint_repair:
+        patch_names.append("lint_repair")
+        solution_output["lint_repair_patch"] = solution.lint_repair.patch
+
+    if solution.verify:
+        patch_names.append("verify")
+        solution_output["verify_patch"] = solution.verify.patch
+        solution_output["verify_test_directives_succeeded"] = (
+            solution.verify.test_directives_succeeded
+        )
+
+    patch = solution.solution_patch()
+    if patch:
+        solution_output["patch_name"] = patch.name
+        solution_output["patch"] = patch.patch
+    else:
+        print(f"[solver] WARN: No patch found for {issue_name}.")
+
+    with open(args.output_file, "w") as f:
+        f.write(json.dumps(solution_output))
 
     if len(files_changed) == 0:
         print(f"[solver] WARN: No files changed for {issue_name}.")
