@@ -60,8 +60,11 @@ def solve_instance(
     with open(issue_file, "w") as f:
         f.write(instance["problem_statement"])
 
+    output_file = issue_dir / "solution.json"
+
     solver_path = Path(__file__).parent / "solve" / "solver.py"
     appmap_config_file = Path(__file__).parent / ".." / "appmap.yml"
+
     print(f"Using appmap config file: {appmap_config_file.resolve()}")
     if not appmap_config_file.exists():
         raise FileNotFoundError(f"AppMap config file not found: {appmap_config_file}")
@@ -85,6 +88,8 @@ def solve_instance(
         log_dir,
         "--temperature",
         str(temperature),
+        "--output-file",
+        output_file,
     ]
 
     if appmap_command is not None:
@@ -100,6 +105,9 @@ def solve_instance(
         print(
             f"Solver reported exit code {solve_result.returncode} for {instance['instance_id']}/{iteration + 1}."
         )
+
+    solution = json.loads(output_file.read_text())
+    return solution
 
 
 def print_disk_space(path, description):
@@ -247,7 +255,7 @@ def worker_init(data: dict):
                                 / str(attempt_number + 1)
                             )
 
-                            solve_instance(
+                            solution = solve_instance(
                                 data_dict.instances_path,
                                 instance,
                                 log_dir,
@@ -260,6 +268,9 @@ def worker_init(data: dict):
                                 temperature,
                             )
 
+                            print(f"[solve] ({instance_id}) Solution: {solution}")
+
+                            # TODO: Remove this and use the results from the solution file instead.
                             patches_obtained = []
                             for result_name in result_priority:
                                 patch_file = Path(issue_dir) / f"{result_name}.patch"
