@@ -2,8 +2,14 @@ import argparse
 import csv
 import json
 import os
+import sys
 
 from swebench import get_model_report
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(SCRIPT_DIR, ".."))
+
+from solver.solve.solver import SolutionResponse
 
 
 def main(predictions, instances, log_dir, model, split, save_results, verbose, output):
@@ -37,6 +43,9 @@ def read_predictions(predictions_path: str) -> list[dict]:
 
 def write_csv_report(report_map, predictions: list[dict], split, output_csv_path):
     categories = [key for key in report_map.keys() if key != "no_generation"]
+    categories.extend(
+        [f"model_{field_name}" for field_name in SolutionResponse.EXT_FIELDS.keys()]
+    )
     # Prepare CSV headers
     headers = [
         "instance_id",
@@ -62,8 +71,16 @@ def write_csv_report(report_map, predictions: list[dict], split, output_csv_path
 
             row["model_patch_name"] = instance.get("model_patch_name", "")
             row["model_iteration"] = instance.get("model_iteration", "")
-            row["model_lint_repair"] = instance.get("model_lint_repair", "")
-            row["model_test_repair"] = instance.get("model_test_repair", "")
+            row["model_lint_repair"] = instance.get("model_lint_repair_patch", "") != ""
+            # TODO: Revive model_test_repair field
+            row["model_test_repair"] = instance.get("model_test_repair_patch", "") != ""
+
+            for field_name, type in SolutionResponse.EXT_FIELDS.items():
+                value = instance.get(f"model_{field_name}", "")
+                if type == bool:
+                    value = True if value else False
+
+                row[f"model_{field_name}"] = value
 
             writer.writerow(row)
 
