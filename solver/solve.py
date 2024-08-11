@@ -1,4 +1,5 @@
 import argparse
+from copy import copy
 import json
 import os
 import random
@@ -10,13 +11,14 @@ from pathlib import Path
 from os.path import abspath
 from subprocess import run
 from textwrap import dedent
+from typing import Optional
 
 from datasets import Dataset
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, ".."))
 
-from solver.solve.solver import DEFAULT_STEPS
+from solver.solve.solver import DEFAULT_STEPS, SolutionResponse
 
 from solver.solve.data import load_data
 from filelock import FileLock
@@ -27,18 +29,31 @@ from swebench.harness.context_manager import (
 from swebench.harness.utils import DotDict, split_instances
 
 
-def output_results(instance, output_file, patch_data):
-    instance["model_patch"] = patch_data["patch"] if patch_data is not None else None
+def output_results(
+    instance,
+    output_file,
+    solution: Optional[SolutionResponse],
+    iteration: Optional[int],
+):
     instance["model_name_or_path"] = "navie"
-    if patch_data is not None:
-        instance["model_patch_name"] = patch_data["name"]
-        instance["model_iteration"] = patch_data["iteration"]
-        instance["model_lint_repair"] = patch_data["lint_repair"]
-        instance["model_test_repair"] = patch_data["test_repair"]
+    if iteration is not None:
+        instance["model_iteration"] = iteration
+    if solution:
+        solution_data = solution.to_dict()
+
+        if "patch" in solution_data:
+            instance["model_patch"] = solution_data.pop("patch")
+            instance["model_patch_name"] = solution_data.pop("patch_name")
+
+        for k, v in solution_data.items():
+            instance_key = f"model_{k}"
+            instance[instance_key] = v
 
     with FileLock(f"{output_file}.lock"):
         with open(output_file, "a+") as f:
             f.write(json.dumps(instance) + "\n")
+
+    print(f"[solve] Output written to {output_file}")
 
 
 def solve_instance(
@@ -52,7 +67,7 @@ def solve_instance(
     iteration,
     steps,
     temperature,
-):
+) -> Optional[SolutionResponse]:
     print_disk_spaces(testbed)
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
     issue_dir.mkdir(parents=True, exist_ok=True)
@@ -106,8 +121,11 @@ def solve_instance(
             f"Solver reported exit code {solve_result.returncode} for {instance['instance_id']}/{iteration + 1}."
         )
 
-    solution = json.loads(output_file.read_text())
-    return solution
+    if not output_file.exists():
+        print(f"Solver did not produce output file {output_file}")
+        return None
+
+    return SolutionResponse.from_json(output_file.read_text())
 
 
 def print_disk_space(path, description):
@@ -217,8 +235,7 @@ def worker_init(data: dict):
 
                     print(f"[solve] ({instance_id}) Result priority: {result_priority}")
 
-                    patches = {}
-                    patches_by_attempt = []
+                    solutions = []
                     temperature = data_dict.temperature
                     temperature_increase = data_dict.temperature_increase
 
@@ -249,13 +266,6 @@ def worker_init(data: dict):
                                 )
                                 return
 
-                            issue_dir = (
-                                Path(log_dir)
-                                / "solve"
-                                / instance["instance_id"]
-                                / str(attempt_number + 1)
-                            )
-
                             solution = solve_instance(
                                 data_dict.instances_path,
                                 instance,
@@ -269,97 +279,40 @@ def worker_init(data: dict):
                                 temperature,
                             )
 
-                            print(f"[solve] ({instance_id}) Solution: {solution}")
-
-                            # TODO: Remove this and use the results from the solution file instead.
-                            patches_obtained = []
-                            for result_name in result_priority:
-                                patch_file = Path(issue_dir) / f"{result_name}.patch"
-                                if patch_file.exists():
-                                    patches_obtained.append(result_name)
-                            # Place patches in the order they were attained.
-                            patches_obtained.reverse()
-                            patches_by_attempt.append(patches_obtained)
-
-                            # Find the first existing patch file in the issue_dir for the iteration.
-                            # This code is relying on the patches being written by the solver as it proceeds through its steps.
-                            # Iterate from higest to lowest quality level.
-                            for result_name in result_priority:
-                                patch_file = Path(issue_dir) / f"{result_name}.patch"
-                                # If there is a patch available at this quality level that we haven't seen before, store it and
-                                # exit the loop.
-                                if patch_file.exists() and not patches.get(result_name):
-                                    patch = patch_file.read_text()
-                                    if not patch:
-                                        continue
-                                    iteration = attempt_number + 1
-                                    print(
-                                        f"[solve] ({instance_id}) Patch generated for '{result_name}' on iteration {iteration}"
-                                    )
-                                    patches[result_name] = {
-                                        "name": result_name,
-                                        "patch": patch,
-                                        "iteration": iteration,
-                                    }
-                                    break
-
-                            # If we have a patch at the highest quality level, we can break out of the loop.
-                            if len(result_priority) and result_priority[0] in patches:
+                            if solution and solution.patch_name:
                                 print(
-                                    f"[solve] ({instance_id}) This is the highest solution level attainable. Exiting solve loop."
+                                    f"[solve] ({instance_id}) Solution generated with quality '{solution.patch_name}' on iteration {attempt_number + 1}"
                                 )
-                                break
+                                solutions.append(solution)
+                                if solution.patch_name == SolutionResponse.BEST_PATCH:
+                                    print(
+                                        f"[solve] ({instance_id}) This is the highest solution quality level attainable. Exiting solve loop."
+                                    )
+                                    break
+                            else:
+                                print(
+                                    f"[solve] ({instance_id}) No solution generated on iteration {attempt_number + 1}"
+                                )
 
-                            # Otherwise, we need to try again; or give up if we've reached the maximum number of attempts.
+                            # No optimal solution generated, so try again; or give up if we've reached the maximum number of attempts.
                             attempt_number += 1
                             temperature += temperature_increase
-
                             if attempt_number >= retries:
                                 print(
-                                    f"[solve] ({instance_id}) Giving up after {attempt_number} attempts"
+                                    f"[solve] ({instance_id}) Halting after {attempt_number} attempts"
                                 )
 
-                        # Output the highest quality patch that was found.
-                        patch_data = None
-                        for result_name in result_priority:
-                            if patches.get(result_name):
-                                patch_data = patches[result_name]
-                                iteration = patch_data["iteration"]
-                                print(
-                                    f"[solve] ({instance_id}) Submitting {result_name} patch from attempt {iteration}"
-                                )
-                                break
-
-                        if patch_data:
-                            # Lint repair occurred if the work directory exists
-                            lint_repair_dir = (
-                                Path(log_dir)
-                                / "solve"
-                                / instance["instance_id"]
-                                / str(iteration)
-                                / "lint_repair"
+                        if len(solutions) > 0:
+                            solutions_sorted = copy(solutions)
+                            solutions_sorted.sort()
+                            solution = solutions_sorted[-1]
+                            iteration = solutions.index(solution)
+                            output_results(
+                                instance, output_file, solution, iteration + 1
                             )
-                            patch_data["lint_repair"] = (
-                                True if lint_repair_dir.exists() else False
-                            )
-
-                            # Same with test repair
-                            test_repair_dir = (
-                                Path(log_dir)
-                                / "solve"
-                                / instance["instance_id"]
-                                / str(iteration)
-                                / "test_repair"
-                            )
-                            patch_data["test_repair"] = (
-                                True if test_repair_dir.exists() else False
-                            )
-
-                            output_results(instance, output_file, patch_data)
                         else:
-                            temperature += temperature_increase
                             print(f"[solve] ({instance_id}) No patch generated")
-                            output_results(instance, output_file, None)
+                            output_results(instance, output_file)
 
                     except Exception:
                         print(f"[solve] ({instance_id}) Error:")

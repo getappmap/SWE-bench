@@ -34,11 +34,101 @@ DEFAULT_STEPS = {
     "verify": True,
 }
 
+# Patch names in order of increasing quality.
+PATCH_NAMES = [
+    "apply",
+    "lint_repair",
+    "pass_to_fail",
+    "pass_to_pass",
+    "fail_to_pass",
+]
 
-class SolutionPatch:
-    def __init__(self, name, patch):
-        self.name = name
+
+class SolutionResponse:
+    BEST_PATCH = PATCH_NAMES[-1]
+
+    EXT_FIELDS = {
+        "prepare_test_patch": bool,
+        "prepare_test_num_attempts": int,
+        "is_issue_reproduced": bool,
+    }
+
+    def __init__(
+        self,
+        patch_name,
+        patch,
+        prepare_test_patch,
+        prepare_test_num_attempts,
+        test_directives,
+        is_issue_reproduced,
+        apply_patch,
+        lint_repair_patch,
+        verify_patch,
+        verify_test_directives_succeeded,
+    ):
+        if patch_name and not patch_name in PATCH_NAMES:
+            raise ValueError(f"Invalid patch name: {patch_name}")
+        self.patch_name = patch_name
         self.patch = patch
+        self.prepare_test_patch = prepare_test_patch
+        self.prepare_test_num_attempts = prepare_test_num_attempts
+        self.test_directives = test_directives
+        self.is_issue_reproduced = is_issue_reproduced
+        self.apply_patch = apply_patch
+        self.lint_repair_patch = lint_repair_patch
+        self.verify_patch = verify_patch
+        self.verify_test_directives_succeeded = verify_test_directives_succeeded
+
+    def to_dict(self):
+        return {
+            "patch_name": self.patch_name,
+            "patch": self.patch,
+            "prepare_test_patch": self.prepare_test_patch,
+            "prepare_test_num_attempts": self.prepare_test_num_attempts,
+            "test_directives": self.test_directives,
+            "is_issue_reproduced": self.is_issue_reproduced,
+            "apply_patch": self.apply_patch,
+            "lint_repair_patch": self.lint_repair_patch,
+            "verify_patch": self.verify_patch,
+            "verify_test_directives_succeeded": self.verify_test_directives_succeeded,
+        }
+
+    @staticmethod
+    def from_dict(d):
+        return SolutionResponse(
+            d["patch_name"],
+            d["patch"],
+            d["prepare_test_patch"],
+            d["prepare_test_num_attempts"],
+            d["test_directives"],
+            d["is_issue_reproduced"],
+            d["apply_patch"],
+            d["lint_repair_patch"],
+            d["verify_patch"],
+            d["verify_test_directives_succeeded"],
+        )
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
+
+    def from_json(json_str):
+        return SolutionResponse.from_dict(json.loads(json_str))
+
+    def __lt__(self, other):
+        return (
+            SolutionResponse.compare_patch_names(self.patch_name, other.patch_name) < 0
+        )
+
+    @staticmethod
+    def patch_name_priority(patch_name):
+        return PATCH_NAMES.index(patch_name)
+
+    # Compare patch names
+    @staticmethod
+    def compare_patch_names(first, second):
+        return SolutionResponse.patch_name_priority(
+            first
+        ) - SolutionResponse.patch_name_priority(second)
 
 
 class Solution:
@@ -54,34 +144,80 @@ class Solution:
         self.lint_repair = lint_repair
         self.verify = verify
 
-    def solution_patch(self):
+    def solution_response(self) -> SolutionResponse:
+        patch_names = []
+        prepare_test_patch = None
+        prepare_test_num_attempts = 0
+        test_directives = []
+        is_issue_reproduced = False
+        apply_patch = None
+        lint_repair_patch = None
+        verify_patch = None
+        verify_test_directives_succeeded = []
+        patch_name = None
+        patch = None
+
+        if solution.prepare_test_response:
+            patch_names.append("prepare_test")
+            prepare_test_patch = solution.prepare_test_response.patch
+            prepare_test_num_attempts = solution.prepare_test_response.num_attempts
+            is_issue_reproduced = solution.prepare_test_response.is_issue_reproduced()
+            test_directives = solution.prepare_test_response.test_directives()
+
+        if solution.apply:
+            patch_names.append("apply")
+            apply_patch = solution.apply.patch
+
+        if solution.lint_repair:
+            patch_names.append("lint_repair")
+            lint_repair_patch = solution.lint_repair.patch
+
+        if solution.verify:
+            patch_names.append("verify")
+            verify_patch = solution.verify.patch
+            verify_test_directives_succeeded = solution.verify.test_directives_succeeded
+
         if (
             self.prepare_test_response
             and self.prepare_test_response.is_issue_reproduced()
             and self.verify
             and self.verify.test_directives_succeeded
         ):
-            return SolutionPatch("fail_to_pass", self.verify.patch)
-
-        if (
+            patch_name = "fail_to_pass"
+            patch = self.verify.patch
+        elif (
             self.prepare_test_response
             and self.verify
             and self.verify.test_directives_succeeded
         ):
-            return SolutionPatch("pass_to_pass", self.verify.patch)
-
-        if (
+            patch_name = "pass_to_pass"
+            patch = self.verify.patch
+        elif (
             self.prepare_test_response
             and self.verify
             and not self.verify.test_directives_succeeded
         ):
-            return SolutionPatch("pass_to_fail", self.verify.patch)
+            patch_name = "pass_to_fail"
+            patch = self.verify.patch
+        elif self.lint_repair and self.lint_repair.patch:
+            patch_name = "lint_repair"
+            patch = self.lint_repair.patch
+        elif self.apply and self.apply.patch:
+            patch_name = "apply"
+            patch = self.apply.patch
 
-        if self.lint_repair and self.lint_repair:
-            return SolutionPatch("lint_repair", self.lint_repair.patch)
-
-        if self.apply:
-            return SolutionPatch("apply", self.apply.patch)
+        return SolutionResponse(
+            patch_name,
+            patch,
+            prepare_test_patch,
+            prepare_test_num_attempts,
+            test_directives,
+            is_issue_reproduced,
+            apply_patch,
+            lint_repair_patch,
+            verify_patch,
+            verify_test_directives_succeeded,
+        )
 
 
 class Solver:
@@ -408,46 +544,9 @@ if __name__ == "__main__":
     solution = solver.solve()
     files_changed = solver.files_changed
 
-    solution_output = {}
-
-    patch_names = []
-    if solution.prepare_test_response:
-        patch_names.append("prepare_test")
-        solution_output["prepare_test_patch"] = solution.prepare_test_response.patch
-        solution_output["prepare_test_num_attempts"] = (
-            solution.prepare_test_response.num_attempts
-        )
-        solution_output["prepare_test_is_issue_reproduced"] = (
-            solution.prepare_test_response.is_issue_reproduced()
-        )
-        solution_output["prepare_test_directives"] = (
-            solution.prepare_test_response.test_directives()
-        )
-
-    if solution.apply:
-        patch_names.append("apply")
-        solution_output["apply_patch"] = solution.apply.patch
-
-    if solution.lint_repair:
-        patch_names.append("lint_repair")
-        solution_output["lint_repair_patch"] = solution.lint_repair.patch
-
-    if solution.verify:
-        patch_names.append("verify")
-        solution_output["verify_patch"] = solution.verify.patch
-        solution_output["verify_test_directives_succeeded"] = (
-            solution.verify.test_directives_succeeded
-        )
-
-    patch = solution.solution_patch()
-    if patch:
-        solution_output["patch_name"] = patch.name
-        solution_output["patch"] = patch.patch
-    else:
-        print(f"[solver] WARN: No patch found for {issue_name}.")
-
+    solution_response = solution.solution_response()
     with open(args.output_file, "w") as f:
-        f.write(json.dumps(solution_output))
+        f.write(solution_response.to_json())
 
     if len(files_changed) == 0:
         print(f"[solver] WARN: No files changed for {issue_name}.")
