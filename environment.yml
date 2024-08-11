@@ -22,4 +22,5 @@ dependencies:
     - protobuf
     - pygithub
     - unidiff
+    - pytest
   - conda-forge::gh
