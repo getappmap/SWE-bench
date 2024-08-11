@@ -269,9 +269,6 @@ class Solver:
             verbose=True,
         )
 
-        print("Task manager:")
-        print(self.task_manager)
-
         self.files_changed = []
         self.test_directives = []
 

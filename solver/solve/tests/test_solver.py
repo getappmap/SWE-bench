@@ -86,7 +86,17 @@ class TestSolver(unittest.TestCase):
             self.steps,
         )
 
-        solution = solver.solve()
+        def load_file_changes_side_effect(solver, result_name):
+            solver.files_changed = ["file1.py", "file2.py"]
+
+        with patch.object(
+            solver,
+            "load_file_changes",
+            side_effect=lambda result_name: load_file_changes_side_effect(
+                solver, result_name
+            ),
+        ):
+            solution = solver.solve()
 
         # Verify that each step function was called
         mock_step_maketest.assert_called_once()
@@ -104,6 +114,7 @@ class TestSolver(unittest.TestCase):
         self.assertIsNotNone(solution.lint_repair)
         self.assertIsNotNone(solution.verify)
 
+        self.assertEqual(solver.files_changed, ["file1.py", "file2.py"])
         self.assertTrue(solution.prepare_test_response.is_issue_reproduced())
         self.assertEqual(solution.apply.patch, "the-apply-patch")
         self.assertEqual(solution.verify.patch, "the-verify-patch")
