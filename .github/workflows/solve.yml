@@ -173,7 +173,8 @@ jobs:
             --temp_dir "${{ runner.temp }}" \
             --path_conda $(conda info --base) \
             --num_runners "${NUM_RUNNERS:-1}" \
-            --runner_index "${{ matrix.index }}"
+            --runner_index "${{ matrix.index }}" \
+            --filter psf__requests-863
 
       - name: Run evaluation
         run: |
