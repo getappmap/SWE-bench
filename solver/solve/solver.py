@@ -51,6 +51,7 @@ class SolutionResponse:
         "prepare_test_patch": bool,
         "prepare_test_num_attempts": int,
         "is_issue_reproduced": bool,
+        "verify_succeeded": bool,
     }
 
     def __init__(
@@ -63,6 +64,7 @@ class SolutionResponse:
         is_issue_reproduced,
         apply_patch,
         lint_repair_patch,
+        verify_succeeded,
         verify_patch,
         verify_test_directives_succeeded,
     ):
@@ -76,6 +78,7 @@ class SolutionResponse:
         self.is_issue_reproduced = is_issue_reproduced
         self.apply_patch = apply_patch
         self.lint_repair_patch = lint_repair_patch
+        self.verify_succeeded = verify_succeeded
         self.verify_patch = verify_patch
         self.verify_test_directives_succeeded = verify_test_directives_succeeded
 
@@ -89,6 +92,7 @@ class SolutionResponse:
             "is_issue_reproduced": self.is_issue_reproduced,
             "apply_patch": self.apply_patch,
             "lint_repair_patch": self.lint_repair_patch,
+            "verify_succeeded": self.verify_succeeded,
             "verify_patch": self.verify_patch,
             "verify_test_directives_succeeded": self.verify_test_directives_succeeded,
         }
@@ -104,6 +108,7 @@ class SolutionResponse:
             d["is_issue_reproduced"],
             d["apply_patch"],
             d["lint_repair_patch"],
+            d["verify_succeeded"],
             d["verify_patch"],
             d["verify_test_directives_succeeded"],
         )
@@ -174,6 +179,7 @@ class Solution:
 
         if solution.verify:
             patch_names.append("verify")
+            verify_succeeded = solution.verify.succeeded
             verify_patch = solution.verify.patch
             verify_test_directives_succeeded = solution.verify.test_directives_succeeded
 
@@ -215,6 +221,7 @@ class Solution:
             is_issue_reproduced,
             apply_patch,
             lint_repair_patch,
+            verify_succeeded,
             verify_patch,
             verify_test_directives_succeeded,
         )
@@ -412,11 +419,7 @@ class Solver:
         self.load_file_changes(result_name)
 
     def verify_succeeded(self):
-        return (
-            len(self.test_directives) > 0
-            and self.verify_response
-            and self.test_directives == self.verify_response.test_directives_succeeded
-        )
+        return self.verify_response and self.verify_response.succeeded
 
     def load_file_changes(self, result_name):
         print(f"[solver] ({self.instance_id}) Loading file changes")

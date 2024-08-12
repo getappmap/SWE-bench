@@ -42,7 +42,7 @@ def repair_test(
 
     with open(repair_question, "w") as f:
         f.write(
-            """@generate /noformat /nolistfiles
+            """@generate /noprojectinfo /noformat /nolistfiles
 
 <test-errors>
 """
@@ -152,10 +152,12 @@ only present in the file/content to help you identify which line has the lint er
 
 
 class VerifyResponse:
+    succeeded: bool
     patch: str
     test_directives_succeeded: List[str]
 
-    def __init__(self, patch, test_directives_succeeded):
+    def __init__(self, succeeded, patch, test_directives_succeeded):
+        self.succeeded = succeeded
         self.patch = patch
         self.test_directives_succeeded = test_directives_succeeded
 
@@ -184,6 +186,7 @@ def step_verify(
         f.write(file_diff)
 
     test_directives_succeeded = []
+    test_directives_repaired = []
     for test_directive in test_directives:
         print(f"[verify] ({instance_id}) Running test: {test_directive}")
         succeeded, test_output = run_test(
@@ -200,10 +203,16 @@ def step_verify(
                 test_output,
             )
             if repaired:
+                test_directives_repaired.append(test_directive)
                 succeeded = True
 
         if succeeded:
             test_directives_succeeded.append(test_directive)
 
-    patch = filter_patch_exclude_tests(git_diff(verify_log_dir))
-    return VerifyResponse(patch, test_directives_succeeded)
+    if test_directives_repaired:
+        patch = filter_patch_exclude_tests(git_diff(verify_log_dir))
+    else:
+        patch = None
+
+    succeeded = test_directives_succeeded == test_directives
+    return VerifyResponse(succeeded, patch, test_directives_succeeded)

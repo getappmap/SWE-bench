@@ -5,13 +5,14 @@ from navie.editor import Editor
 from navie.extract_changes import extract_changes
 from navie.fences import extract_fenced_content
 from navie.format_instructions import xml_format_instructions
-from solver.solve.steps.choose_test_file import choose_test_file
+
 
 from .patch import filter_patch_include_tests, git_diff
 from .lint_repair import lint_in_conda
 from .run_test import run_test
 from .test_files_to_modules import test_files_to_modules
 from .is_test_file import is_test_file
+from .choose_test_file import choose_test_file
 
 
 class MaketestError(TypedDict):

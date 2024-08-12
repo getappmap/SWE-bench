@@ -72,8 +72,7 @@ def write_csv_report(report_map, predictions: list[dict], split, output_csv_path
             row["model_patch_name"] = instance.get("model_patch_name", "")
             row["model_iteration"] = instance.get("model_iteration", "")
             row["model_lint_repair"] = instance.get("model_lint_repair_patch", "") != ""
-            # TODO: Revive model_test_repair field
-            row["model_test_repair"] = instance.get("model_test_repair_patch", "") != ""
+            row["model_test_repair"] = instance.get("model_verify_patch", "") != ""
 
             for field_name, type in SolutionResponse.EXT_FIELDS.items():
                 value = instance.get(f"model_{field_name}", "")

@@ -64,6 +64,7 @@ class TestSolver(unittest.TestCase):
         mock_step_generate.return_value = None
         mock_step_apply.return_value = ApplyResponse(patch="the-apply-patch")
         mock_step_verify.return_value = VerifyResponse(
+            succeeded=True,
             patch="the-verify-patch",
             test_directives_succeeded=["the-test-directive"],
         )
@@ -118,6 +119,7 @@ class TestSolver(unittest.TestCase):
         self.assertTrue(solution.prepare_test_response.is_issue_reproduced())
         self.assertEqual(solution.apply.patch, "the-apply-patch")
         self.assertEqual(solution.verify.patch, "the-verify-patch")
+        self.assertEqual(solution.verify.succeeded, True)
         self.assertEqual(
             solution.verify.test_directives_succeeded, ["the-test-directive"]
         )
