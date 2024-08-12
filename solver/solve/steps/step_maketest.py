@@ -5,6 +5,7 @@ from navie.editor import Editor
 from navie.extract_changes import extract_changes
 from navie.fences import extract_fenced_content
 from navie.format_instructions import xml_format_instructions
+from solver.solve.steps.choose_test_file import choose_test_file
 
 from .patch import filter_patch_include_tests, git_diff
 from .lint_repair import lint_in_conda
@@ -71,52 +72,9 @@ def maketest(
 
     maketest_work_dir = os.path.join(work_dir, "maketest", str(test_number))
 
-    test_to_modify_str = Editor(
-        os.path.join(maketest_work_dir, "choose"), log_dir=work_dir
-    ).search(
-        f"""Identify a single test case that is most related to the following issue:
-
-{issue_content}
-""",
-        format="""## Format instructions
-        
-Output the result as the file path, and nothing else.
-
-Do not include line numbers or any location within the file. Just the file path.
-""",
-        options="/noprojectinfo /include=test",
-        extension="txt",
-    )
-
-    tests_to_modify_lines = "\n".join(extract_fenced_content(test_to_modify_str))
-    tests_to_modify = tests_to_modify_lines.split("\n")
-
-    def resolve_test_path(test):
-        if not os.path.exists(test):
-            test_relative = test.lstrip("/")
-            if os.path.exists(test_relative):
-                return test_relative
-        return test
-
-    tests_to_modify = [resolve_test_path(test) for test in tests_to_modify]
-
-    # Expect exactly one file
-    if len(tests_to_modify) != 1:
-        print(
-            f"[maketest] ({instance_id}) Expected exactly one file, got {test_to_modify_str}"
-        )
-        return {"error": "Expected exactly one file"}
-
-    test_file = tests_to_modify[0]
-    test_file = os.path.relpath(test_file, os.getcwd())
+    test_file = choose_test_file(instance_id, maketest_work_dir, issue_content)
 
     print(f"[maketest] ({instance_id}) Modifying test case {test_file}")
-
-    if not os.path.exists(test_file):
-        print(
-            f"[maketest] ({instance_id}) Test file {test_file} does not exist. Skipping test generation."
-        )
-        return {"error": f"Selected test file {test_file} does not exist"}
 
     with open(test_file, "r") as f:
         test_content = f.read()
