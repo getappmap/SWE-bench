@@ -85,11 +85,11 @@ def solve_instance(
         raise FileNotFoundError(f"AppMap config file not found: {appmap_config_file}")
 
     solve_args = [
-        "env",
-        f"APPMAP_CONFIG={appmap_config_file.resolve()}",
-        "appmap-python",
-        "--record",
-        "process",
+        # "env",
+        # f"APPMAP_CONFIG={appmap_config_file.resolve()}",
+        # "appmap-python",
+        # "--record",
+        # "process",
         "python",
         str(solver_path),
         str(issue_file),
