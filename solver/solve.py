@@ -38,6 +38,7 @@ def output_results(
     instance["model_name_or_path"] = "navie"
     if iteration is not None:
         instance["model_iteration"] = iteration
+
     if solution:
         solution_data = solution.to_dict()
 
@@ -48,6 +49,8 @@ def output_results(
         for k, v in solution_data.items():
             instance_key = f"model_{k}"
             instance[instance_key] = v
+    else:
+        instance["model_patch"] = None
 
     with FileLock(f"{output_file}.lock"):
         with open(output_file, "a+") as f:
