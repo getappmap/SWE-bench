@@ -164,13 +164,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CONFIG: ${{ inputs.config }}
+          LLM: ${{ inputs.llm }}
           NUM_RUNNERS: ${{ inputs.num_runners }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          ./bin/solve ${{ inputs.llm }} \
-            ${{ inputs.config }} \
+
+          llm="${LLM:-gpt-4o-mini}"
+          config="${CONFIG:-lite/marshmallow}"
+
+          ./bin/solve $llm \
+            $config \
             --temp_dir "${{ runner.temp }}" \
             --path_conda $(conda info --base) \
             --num_runners "${NUM_RUNNERS:-1}" \
@@ -183,7 +189,8 @@ jobs:
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
 
-          tasks=$(awk '/--instances/ { sub(/--instances/, "--swe_bench_tasks"); print }' ./bin/solve_config/${{ inputs.config }}.txt)
+          config="${CONFIG:-lite/marshmallow}"
+          tasks=$(awk '/--instances/ { sub(/--instances/, "--swe_bench_tasks"); print }' ./bin/solve_config/$config.txt)
           python swebench/harness/run_evaluation.py \
             --predictions_path predictions.jsonl \
             $tasks \
@@ -250,16 +257,16 @@ jobs:
       - name: Generate AppMap report
         if: always()
         env:
-          SWE_DATASET: ${{ inputs.dataset }}
-          SWE_SPLIT: ${{ inputs.split }}
+          CONFIG: ${{ inputs.config }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           conda info
 
-          instances=$(awk '/--instances/ { print }' ./bin/solve_config/${{ inputs.config }}.txt)
-          split=$(awk '/--split/ { print }' ./bin/solve_config/${{ inputs.config }}.txt)
+          config="${CONFIG:-lite/marshmallow}"
+          instances=$(awk '/--instances/ { print }' ./bin/solve_config/$config.txt)
+          split=$(awk '/--split/ { print }' ./bin/solve_config/$config.txt)
 
           python solver/report.py \
             $instances \
