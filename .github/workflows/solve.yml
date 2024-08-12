@@ -46,6 +46,7 @@ jobs:
     steps:
       - name: Display Input Values
         run: |
+          echo "llm: ${{ github.event.inputs.llm }}"
           echo "config: ${{ github.event.inputs.config }}"
           echo "runner: ${{ github.event.inputs.runner }}"
           echo "num_runners: ${{ github.event.inputs.num_runners }}"
