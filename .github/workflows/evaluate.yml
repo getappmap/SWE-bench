@@ -1,4 +1,4 @@
-name: Run the benchmark
+name: Run evaluation
 
 on:
   workflow_dispatch:
