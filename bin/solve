@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import subprocess
+
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: python solve_script.py <llm> <dataset> <arguments_file_name> [additional_arguments]")
+        sys.exit(1)
+
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    llm = sys.argv[1]
+    arguments_file_name = os.path.join(script_dir, 'solve_config', sys.argv[2]) + '.txt'
+    additional_arguments = sys.argv[3:]
+
+    # Configure environment variables for the LLM.
+    if llm == "gpt-4o":
+        os.environ['APPMAP_NAVIE_MODEL'] = 'gpt-4o'
+    elif llm == "gpt-4o-mini":
+        os.environ['APPMAP_NAVIE_MODEL'] = 'gpt-4o-mini'
+    elif llm == "claude3.5":
+        os.environ['APPMAP_NAVIE_MODEL'] = 'claude-3-5-sonnet-20240620'
+    else:
+        print("Invalid LLM: {}. Valid options are gpt-4o, gpt-4o-mini, and claude3.5".format(llm))
+        sys.exit(1)
+
+    # Read arguments from the file
+    with open(arguments_file_name, 'r') as f:
+        arguments = f.read()
+
+    node_cli_path = os.path.join(script_dir, '..', 'submodules', 'appmap-js', 'packages', 'cli', 'built', 'cli.js')
+    command = [
+        'python', 'solver/solve.py',
+        '--lint_command', "flake8 --extend-ignore=BLK100,C402,C408,C416,D,E122,E124,E127,E128,E131,E201,E202,E203,E221,E225,E231,E251,E261,E265,E266,E302,E303,E305,E402,E501,E502,E713,E731,F401,F841,W291,W293",
+        '--appmap_command', " ".join(["node", node_cli_path]),
+        '--verbose'
+    ] + arguments.strip().split() + additional_arguments
+    print('Command:', command)
+
+    subprocess.run(command, check=True)
+
+if __name__ == "__main__":
+    main()
