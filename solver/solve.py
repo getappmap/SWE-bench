@@ -236,6 +236,7 @@ def worker_init(data: dict):
                     print(f"[solve] ({instance_id}) Result priority: {result_priority}")
 
                     solutions = []
+                    solution_iterations = {}
                     temperature = data_dict.temperature
                     temperature_increase = data_dict.temperature_increase
 
@@ -284,6 +285,7 @@ def worker_init(data: dict):
                                     f"[solve] ({instance_id}) Solution generated with quality '{solution.patch_name}' on iteration {attempt_number + 1}"
                                 )
                                 solutions.append(solution)
+                                solution_iterations[solution] = attempt_number
                                 if solution.patch_name == SolutionResponse.BEST_PATCH:
                                     print(
                                         f"[solve] ({instance_id}) This is the highest solution quality level attainable. Exiting solve loop."
@@ -306,7 +308,7 @@ def worker_init(data: dict):
                             solutions_sorted = copy(solutions)
                             solutions_sorted.sort()
                             solution = solutions_sorted[-1]
-                            iteration = solutions.index(solution)
+                            iteration = solution_iterations[solution]
                             output_results(
                                 instance, output_file, solution, iteration + 1
                             )
