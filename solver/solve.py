@@ -67,6 +67,7 @@ def solve_instance(
     iteration,
     steps,
     temperature,
+    maketest_retries,
 ) -> Optional[SolutionResponse]:
     print_disk_spaces(testbed)
     issue_dir = Path(log_dir) / "solve" / instance["instance_id"] / str(iteration + 1)
@@ -103,6 +104,8 @@ def solve_instance(
         log_dir,
         "--temperature",
         str(temperature),
+        "--maketest-retries",
+        str(maketest_retries),
         "--output-file",
         output_file,
     ]
@@ -167,6 +170,7 @@ def worker_init(data: dict):
     assert data_dict.appmap_command is not None
     assert data_dict.path_conda is not None
     assert data_dict.retries is not None
+    assert data_dict.maketest_retries is not None
 
     output_file = abspath(data_dict.output)
     appmap_command = abspath(data_dict.appmap_command)
@@ -202,10 +206,11 @@ def worker_init(data: dict):
                     instance_id = instance["instance_id"]
 
                     retries = data_dict.retries
+                    maketest_retries = data_dict.maketest_retries
                     issue_name = env_name
 
                     print(
-                        f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}"
+                        f"[solve] ({instance_id}) Solver will make {retries} attempts to solve issue {issue_name}, with {maketest_retries} attempts to generate a test case"
                     )
                     attempt_number = 0
 
@@ -278,6 +283,7 @@ def worker_init(data: dict):
                                 attempt_number,
                                 data_dict.steps,
                                 temperature,
+                                maketest_retries,
                             )
 
                             if solution and solution.patch_name:
@@ -570,6 +576,12 @@ if __name__ == "__main__":
         type=float,
         default=0.1,
         help="(Optional) The amount to increase the temperature by on each iteration",
+    )
+    parser.add_argument(
+        "--maketest_retries",
+        type=int,
+        default=1,
+        help="(Optional) Number of times to try and generate a test case for the issue",
     )
     args = parser.parse_args()
     main(args)

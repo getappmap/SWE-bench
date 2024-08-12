@@ -1,3 +1,2 @@
 --instances princeton-nlp/SWE-bench_Lite
 --split test
---retries 3

@@ -1,4 +1,4 @@
 --instances princeton-nlp/SWE-bench_Lite
 --instance_set lite-challenge-subset
 --split test
---retries 3
+--maketest_retries 3

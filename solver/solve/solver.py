@@ -234,7 +234,7 @@ class Solver:
         steps=None,
         temperature=0.0,
         changed_files_limit=1,  # TODO: Make this configurable. It's 1 for "Lite", otherwise greater than 1
-        test_attempts=1,  # TODO: Make this configurable; ensure that maketest doesn't copy existing failed attempts
+        maketest_retries=1,
     ):
         self.instances_path = instances_path
         self.instance_id = instance_id
@@ -247,7 +247,7 @@ class Solver:
         self.steps = steps or DEFAULT_STEPS
         self.temperature = temperature
         self.changed_files_limit = changed_files_limit
-        self.test_attempts = test_attempts
+        self.maketest_retries = maketest_retries
 
         if not os.path.isfile(self.issue_file):
             raise FileNotFoundError(f"File '{self.issue_file}' not found.")
@@ -342,7 +342,7 @@ class Solver:
             self.issue_file,
             self.work_dir,
             self.lint_command,
-            self.test_attempts,
+            self.maketest_retries,
         )
         self.extend_test_directives(self.prepare_test_response.test_directives())
 
@@ -493,6 +493,13 @@ def parse_arguments():
         default=0.0,
         help="(Optional) The temperature to use when running the model",
     )
+    parser.add_argument(
+        "--maketest-retries",
+        type=int,
+        default=1,
+        help="(Optional) Number of times to retry maketest",
+    )
+
     return parser.parse_args()
 
 
@@ -537,6 +544,7 @@ if __name__ == "__main__":
         lint_command=args.lint_command,
         steps=steps,
         temperature=args.temperature,
+        maketest_retries=args.maketest_retries,
     )
     solution = solver.solve()
     files_changed = solver.files_changed
