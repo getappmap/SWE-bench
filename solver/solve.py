@@ -312,7 +312,7 @@ def worker_init(data: dict):
                             )
                         else:
                             print(f"[solve] ({instance_id}) No patch generated")
-                            output_results(instance, output_file)
+                            output_results(instance, output_file, None, None)
 
                     except Exception:
                         print(f"[solve] ({instance_id}) Error:")
