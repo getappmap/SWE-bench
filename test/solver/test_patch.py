@@ -2,11 +2,7 @@ from pathlib import Path
 import sys
 import os
 
-# Add the parent directory to the Python path
-thisdir = Path(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(thisdir.parent.parent.as_posix())
-
-from appmap.solve.patch import clean_patch
+from solver.solve.steps.patch import clean_patch
 
 SETUP_PATCH = """diff --git a/setup.py b/setup.py
 index c0a9c2b0d..579fdee60 100644
