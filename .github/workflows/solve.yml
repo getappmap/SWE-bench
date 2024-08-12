@@ -3,43 +3,29 @@ name: Run the benchmark
 on:
   workflow_dispatch:
     inputs:
-      filter:
-        description: "Instance filter regex"
-        required: false
-        default: "django-1[67]"
-      dataset:
-        description: "Dataset name"
-        required: true
-        default: princeton-nlp/SWE-bench_Lite
+      llm:
+        description: "LLM model to use"
         type: choice
+        required: true
+        default: "gpt-4o-mini"
         options:
-          - princeton-nlp/SWE-bench_Lite
-          - princeton-nlp/SWE-bench
+          - gpt-4o
+          - gpt-4o-mini
+          - claude3.5
+      config:
+        description: "Path to the configuration file in ./bin/solve_config"
+        required: true
+        type: string
+        default: lite/marshmallow
       runner:
         description: "Runner type"
         required: true
-        default: swe-bench-ubuntu-latest
+        default: ubuntu-latest
         type: choice
         options:
+          - ubuntu-latest
           - swe-bench-ubuntu-latest
           - SWE-Bench_Larger
-          - ubuntu-latest
-      split:
-        description: "Dataset split"
-        required: true
-        default: test
-        type: choice
-        options:
-          - dev
-          - test
-      retries:
-        description: "Number of retries to perform on each instance until a patch is found"
-        required: false
-        default: "3"
-      appmaps:
-        description: "Set to true to use AppMaps"
-        type: boolean
-        required: false
       num_runners:
         description: "Number of runners to split the workload across"
         required: true
@@ -48,37 +34,24 @@ on:
         description: "Assign a name to the workflow run"
         type: string
         required: false
-      steps:
-        description: "List of solver steps to perform"
-        required: false
-      instance_set:
-        description: "Instance set to select a subset of instances"
-        type: string
-        required: false
 
   pull_request:
     types: [opened, synchronize, labeled]
 
-run-name: ${{ inputs.name || github.event.pull_request.title || github.event.workflow.name }}
+run-name: ${{ inputs.name || inputs.config || github.event.pull_request.title || github.event.workflow.name }}
 
 jobs:
   show-inputs:
-    runs-on: ubuntu-latest
+    runs-on: 'ubuntu-latest'
     steps:
       - name: Display Input Values
         run: |
-          echo "filter: ${{ github.event.inputs.filter }}"
-          echo "dataset: ${{ github.event.inputs.dataset }}"
+          echo "config: ${{ github.event.inputs.config }}"
           echo "runner: ${{ github.event.inputs.runner }}"
-          echo "split: ${{ github.event.inputs.split }}"
-          echo "retries: ${{ github.event.inputs.retries }}"
-          echo "appmaps: ${{ github.event.inputs.appmaps }}"
           echo "num_runners: ${{ github.event.inputs.num_runners }}"
           echo "name: ${{ github.event.inputs.name }}"
-          echo "steps: ${{ github.event.inputs.steps }}"
-          echo "instance_set: ${{ github.event.inputs.instance_set }}"
   build-appmap-js:
-    runs-on: SWE-Bench_Larger
+    runs-on: 'ubuntu-latest'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -133,9 +106,8 @@ jobs:
     needs:
       - build-appmap-js
       - prepare-matrix
-    runs-on: ${{ inputs.runner || 'swe-bench-ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     strategy:
-      fail-fast: false
       matrix:
         index: ${{ fromJson(needs['prepare-matrix'].outputs.matrix) }}
     defaults:
@@ -191,42 +163,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          SWE_DATASET: ${{ inputs.dataset }}
-          SWE_SPLIT: ${{ inputs.split }}
-          SWE_FILTER: ${{ inputs.filter }}
-          SWE_RETRIES: ${{ inputs.retries }}
           NUM_RUNNERS: ${{ inputs.num_runners }}
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          python appmap/solve.py \
-            --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
-            --split ${SWE_SPLIT:-dev} \
-            --filter "${SWE_FILTER:-marshmallow-1343}" \
-            --retries "${SWE_RETRIES:-3}" \
-            --appmap_command $(pwd)/submodules/appmap-js/packages/cli/built/cli.js \
-            --lint_command "flake8 --extend-ignore=BLK100,C402,C408,C416,D,E122,E124,E127,E128,E131,E201,E202,E203,E221,E225,E231,E251,E261,E265,E266,E302,E303,E305,E402,E501,E502,E713,E731,F401,F841,W291,W293" \
+          ./bin/solve ${{ inputs.llm }} \
+            ${{ inputs.config }} \
             --temp_dir "${{ runner.temp }}" \
             --path_conda $(conda info --base) \
             --num_runners "${NUM_RUNNERS:-1}" \
-            --runner_index "${{ matrix.index }}" \
-            --verbose \
-            $(test "${{ inputs.appmaps }}" == true && echo --appmaps) \
-            $(test -n "${{ inputs.steps }}" && echo --steps "${{ inputs.steps }}") \
-            $(test -n "${{ inputs.instance_set }}" && echo --instance_set "${{ inputs.instance_set }}")
+            --runner_index "${{ matrix.index }}"
 
       - name: Run evaluation
-        env:
-          SWE_DATASET: ${{ inputs.dataset }}
         run: |
           mkdir -p logs
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
+
+          tasks=$(awk '/--instances/ { sub(/--instances/, "--swe_bench_tasks"); print }' ./bin/solve_config/${{ inputs.config }}.txt)
           python swebench/harness/run_evaluation.py \
             --predictions_path predictions.jsonl \
-            --swe_bench_tasks "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
+            $tasks \
             --log_dir logs \
             --testbed "${{ runner.temp }}" \
             --skip_existing \
@@ -252,10 +211,12 @@ jobs:
     needs:
       - solve
     if: needs.solve.result == 'success' || needs.solve.result == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: 'ubuntu-latest'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Download evaluation results
         uses: actions/download-artifact@v4
@@ -295,9 +256,13 @@ jobs:
           conda activate swe-bench
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           conda info
-          python appmap/report.py \
-            --instances "${SWE_DATASET:-princeton-nlp/SWE-bench_Lite}" \
-            --split ${SWE_SPLIT:-test}
+
+          instances=$(awk '/--instances/ { print }' ./bin/solve_config/${{ inputs.config }}.txt)
+          split=$(awk '/--split/ { print }' ./bin/solve_config/${{ inputs.config }}.txt)
+
+          python solver/report.py \
+            $instances \
+            $split
 
       - name: Archive predictions and logs
         if: always()
