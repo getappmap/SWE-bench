@@ -176,7 +176,7 @@ def worker_init(data: dict):
     assert data_dict.maketest_retries is not None
 
     output_file = abspath(data_dict.output)
-    appmap_command = abspath(data_dict.appmap_command)
+    appmap_command = data_dict.appmap_command
 
     try:
         with TestbedContextManager(
