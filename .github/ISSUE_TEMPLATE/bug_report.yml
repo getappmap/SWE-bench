@@ -25,8 +25,6 @@ body:
       ```
       Sample code/commands to reproduce the problem
       ```
-  validations:
-    required: true
 - type: textarea
   attributes:
     label: Expected Results
@@ -34,8 +32,6 @@ body:
       Please paste or describe the expected results.
     placeholder: >
       Example: No error is thrown.
-  validations:
-    required: true
 - type: textarea
   attributes:
     label: Actual Results
@@ -44,8 +40,6 @@ body:
       If you observe an error, please paste the error message including the exception traceback.
     placeholder: >
       Please paste or specifically describe the actual output or traceback.
-  validations:
-    required: true
 - type: textarea
   attributes:
     label: System Information
