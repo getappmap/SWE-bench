@@ -106,7 +106,7 @@ def step_lint_repair(
         lint_errors_by_line_number = lint_in_conda(
             context.conda_path, context.conda_env, context.lint_command, file
         )
-        if not len(lint_errors_by_line_number):
+        if not lint_errors_by_line_number:
             print(f"[lint-repair] ({instance_id}) No lint errors found in {file}")
             continue
 

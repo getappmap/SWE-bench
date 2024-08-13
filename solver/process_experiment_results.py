@@ -12,7 +12,9 @@ from swebench.metrics.report import get_model_report
 def validate_environment():
     # Check if unidiff, seaborn and matplotlib are installed (they're required for reports).
     try:
-        import unidiff, seaborn, matplotlib
+        import unidiff
+        import seaborn
+        import matplotlib
     except Exception as e:
         print(f"Error while verifying requirements: {e}")
         print(
@@ -129,6 +131,7 @@ def main():
     os.makedirs(os.path.join(target_directory, "results"), exist_ok=True)
     generate_reports(args.experiments, split, f"{date}_{args.model_name}")
     print(f"Reports generated. Remember to add a README to {target_directory}")
+
 
 if __name__ == "__main__":
     validate_environment()
