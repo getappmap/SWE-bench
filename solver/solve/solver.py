@@ -150,7 +150,6 @@ class Solution:
         self.verify = verify
 
     def solution_response(self) -> SolutionResponse:
-        patch_names = []
         prepare_test_patch = None
         prepare_test_num_attempts = 0
         test_directives = []
@@ -158,60 +157,51 @@ class Solution:
         apply_patch = None
         lint_repair_patch = None
         verify_patch = None
+        verify_succeeded = False
         verify_test_directives_succeeded = []
         patch_name = None
         patch = None
 
-        if solution.prepare_test_response:
-            patch_names.append("prepare_test")
-            prepare_test_patch = solution.prepare_test_response.patch
-            prepare_test_num_attempts = solution.prepare_test_response.num_attempts
-            is_issue_reproduced = solution.prepare_test_response.is_issue_reproduced()
-            test_directives = solution.prepare_test_response.test_directives()
+        patch_names = []
+        if self.prepare_test_response:
+            if self.prepare_test_response.patch:
+                patch = self.prepare_test_response.patch
+                prepare_test_patch = self.prepare_test_response.patch
+            prepare_test_num_attempts = self.prepare_test_response.num_attempts
+            is_issue_reproduced = self.prepare_test_response.is_issue_reproduced()
+            test_directives = self.prepare_test_response.test_directives()
 
-        if solution.apply:
-            patch_names.append("apply")
-            apply_patch = solution.apply.patch
+        if self.apply:
+            if self.apply.patch:
+                patch_names.append("apply")
+                patch = self.apply.patch
+                apply_patch = self.apply.patch
 
-        if solution.lint_repair:
-            patch_names.append("lint_repair")
-            lint_repair_patch = solution.lint_repair.patch
+        if self.lint_repair:
+            if self.lint_repair.patch:
+                patch_names.append("lint_repair")
+                patch = self.lint_repair.patch
+                lint_repair_patch = self.lint_repair.patch
 
-        if solution.verify:
-            patch_names.append("verify")
-            verify_succeeded = solution.verify.succeeded
-            verify_patch = solution.verify.patch
-            verify_test_directives_succeeded = solution.verify.test_directives_succeeded
+        if self.verify:
+            if self.verify.patch:
+                patch = self.verify.patch
+                verify_patch = self.verify.patch
+            verify_succeeded = self.verify.succeeded
+            verify_test_directives_succeeded = self.verify.test_directives_succeeded
 
-        if (
-            self.prepare_test_response
-            and self.prepare_test_response.is_issue_reproduced()
-            and self.verify
-            and self.verify.test_directives_succeeded
-        ):
-            patch_name = "fail_to_pass"
-            patch = self.verify.patch
-        elif (
-            self.prepare_test_response
-            and self.verify
-            and self.verify.test_directives_succeeded
-        ):
-            patch_name = "pass_to_pass"
-            patch = self.verify.patch
-        elif (
-            self.prepare_test_response
-            and self.verify
-            and not self.verify.test_directives_succeeded
-        ):
-            patch_name = "pass_to_fail"
-            patch = self.verify.patch
-        elif self.lint_repair and self.lint_repair.patch:
-            patch_name = "lint_repair"
-            patch = self.lint_repair.patch
-        elif self.apply and self.apply.patch:
-            patch_name = "apply"
-            patch = self.apply.patch
+            if (
+                self.prepare_test_response
+                and self.prepare_test_response.is_issue_reproduced()
+                and self.verify.test_directives_succeeded
+            ):
+                patch_names.append("fail_to_pass")
+            elif self.verify.test_directives_succeeded:
+                patch_names.append("pass_to_pass")
+            else:
+                patch_names.append("pass_to_fail")
 
+        patch_name = patch_names[-1] if patch_names else None
         return SolutionResponse(
             patch_name,
             patch,
