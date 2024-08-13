@@ -193,6 +193,7 @@ jobs:
 
           config="${CONFIG:-lite/marshmallow}"
           tasks=$(awk '/--instances/ { sub(/--instances/, "--swe_bench_tasks"); print }' ./bin/solve_config/$config.txt)
+
           python swebench/harness/run_evaluation.py \
             --predictions_path predictions.jsonl \
             $tasks \

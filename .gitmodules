@@ -2,3 +2,6 @@
 	path = submodules/appmap-js
 	url = https://github.com/getappmap/appmap-js
 	branch = fix/change-application
+[submodule "submodules/navie-editor"]
+	path = submodules/navie-editor
+	url = https://github.com/getappmap/navie-editor

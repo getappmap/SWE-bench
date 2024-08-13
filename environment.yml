@@ -3,6 +3,7 @@ dependencies:
   - python=3.9
   - pip
   - pip:
+    - appmap
     - datasets
     - tenacity
     - anthropic
@@ -20,5 +21,7 @@ dependencies:
     - sentencepiece
     - protobuf
     - pygithub
+    - unidiff
+    - pytest
     - unidiff
   - conda-forge::gh
