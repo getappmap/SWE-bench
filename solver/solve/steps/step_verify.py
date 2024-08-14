@@ -135,11 +135,9 @@ only present in the file/content to help you identify which line has the lint er
 
     print(f"[verify/repair] ({instance_id}) Retesting: {test_directive}")
 
-    (succeeded, test_output) = run_test(
-        task_manager, test_directive, files_to_directives=False
-    )
+    test_result = run_test(task_manager, test_directive, files_to_directives=False)
 
-    if not succeeded:
+    if not test_result.succeeded:
         print(f"[verify/repair] ({instance_id}) Test failed: {test_directive}")
         print(
             f"[verify/repair] ({instance_id}) Review {task_manager.log_file} for more information"
@@ -189,24 +187,22 @@ def step_verify(
     test_directives_repaired = []
     for test_directive in test_directives:
         print(f"[verify] ({instance_id}) Running test: {test_directive}")
-        succeeded, test_output = run_test(
-            task_manager, test_directive, files_to_directives=False
-        )
+        test_result = run_test(task_manager, test_directive, files_to_directives=False)
 
-        if not succeeded:
+        if not test_result.succeeded and test_result.test_error:
             repaired = repair_test(
                 task_manager,
                 verify_dir,
                 work_dir,
                 instance_id,
                 test_directive,
-                test_output,
+                test_result.test_error,
             )
             if repaired:
                 test_directives_repaired.append(test_directive)
                 succeeded = True
 
-        if succeeded:
+        if test_result.succeeded:
             test_directives_succeeded.append(test_directive)
 
     if test_directives_repaired:

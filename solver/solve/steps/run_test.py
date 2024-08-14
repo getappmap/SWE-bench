@@ -1,11 +1,17 @@
 import subprocess
-from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
+from typing import Optional
 
-from ..run_command import run_command
+from swebench.harness.constants import MAP_REPO_TO_TEST_FRAMEWORK
 from .test_files_to_modules import test_files_to_modules
 
 
-def run_test(tcm, test_file, appmap=False, files_to_directives=True):
+class TestResult:
+    def __init__(self, succeeded: bool, test_error: Optional[str]):
+        self.succeeded = succeeded
+        self.test_error = test_error
+
+
+def run_test(tcm, test_file, appmap=False, files_to_directives=True) -> TestResult:
     print(f"[run_test] Running test {test_file}")
 
     instance = tcm.instance
@@ -74,4 +80,4 @@ def run_test(tcm, test_file, appmap=False, files_to_directives=True):
                 # Select log_lines after base_log_line_count
                 test_error = "\n".join(log_lines[base_log_line_count:])
 
-    return (succeeded, test_error)
+    return TestResult(succeeded, test_error)
