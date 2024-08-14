@@ -239,19 +239,29 @@ There are lint errors in the code. Fix the lint errors.
     #     instance_id = tcm.instance["instance_id"]
     #     index_appmaps(instance_id, log_dir, appmap_command)
 
-    succeeded, test_error = run_test(tcm, test_file, appmap=False)
+    test_result = run_test(tcm, test_file, appmap=False)
+
+    def revert_test_changes():
+        with open(test_file, "w") as f:
+            f.write(original_test_content)
 
     # Verify that the test_error indicates that the issue is being reproduced
     fails_for_expected_reason = False
-    if succeeded:
+    if test_result.succeeded:
         print(
             f"[maketest] ({instance_id}) Test case {test_file} succeeded. This is unexpected!"
         )
+    elif not test_result.test_error:
+        print(
+            f"[maketest] ({instance_id}) Test case {test_file} failed without any reported error (timeout?). Reverting test changes."
+        )
+        revert_test_changes()
     else:
         print(
             f"[maketest] ({instance_id}) Test case {test_file} failed. This is expected. Let's see if it failed for the planned reason."
         )
 
+        test_error = test_result.test_error
         if "ERROR" in test_error:
             error_lines = test_error.split("\n")
             # Find everything after the first line that includes "ERROR", "FAIL", or "activate successful"
@@ -262,10 +272,10 @@ There are lint errors in the code. Fix the lint errors.
             )
             test_error = "\n".join(error_lines[first_line_index_with_error:])
 
-        whyfailed = Editor(
-            os.path.join(maketest_work_dir, "check"), log_dir=work_dir
-        ).ask(
-            f"""/nocontext 
+            whyfailed = Editor(
+                os.path.join(maketest_work_dir, "check"), log_dir=work_dir
+            ).ask(
+                f"""/nocontext 
 
 <error>
 {test_error}
@@ -275,8 +285,8 @@ There are lint errors in the code. Fix the lint errors.
 {issue_content}
 </issue>
 """,
-            context=[],
-            prompt="""## Task
+                context=[],
+                prompt="""## Task
 
 A test case has been created that is currently expected to fail due to a known issue.
 
@@ -293,22 +303,21 @@ Emit a single word that indicates whether the test error is consistent with the 
 - Emit "maybe" if the test error is possibly consistent with the described issue.
 - Emit "no" if the test error is NOT consistent with the described issue.
 """,
-        )
+            )
 
-        if whyfailed == "no":
-            print(
-                f"[maketest] ({instance_id}) Test case {test_file} DID NOT fail for the planned reason"
-            )
-            print(
-                f"[maketest] ({instance_id}) Reverting test changes to {test_file} and trying again"
-            )
-            with open(test_file, "w") as f:
-                f.write(original_test_content)
-        else:
-            fails_for_expected_reason = True
-            print(
-                f"[maketest] ({instance_id}) It looks like it failed for the planned reason"
-            )
+            if whyfailed == "no":
+                print(
+                    f"[maketest] ({instance_id}) Test case {test_file} DID NOT fail for the planned reason"
+                )
+                print(
+                    f"[maketest] ({instance_id}) Reverting test changes to {test_file}."
+                )
+                revert_test_changes()
+            else:
+                fails_for_expected_reason = True
+                print(
+                    f"[maketest] ({instance_id}) It looks like it failed for the planned reason"
+                )
 
     if instance["repo"] == "django/django":
         test_directive = test_files_to_modules([test_file])[0]
